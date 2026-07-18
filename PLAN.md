@@ -27,7 +27,14 @@ Voir `CLAUDE.md` pour l'architecture et les décisions techniques.
 ## Phase 4 — Comparaison & affichage
 
 9. **Comparaison au timer SpeedrunTool** — à `RoomTimerIsCompleted()` (ModInterop `SpeedrunTool.RoomTimer`, plus stable que le Publicizer), comparer `GetRoomTime()` aux seuils du segment sélectionné : premier seuil ≥ temps ⇒ palier atteint ; au-delà de Red 3 ⇒ Unranked.
-10. **HUD couleur** — afficher le nom du palier dans sa couleur près du timer (dessin après `orig` de `SpeedrunTimerDisplay.Render`, comme les deltas de srta). Saisie du mapping couleurs RGB. Respecter la checklist srta : état statique enregistré via l'interop `SpeedrunTool.SaveLoad`.
+10. **HUD couleur** — afficher le nom du palier dans sa couleur près du timer (dessin après `orig` de `SpeedrunTimerDisplay.Render`, comme les deltas de srta). **Couleurs dérivées des noms de colonnes du CSV** (l'export CSV ne contient aucune mise en forme, mais les colonnes s'appellent Gold, Pink, Purple, Indigo, Blue, Cyan, Green, Olive, Yellow, Orange, Red — toutes des couleurs nommées de XNA `Microsoft.Xna.Framework.Color`, résolubles par nom ⇒ pas de saisie manuelle de RGB ; suffixes « 1-3 » ignorés, `Hidden`/`WR`/`Unranked` à traiter à part). Respecter la checklist srta : état statique enregistré via l'interop `SpeedrunTool.SaveLoad`.
+
+## Phase 4bis — Auto-détection du segment (exploration faite le 2026-07-18, faisable)
+
+- **Chapitre** : `Session.Area` (`AreaKey.ID` 0=Prologue…7=Summit + `Mode` Normal/BSide) → chapitre sheet, y compris le côté des chapitres pliés (ID 5 + BSide ⇒ « 5a/b » côté `5b` ; ID 6 quel que soit le mode ⇒ « 6a/b »).
+- **Checkpoint** : `AreaData.Get(area).Mode[mode].Checkpoints` (`CheckpointData.Level` = room de départ, `Name` = clé dialog `CHECKPOINT_6_2` → `Dialog.Clean`) + `Session.FirstLevel` (= « Start ») et `Session.StartCheckpoint` (room du checkpoint choisi au chapter panel). Suivi vivant : initialiser au lancement de session, mettre à jour à chaque transition vers une room de checkpoint (`LevelData.HasCheckpoint`), et **enregistrer cet état statique via `SaveLoadExports.RegisterStaticTypes`** ⇒ charger un savestate restaure tout seul le checkpoint courant du moment de la sauvegarde (exactement le workflow practice).
+- **Noms jeu ↔ sheet** (vérifié dans `Content/Dialog/english.txt`) : quasi 1:1. Divergences à normaliser : `500 M` vs `500m` (casse/espaces), `Through the Mirror` vs `Through The Mirror`, « Start »/« 5b Start » = `FirstLevel` du mode. Cas sans checkpoint jeu : `Granny` (Prologue mono-segment ⇒ le chapitre suffit), `Hollows Tape` (départ = checkpoint Hollows de 6A mais côté `6b` ⇒ **ambigu avec `Hollows`, l'override manuel reste nécessaire**), `Falling` (6B — sans doute le checkpoint `Reflection` du jeu renommé par la sheet, à confirmer). Secours possible : mapping par ordre au sein d'un côté (les segments d'un côté suivent l'ordre des checkpoints du jeu).
+- Les deux sliders deviennent un override du mode auto (toggle Auto/Manuel).
 
 ## Phase 5 — Finitions
 
