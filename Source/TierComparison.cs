@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using Celeste.Mod.SpeedrunTool;
+using Celeste.Mod.SpeedrunTool.Message;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
 using Microsoft.Xna.Framework;
 using Monocle;
@@ -23,6 +24,11 @@ public static class TierComparison {
     private static bool wasCompleted;
     private static bool hasCapture;
     private static long capturedTicks;
+
+    // SegmentAutoDetect suspends itself while this is true: finishing a run
+    // transitions into the next checkpoint's room, and re-targeting Number of
+    // Rooms there would un-complete the timer and throw the result away
+    public static bool TimerCompleted => wasCompleted;
 
     // recomputed every frame from capturedTicks (srta-style), so the row reacts
     // instantly to selection changes and sheet re-imports; derived state only,
@@ -75,6 +81,15 @@ public static class TierComparison {
         // srs loads after SpeedrunTool (dependency), so this hook is outermost
         // and the timer data of this frame is final after orig
         orig(self);
+
+        // srta-style hotkey: flip the toggle and confirm with SpeedrunTool's
+        // popup, so the row can be hidden without leaving the game
+        if (!self.Paused && Settings.ToggleShowTier.Pressed) {
+            Settings.ShowTier = !Settings.ShowTier;
+            SrsModule.Instance.SaveSettings();
+            PopupMessageUtils.ShowOptionState(Dialog.Clean("MODOPTIONS_SRS_SHOWTIER"),
+                Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
+        }
 
         if (RoomTimerImports.RoomTimerIsCompleted == null) {
             return;
