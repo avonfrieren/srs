@@ -1,0 +1,10 @@
+# srs — Speedrun Sheet
+
+# Mod Options
+MODOPTIONS_SRS_TITLE=     Speedrun Sheet
+SRS_UPDATE_SHEET=         Update Sheet Data
+SRS_UPDATING=             Updating...
+SRS_UPDATE_OK=            Sheet updated
+SRS_UPDATE_FAIL=          Update failed (see log.txt)
+SRS_STATUS_NONE=          No sheet data yet — update to download it
+SRS_STATUS_LOADED=        Segments loaded

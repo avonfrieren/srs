@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AssemblyName>srs</AssemblyName>
+        <TargetFramework>net8.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>Celeste.Mod.SpeedrunSheet</RootNamespace>
+        <DebugType>portable</DebugType>
+        <MSBuildWarningsAsMessages>$(MSBuildWarningsAsMessages);MSB3270</MSBuildWarningsAsMessages>
+        <!-- auto-detected when the repo lives in <Celeste>/Mods/xxx/, otherwise pass -p:CelestePrefix=/path/to/Celeste -->
+        <CelestePrefix Condition="'$(CelestePrefix)' == '' And Exists('../../../Celeste.dll')">../../..</CelestePrefix>
+        <SpeedrunToolZip>$(CelestePrefix)/Mods/SpeedrunTool.zip</SpeedrunToolZip>
+        <SpeedrunToolRefDir>$(BaseIntermediateOutputPath)SpeedrunToolRef/</SpeedrunToolRefDir>
+    </PropertyGroup>
+
+    <ItemDefinitionGroup>
+        <Reference>
+            <Private>False</Private>
+        </Reference>
+    </ItemDefinitionGroup>
+
+    <ItemGroup>
+        <Reference Include="$(CelestePrefix)/Celeste.dll" />
+        <Reference Include="$(CelestePrefix)/FNA.dll" />
+        <Reference Include="$(CelestePrefix)/MMHOOK_Celeste.dll" />
+        <Reference Include="$(CelestePrefix)/MonoMod.Utils.dll" />
+        <Reference Include="$(CelestePrefix)/MonoMod.RuntimeDetour.dll" />
+        <!-- compiled against the DLL of the installed official SpeedrunTool.zip, extracted below -->
+        <Reference Include="SpeedrunTool">
+            <HintPath>$(SpeedrunToolRefDir)SpeedrunTool.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+    <Target Name="ExtractSpeedrunToolDll" BeforeTargets="ResolveAssemblyReferences">
+        <Error Condition="!Exists('$(SpeedrunToolZip)')"
+               Text="SpeedrunTool.zip introuvable ($(SpeedrunToolZip)) — passer -p:CelestePrefix=&lt;dossier Celeste&gt;" />
+        <Unzip SourceFiles="$(SpeedrunToolZip)" DestinationFolder="$(SpeedrunToolRefDir)" OverwriteReadOnlyFiles="true" />
+    </Target>
+
+    <!-- mod structure ready to copy into Mods/srs/ -->
+    <ItemGroup>
+        <DialogResources Include="$(MSBuildProjectDirectory)/Dialog/**/*" />
+    </ItemGroup>
+    <Target Name="OutputAsModStructure" AfterTargets="Build">
+        <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="build" />
+        <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="build" />
+        <Copy SourceFiles="everest.yaml" DestinationFolder="build" />
+        <Copy SourceFiles="@(DialogResources)" DestinationFolder="build/Dialog/%(RecursiveDir)" SkipUnchangedFiles="true" />
+    </Target>
+</Project>
