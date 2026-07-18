@@ -1,5 +1,5 @@
-- Name: srs
-  Version: 0.1.0
+- Name: Speedrun Sheet
+  Version: 1.0.0
   DLL: srs.dll
   Dependencies:
     - Name: Everest
