@@ -25,6 +25,11 @@ public static class TierComparison {
     private static bool hasCapture;
     private static long capturedTicks;
 
+    // SegmentAutoDetect suspends itself while this is true: finishing a run
+    // transitions into the next checkpoint's room, and re-targeting Number of
+    // Rooms there would un-complete the timer and throw the result away
+    public static bool TimerCompleted => wasCompleted;
+
     // recomputed every frame from capturedTicks (srta-style), so the row reacts
     // instantly to selection changes and sheet re-imports; derived state only,
     // deliberately not registered with save states

@@ -135,7 +135,13 @@ public static class SegmentAutoDetect {
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         orig(self);
 
-        if (Settings.AutoDetect) {
+        // suspended while a completed run's tier is displayed: the completion
+        // transition lands in the next checkpoint's room, and moving the
+        // selection there would re-target Number of Rooms, un-complete the
+        // timer and hide the result. checkpointRoom keeps tracking meanwhile,
+        // so detection catches up as soon as the timer is reset (savestate
+        // load, timer clear)
+        if (Settings.AutoDetect && !TierComparison.TimerCompleted) {
             Apply(self.Session);
         }
     }
