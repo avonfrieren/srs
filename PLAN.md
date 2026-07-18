@@ -1,6 +1,6 @@
 # srs — Plan d'implémentation
 
-Feuille de route validée (2026-07-18). Projet issu du point 8 (phase 3) du `PLAN.md` de srta : les temps colorés par comparaison deviennent un mod à part entière, connecté à SpeedrunTool (dépendance, comme srta).
+Feuille de route validée (2026-07-18, découpage phase 4 confirmé : comparaison d'abord, auto-détection ensuite). Projet issu du point 8 (phase 3) du `PLAN.md` de srta : les temps colorés par comparaison deviennent un mod à part entière, connecté à SpeedrunTool (dépendance, comme srta).
 But : importer la practice sheet (Google Sheets → CSV local), comparer le temps final d'un segment du room timer de SpeedrunTool aux seuils de la sheet, et afficher la couleur du palier atteint.
 Voir `CLAUDE.md` pour l'architecture et les décisions techniques.
 
@@ -20,14 +20,21 @@ Voir `CLAUDE.md` pour l'architecture et les décisions techniques.
 6. ~~**Parseur & modèle**~~ — parseur CSV RFC 4180 + parseur de temps `[hh:][mm:]ss[.fff]` ; modèle `SheetData` → blocs → segments → temps alignés sur les colonnes de couleur. Jamais d'exception sur contenu malformé (cellules illisibles ⇒ null).
 7. ~~**Cache local & fallback manuel**~~ — CSV cachés dans `Saves/srs/sheet.csv` (écriture atomique), rechargé au démarrage ⇒ le mod marche hors-ligne. Déposer un CSV exporté à la main au même endroit = import manuel (cas sheet privée). Bouton « Mettre à jour » dans Mod Options (téléchargement async, jamais au lancement du jeu), statut (nb de segments + date) affiché sous le bouton, erreurs dans log.txt.
 
-## Phase 3 — Sélection du segment
+## Phase 3 — Sélection du checkpoint — ✅ faite (v0.2.0)
 
-8. **Menu de sélection** — choisir le segment à comparer parmi les données importées. La sheet étant organisée par chapitre (1a, 2a, … + `6a Tape`), un **sélecteur de segment unique** colle mieux aux données que le triptyque chapitre/side/checkpoint de la maquette — à trancher à ce moment-là. Auto-détection chapitre+side depuis `Session.Area` avec override manuel ; sélection persistée dans les settings. Menu construit dans `CreateModMenuSection` (listes dynamiques issues du CSV).
+8. ~~**Menu de sélection**~~ — clarification 2026-07-18 : l'unité à sélectionner est le **checkpoint** (ex. 1a → 1a Start, Crossing, Chasm), pas le chapitre entier (ça, ce sont les IL). L'onglet importé devient « Celeste Any% Standards CP's » (`gid=276158492`) : tous les checkpoints de la route any%, y compris les deux choix de route (`5a/b`, `6a`, `6a Route`, `6b Route`) — 41 checkpoints en 10 groupes + bloc « Chapter Times ». Deux sliders dépendants dans Mod Options (Chapitre → Checkpoint, liste reconstruite au changement de chapitre), sélection persistée par noms `(chapitre, checkpoint)` (les noms seuls se répètent : « Wake Up », « Rock Bottom »). Migration auto de l'ancienne `SheetUrl` par défaut (onglet IL) ; les CSV chapitre-seuls restent lisibles (fallback : chaque chapitre = son unique checkpoint). La même architecture (bloc → chapitres → checkpoints) servira telle quelle aux futures catégories. **Auto-détection depuis `Session.Area` reportée en phase 4** (elle se décidera avec le hook du room timer ; ambiguë au niveau checkpoint côté menu).
 
 ## Phase 4 — Comparaison & affichage
 
 9. **Comparaison au timer SpeedrunTool** — à `RoomTimerIsCompleted()` (ModInterop `SpeedrunTool.RoomTimer`, plus stable que le Publicizer), comparer `GetRoomTime()` aux seuils du segment sélectionné : premier seuil ≥ temps ⇒ palier atteint ; au-delà de Red 3 ⇒ Unranked.
-10. **HUD couleur** — afficher le nom du palier dans sa couleur près du timer (dessin après `orig` de `SpeedrunTimerDisplay.Render`, comme les deltas de srta). Saisie du mapping couleurs RGB. Respecter la checklist srta : état statique enregistré via l'interop `SpeedrunTool.SaveLoad`.
+10. **HUD couleur** — afficher le nom du palier dans sa couleur près du timer (dessin après `orig` de `SpeedrunTimerDisplay.Render`, comme les deltas de srta). **Couleurs dérivées des noms de colonnes du CSV** (l'export CSV ne contient aucune mise en forme, mais les colonnes s'appellent Gold, Pink, Purple, Indigo, Blue, Cyan, Green, Olive, Yellow, Orange, Red — toutes des couleurs nommées de XNA `Microsoft.Xna.Framework.Color`, résolubles par nom ⇒ pas de saisie manuelle de RGB ; suffixes « 1-3 » ignorés, `Hidden`/`WR`/`Unranked` à traiter à part). Respecter la checklist srta : état statique enregistré via l'interop `SpeedrunTool.SaveLoad`.
+
+## Phase 4bis — Auto-détection du segment (exploration faite le 2026-07-18, faisable)
+
+- **Chapitre** : `Session.Area` (`AreaKey.ID` 0=Prologue…7=Summit + `Mode` Normal/BSide) → chapitre sheet, y compris le côté des chapitres pliés (ID 5 + BSide ⇒ « 5a/b » côté `5b` ; ID 6 quel que soit le mode ⇒ « 6a/b »).
+- **Checkpoint** : `AreaData.Get(area).Mode[mode].Checkpoints` (`CheckpointData.Level` = room de départ, `Name` = clé dialog `CHECKPOINT_6_2` → `Dialog.Clean`) + `Session.FirstLevel` (= « Start ») et `Session.StartCheckpoint` (room du checkpoint choisi au chapter panel). Suivi vivant : initialiser au lancement de session, mettre à jour à chaque transition vers une room de checkpoint (`LevelData.HasCheckpoint`), et **enregistrer cet état statique via `SaveLoadExports.RegisterStaticTypes`** ⇒ charger un savestate restaure tout seul le checkpoint courant du moment de la sauvegarde (exactement le workflow practice).
+- **Noms jeu ↔ sheet** (vérifié dans `Content/Dialog/english.txt`) : quasi 1:1. Divergences à normaliser : `500 M` vs `500m` (casse/espaces), `Through the Mirror` vs `Through The Mirror`, « Start »/« 5b Start » = `FirstLevel` du mode. Cas sans checkpoint jeu : `Granny` (Prologue mono-segment ⇒ le chapitre suffit), `Hollows Tape` (départ = checkpoint Hollows de 6A mais côté `6b` ⇒ **ambigu avec `Hollows`, l'override manuel reste nécessaire**), `Falling` (6B — **confirmé 2026-07-18 : c'est le checkpoint `Reflection` du jeu renommé par la sheet**, mappable directement). Secours possible : mapping par ordre au sein d'un côté (les segments d'un côté suivent l'ordre des checkpoints du jeu).
+- Les deux sliders deviennent un override du mode auto (toggle Auto/Manuel).
 
 ## Phase 5 — Finitions
 
