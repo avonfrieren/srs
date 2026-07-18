@@ -1,6 +1,6 @@
 # srs — Plan d'implémentation
 
-Feuille de route validée (2026-07-18). Projet issu du point 8 (phase 3) du `PLAN.md` de srta : les temps colorés par comparaison deviennent un mod à part entière, connecté à SpeedrunTool (dépendance, comme srta).
+Feuille de route validée (2026-07-18, découpage phase 4 confirmé : comparaison d'abord, auto-détection ensuite). Projet issu du point 8 (phase 3) du `PLAN.md` de srta : les temps colorés par comparaison deviennent un mod à part entière, connecté à SpeedrunTool (dépendance, comme srta).
 But : importer la practice sheet (Google Sheets → CSV local), comparer le temps final d'un segment du room timer de SpeedrunTool aux seuils de la sheet, et afficher la couleur du palier atteint.
 Voir `CLAUDE.md` pour l'architecture et les décisions techniques.
 
@@ -33,7 +33,7 @@ Voir `CLAUDE.md` pour l'architecture et les décisions techniques.
 
 - **Chapitre** : `Session.Area` (`AreaKey.ID` 0=Prologue…7=Summit + `Mode` Normal/BSide) → chapitre sheet, y compris le côté des chapitres pliés (ID 5 + BSide ⇒ « 5a/b » côté `5b` ; ID 6 quel que soit le mode ⇒ « 6a/b »).
 - **Checkpoint** : `AreaData.Get(area).Mode[mode].Checkpoints` (`CheckpointData.Level` = room de départ, `Name` = clé dialog `CHECKPOINT_6_2` → `Dialog.Clean`) + `Session.FirstLevel` (= « Start ») et `Session.StartCheckpoint` (room du checkpoint choisi au chapter panel). Suivi vivant : initialiser au lancement de session, mettre à jour à chaque transition vers une room de checkpoint (`LevelData.HasCheckpoint`), et **enregistrer cet état statique via `SaveLoadExports.RegisterStaticTypes`** ⇒ charger un savestate restaure tout seul le checkpoint courant du moment de la sauvegarde (exactement le workflow practice).
-- **Noms jeu ↔ sheet** (vérifié dans `Content/Dialog/english.txt`) : quasi 1:1. Divergences à normaliser : `500 M` vs `500m` (casse/espaces), `Through the Mirror` vs `Through The Mirror`, « Start »/« 5b Start » = `FirstLevel` du mode. Cas sans checkpoint jeu : `Granny` (Prologue mono-segment ⇒ le chapitre suffit), `Hollows Tape` (départ = checkpoint Hollows de 6A mais côté `6b` ⇒ **ambigu avec `Hollows`, l'override manuel reste nécessaire**), `Falling` (6B — sans doute le checkpoint `Reflection` du jeu renommé par la sheet, à confirmer). Secours possible : mapping par ordre au sein d'un côté (les segments d'un côté suivent l'ordre des checkpoints du jeu).
+- **Noms jeu ↔ sheet** (vérifié dans `Content/Dialog/english.txt`) : quasi 1:1. Divergences à normaliser : `500 M` vs `500m` (casse/espaces), `Through the Mirror` vs `Through The Mirror`, « Start »/« 5b Start » = `FirstLevel` du mode. Cas sans checkpoint jeu : `Granny` (Prologue mono-segment ⇒ le chapitre suffit), `Hollows Tape` (départ = checkpoint Hollows de 6A mais côté `6b` ⇒ **ambigu avec `Hollows`, l'override manuel reste nécessaire**), `Falling` (6B — **confirmé 2026-07-18 : c'est le checkpoint `Reflection` du jeu renommé par la sheet**, mappable directement). Secours possible : mapping par ordre au sein d'un côté (les segments d'un côté suivent l'ordre des checkpoints du jeu).
 - Les deux sliders deviennent un override du mode auto (toggle Auto/Manuel).
 
 ## Phase 5 — Finitions
