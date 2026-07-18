@@ -15,9 +15,11 @@ public class SrsModule : EverestModule {
 
     public override void Load() {
         SheetImporter.Load();
+        TierComparison.Load();
     }
 
     public override void Unload() {
+        TierComparison.Unload();
         SheetImporter.Unload();
     }
 
