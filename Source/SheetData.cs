@@ -20,11 +20,27 @@ public class SheetData {
         }
     }
 
+    // the block whose segments are individual checkpoints (the selectable ones);
+    // falls back to the first block for chapter-only sheets, where each segment
+    // is its own single-checkpoint chapter
+    public SheetBlock CheckpointBlock {
+        get {
+            foreach (SheetBlock block in Blocks) {
+                if (block.HasCheckpoints) {
+                    return block;
+                }
+            }
+
+            return Blocks.Count > 0 ? Blocks[0] : null;
+        }
+    }
+
     // never throws on malformed content: unparseable cells become null times,
     // rows outside any block are skipped
     public static SheetData Parse(string csvText) {
         SheetData data = new();
         SheetBlock currentBlock = null;
+        string currentChapter = null;
 
         foreach (string[] row in Csv.Parse(csvText)) {
             if (IsEmpty(row)) {
@@ -32,10 +48,13 @@ public class SheetData {
             }
 
             // a header row introduces a new block: first cell is the block title
-            // ("Chapter", "Chapter Times"), the rest are the tier column labels
-            if (IsHeader(row)) {
-                currentBlock = new SheetBlock(row[0].Trim());
-                for (int i = 1; i < row.Length; i++) {
+            // ("Chapter", "Chapter Times"), then an optional "Checkpoint" column,
+            // then the tier column labels
+            int tierStart = TierStart(row);
+            if (tierStart > 0) {
+                currentBlock = new SheetBlock(row[0].Trim(), tierStart, row[1].Trim() == "Checkpoint");
+                currentChapter = null;
+                for (int i = tierStart; i < row.Length; i++) {
                     string label = row[i].Trim();
                     if (label.Length > 0) {
                         currentBlock.Columns.Add(label);
@@ -46,12 +65,23 @@ public class SheetData {
                 continue;
             }
 
-            if (currentBlock == null || row[0].Trim().Length == 0) {
+            if (currentBlock == null) {
                 continue;
             }
 
-            SheetSegment segment = new(row[0].Trim());
-            for (int i = 1; i <= currentBlock.Columns.Count; i++) {
+            // the chapter cell is only filled on the first checkpoint of a
+            // chapter (merged cells export as empty cells below), so carry it
+            if (row[0].Trim().Length > 0) {
+                currentChapter = row[0].Trim();
+            }
+
+            string name = currentBlock.HasCheckpoints && row.Length > 1 ? row[1].Trim() : currentChapter;
+            if (string.IsNullOrEmpty(name) || currentChapter == null) {
+                continue;
+            }
+
+            SheetSegment segment = new(currentChapter, name);
+            for (int i = currentBlock.TierStart; i < currentBlock.TierStart + currentBlock.Columns.Count; i++) {
                 segment.Times.Add(i < row.Length ? TryParseTime(row[i]) : null);
             }
 
@@ -61,9 +91,17 @@ public class SheetData {
         return data;
     }
 
-    // the sheet marks header rows by their fixed first tier columns
-    private static bool IsHeader(string[] row) {
-        return row.Length > 2 && row[1].Trim() == "Hidden" && row[2].Trim() == "WR";
+    // header rows are marked by the fixed first tier columns "Hidden","WR",
+    // sitting at index 1 (chapter-only layout) or 2 (chapter+checkpoint layout);
+    // returns the index of "Hidden", or 0 if the row is not a header
+    private static int TierStart(string[] row) {
+        for (int i = 1; i <= 2; i++) {
+            if (row.Length > i + 1 && row[i].Trim() == "Hidden" && row[i + 1].Trim() == "WR") {
+                return i;
+            }
+        }
+
+        return 0;
     }
 
     private static bool IsEmpty(string[] row) {
@@ -103,13 +141,45 @@ public class SheetData {
     }
 }
 
-public class SheetBlock(string name) {
+public class SheetBlock(string name, int tierStart, bool hasCheckpoints) {
     public readonly string Name = name;
+    // column index of the first tier ("Hidden"); segment times start there too
+    public readonly int TierStart = tierStart;
+    // true when segments are individual checkpoints grouped under a chapter,
+    // false when each segment is a whole chapter (IL layout, "Chapter Times")
+    public readonly bool HasCheckpoints = hasCheckpoints;
     public readonly List<string> Columns = [];
     public readonly List<SheetSegment> Segments = [];
+
+    // distinct chapters in sheet order ("Prologue", "1a", … "6a Route", …)
+    public List<string> Chapters() {
+        List<string> chapters = [];
+        foreach (SheetSegment segment in Segments) {
+            if (!chapters.Contains(segment.Chapter)) {
+                chapters.Add(segment.Chapter);
+            }
+        }
+
+        return chapters;
+    }
+
+    // checkpoint names repeat across chapters ("Wake Up", "Rock Bottom"), so
+    // checkpoints are always addressed by (chapter, name)
+    public List<SheetSegment> Checkpoints(string chapter) {
+        List<SheetSegment> checkpoints = [];
+        foreach (SheetSegment segment in Segments) {
+            if (segment.Chapter == chapter) {
+                checkpoints.Add(segment);
+            }
+        }
+
+        return checkpoints;
+    }
 }
 
-public class SheetSegment(string name) {
+public class SheetSegment(string chapter, string name) {
+    // owning chapter; equals Name in chapter-only blocks
+    public readonly string Chapter = chapter;
     public readonly string Name = name;
     // aligned with the owning block's Columns; null = empty or unparseable cell
     public readonly List<TimeSpan?> Times = [];

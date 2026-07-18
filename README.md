@@ -26,6 +26,10 @@ dotnet build -p:CelestePrefix=<Celeste folder>
 
 ## Changelog
 
+### v0.2.0 — 2026-07-18
+
+- **Checkpoint selection** (phase 3): the imported tab is now "Celeste Any% Standards CP's" — every checkpoint of the any% route with its own tier times (e.g. 1a → 1a Start, Crossing, Chasm), covering both route choices (5a/b, 6a, 6a Route, 6b Route). Two new entries in Mod Options — **Chapter** and **Checkpoint** — pick the checkpoint to compare against (persisted; picking a chapter rebuilds the checkpoint list). Existing installs with the old default `SheetUrl` (IL tab) are migrated automatically; press **Update Sheet Data** once to fetch the checkpoint data. Old chapter-only CSVs still parse.
+
 ### v0.1.0 — 2026-07-18
 
 - **Mod skeleton**: Everest module with SpeedrunTool declared as a dependency (same companion approach as [srta](https://github.com/avonfrieren/srta)).
