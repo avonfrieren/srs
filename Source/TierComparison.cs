@@ -1,6 +1,7 @@
 using System;
 using System.Reflection;
 using Celeste.Mod.SpeedrunTool;
+using Celeste.Mod.SpeedrunTool.Message;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
 using Microsoft.Xna.Framework;
 using Monocle;
@@ -75,6 +76,15 @@ public static class TierComparison {
         // srs loads after SpeedrunTool (dependency), so this hook is outermost
         // and the timer data of this frame is final after orig
         orig(self);
+
+        // srta-style hotkey: flip the toggle and confirm with SpeedrunTool's
+        // popup, so the row can be hidden without leaving the game
+        if (!self.Paused && Settings.ToggleShowTier.Pressed) {
+            Settings.ShowTier = !Settings.ShowTier;
+            SrsModule.Instance.SaveSettings();
+            PopupMessageUtils.ShowOptionState(Dialog.Clean("MODOPTIONS_SRS_SHOWTIER"),
+                Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
+        }
 
         if (RoomTimerImports.RoomTimerIsCompleted == null) {
             return;

@@ -28,7 +28,9 @@ public static class SegmentSelector {
         }
     }
 
-    // two dependent sliders: picking a chapter rebuilds the checkpoint list.
+    // an Auto/Manual toggle followed by two dependent sliders: picking a
+    // chapter rebuilds the checkpoint list, and while auto-detection is on the
+    // sliders are greyed out (SegmentAutoDetect owns the selection then).
     // the menu is rebuilt every time it is opened, so the entries pick up
     // freshly imported data on reopen
     public static void CreateMenuEntries(TextMenu menu) {
@@ -85,6 +87,17 @@ public static class SegmentSelector {
             RoomCounts.Apply(checkpoints[0]);
         });
 
+        chapterSlider.Disabled = settings.AutoDetect;
+        checkpointSlider.Disabled = settings.AutoDetect;
+
+        TextMenu.OnOff autoToggle = new(Dialog.Clean("SRS_AUTO_DETECT"), settings.AutoDetect);
+        autoToggle.Change(on => {
+            settings.AutoDetect = on;
+            chapterSlider.Disabled = on;
+            checkpointSlider.Disabled = on;
+        });
+
+        menu.Add(autoToggle);
         menu.Add(chapterSlider);
         menu.Add(checkpointSlider);
     }

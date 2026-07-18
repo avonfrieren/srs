@@ -26,6 +26,11 @@ dotnet build -p:CelestePrefix=<Celeste folder>
 
 ## Changelog
 
+### v1.0.0 — 2026-07-18
+
+- **Checkpoint auto-detection** (phase 4bis): a new **Auto-Detect Checkpoint** toggle (on by default) makes the checkpoint you are playing drive the selection — the chapter comes from the current session (including the 5A/5B and 6A/6B route sides), the checkpoint is the last checkpoint room entered (or the one picked on the chapter panel), updated on every room transition and registered with SpeedrunTool's save states: loading a savestate re-selects the checkpoint of the moment of the save. The **Chapter**/**Checkpoint** sliders are greyed out while auto-detection is on and act as a manual override when it is off. Game↔sheet name differences ("500 M" → "500m", 6B "Reflection" → "Falling", …) are mapped by a hardcoded table — the current sheet is a prototype, so no name normalization on purpose. "Hollows Tape" cannot be auto-detected (it starts at 6A's Hollows checkpoint): select it manually.
+- **Tier display hotkey** (phase 5): rebindable key/button (unbound by default, in Everest's key/button config for srs) toggling the tier row in-game, confirmed with SpeedrunTool's on/off popup.
+
 ### v0.3.0 — 2026-07-18
 
 - **Tier comparison & display** (phase 4): when SpeedrunTool's room timer completes, the final time is compared against the selected checkpoint's sheet thresholds (first threshold ≥ your time wins; slower than Red 3 is Unranked) and the tier name is drawn in its color in a row under the timer — below [srta](https://github.com/avonfrieren/srta)'s delta row when srta is installed. Tier colors come from the sheet's own column names (all XNA named colors); the row follows save states like the timer itself, and a **Show Tier** toggle was added to Mod Options.

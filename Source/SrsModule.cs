@@ -16,9 +16,13 @@ public class SrsModule : EverestModule {
     public override void Load() {
         SheetImporter.Load();
         TierComparison.Load();
+        // after TierComparison: its Level.Update hook must stay innermost so a
+        // completion is captured before auto-detection moves the selection
+        SegmentAutoDetect.Load();
     }
 
     public override void Unload() {
+        SegmentAutoDetect.Unload();
         TierComparison.Unload();
         SheetImporter.Unload();
     }

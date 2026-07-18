@@ -1,3 +1,5 @@
+using Microsoft.Xna.Framework.Input;
+
 namespace Celeste.Mod.SpeedrunSheet;
 
 public class SrsSettings : EverestModuleSettings {
@@ -25,6 +27,15 @@ public class SrsSettings : EverestModuleSettings {
     public string SelectedCheckpoint { get; set; } = "";
 
     // tier row drawn under the room timer once it completes; auto-generated
-    // menu toggle (a rebindable hotkey is planned for phase 5)
+    // menu toggle + rebindable hotkey (handled in TierComparison)
     public bool ShowTier { get; set; } = true;
+
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ToggleShowTier { get; set; }
+
+    // the played checkpoint drives the selection (SegmentAutoDetect); the two
+    // sliders become a manual override when turned off. Not auto-generated:
+    // SegmentSelector builds the toggle itself so it can grey out the sliders
+    [SettingIgnore]
+    public bool AutoDetect { get; set; } = true;
 }
