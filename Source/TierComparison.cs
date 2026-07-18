@@ -16,9 +16,12 @@ public static class TierComparison {
 
     // final time captured on the frame the timer completes: GetRoomTime() keeps
     // running in the background afterwards, only SpeedrunTool's display freezes.
-    // mutated during gameplay ⇒ registered with SpeedrunTool's save states, so
-    // loading a savestate restores the tier row of the moment of the save
+    // hasCapture is only set when that completion was a full run of the
+    // selected checkpoint (see IsFullRun); mutated during gameplay ⇒ registered
+    // with SpeedrunTool's save states, so loading a savestate restores the
+    // tier row of the moment of the save
     private static bool wasCompleted;
+    private static bool hasCapture;
     private static long capturedTicks;
 
     // recomputed every frame from capturedTicks (srta-style), so the row reacts
@@ -55,7 +58,7 @@ public static class TierComparison {
         typeof(RoomTimerImports).ModInterop();
         typeof(SaveLoadImports).ModInterop();
         saveLoadAction = SaveLoadImports.RegisterStaticTypes?.Invoke(typeof(TierComparison),
-            [nameof(wasCompleted), nameof(capturedTicks)]);
+            [nameof(wasCompleted), nameof(hasCapture), nameof(capturedTicks)]);
     }
 
     public static void Unload() {
@@ -78,12 +81,26 @@ public static class TierComparison {
         }
 
         bool completed = RoomTimerImports.RoomTimerIsCompleted();
-        if (completed && !wasCompleted) {
+        if (!completed) {
+            hasCapture = false;
+        } else if (!wasCompleted && IsFullRun()) {
+            hasCapture = true;
             capturedTicks = RoomTimerImports.GetRoomTime();
         }
 
         wasCompleted = completed;
         ComputeTier();
+    }
+
+    // the timer completing only means a finished run of the selected checkpoint
+    // when it stopped at the checkpoint's room count — SegmentSelector pushes
+    // it into SpeedrunTool's Number of Rooms on selection, so a mismatch is a
+    // deliberate manual override (partial-segment practice): no tier then
+    private static bool IsFullRun() {
+        SheetSegment segment = SegmentSelector.Current;
+        return segment != null
+            && SpeedrunToolSettings.Instance is { } settings
+            && settings.NumberOfRooms == RoomCounts.TargetFor(segment);
     }
 
     // first tier column whose threshold is >= the captured time wins; slower
@@ -92,7 +109,7 @@ public static class TierComparison {
     // are skipped
     private static void ComputeTier() {
         tierText = "";
-        if (!wasCompleted) {
+        if (!hasCapture) {
             return;
         }
 
