@@ -1,12 +1,12 @@
 # srs — Speedrun Sheet
 
-[Everest](https://everestapi.github.io/) mod, **companion** to [SpeedrunTool](https://gamebanana.com/mods/53712) for Celeste: it imports the community practice sheet (Google Sheets → local CSV) and, when SpeedrunTool's room timer completes, shows the tier you reached (Gold, Pink, Purple, … Unranked) in its color under the timer.
+[Everest](https://everestapi.github.io/) mod, **companion** to [SpeedrunTool](https://gamebanana.com/tools/6597) for Celeste: it imports the community practice sheet (Google Sheets → local CSV) and — in upcoming versions — will color a segment's final room-timer time according to the sheet's tier thresholds (Gold, Pink, Purple, … Unranked).
 
 Options under **Mod Options → Speedrun Sheet**.
 
 ## Installation
 
-1. Install [Everest](https://everestapi.github.io/) and [SpeedrunTool](https://gamebanana.com/mods/53712) (v3.27.16+), e.g. via Olympus.
+1. Install [Everest](https://everestapi.github.io/) and [SpeedrunTool](https://gamebanana.com/tools/6597) (v3.27.16+), e.g. via Olympus.
 2. Download/build srs (see [Build](#build)) and put `srs.zip` (or a `srs` folder containing `srs.dll`, `everest.yaml`, `Dialog/`) into `<Celeste>/Mods/`.
 3. Make sure `SpeedrunTool.zip` is **not** in `Mods/blacklist.txt` — it's a dependency.
 
