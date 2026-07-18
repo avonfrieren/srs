@@ -1,6 +1,6 @@
 # srs — Speedrun Sheet
 
-[Everest](https://everestapi.github.io/) mod, **companion** to [SpeedrunTool](https://gamebanana.com/mods/53712) for Celeste: it imports the community practice sheet (Google Sheets → local CSV) and — in upcoming versions — will color a segment's final room-timer time according to the sheet's tier thresholds (Gold, Pink, Purple, … Unranked).
+[Everest](https://everestapi.github.io/) mod, **companion** to [SpeedrunTool](https://gamebanana.com/mods/53712) for Celeste: it imports the community practice sheet (Google Sheets → local CSV) and, when SpeedrunTool's room timer completes, shows the tier you reached (Gold, Pink, Purple, … Unranked) in its color under the timer.
 
 Options under **Mod Options → Speedrun Sheet**.
 
@@ -25,6 +25,10 @@ dotnet build -p:CelestePrefix=<Celeste folder>
 `CelestePrefix` is auto-detected if the repo is cloned into `<Celeste>/Mods/xxx/`. SpeedrunTool's DLL is automatically extracted from the installed `SpeedrunTool.zip`. The `OutputAsModStructure` target generates `build/`, ready to zip as `srs.zip` (or copy as a `srs` folder) into `<Celeste>/Mods/`.
 
 ## Changelog
+
+### v0.3.0 — 2026-07-18
+
+- **Tier comparison & display** (phase 4): when SpeedrunTool's room timer completes, the final time is compared against the selected checkpoint's sheet thresholds (first threshold ≥ your time wins; slower than Red 3 is Unranked) and the tier name is drawn in its color in a row under the timer — below [srta](https://github.com/avonfrieren/srta)'s delta row when srta is installed. Tier colors come from the sheet's own column names (all XNA named colors); the row follows save states like the timer itself, and a **Show Tier** toggle was added to Mod Options.
 
 ### v0.2.0 — 2026-07-18
 

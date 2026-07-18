@@ -2,6 +2,7 @@
 
 # Mod Options
 MODOPTIONS_SRS_TITLE=     Speedrun Sheet
+MODOPTIONS_SRS_SHOWTIER=  Show Tier
 SRS_CHAPTER=              Chapter
 SRS_CHECKPOINT=           Checkpoint
 SRS_UPDATE_SHEET=         Update Sheet Data

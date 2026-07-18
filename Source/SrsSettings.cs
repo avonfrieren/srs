@@ -23,4 +23,8 @@ public class SrsSettings : EverestModuleSettings {
 
     [SettingIgnore]
     public string SelectedCheckpoint { get; set; } = "";
+
+    // tier row drawn under the room timer once it completes; auto-generated
+    // menu toggle (a rebindable hotkey is planned for phase 5)
+    public bool ShowTier { get; set; } = true;
 }
