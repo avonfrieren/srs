@@ -41,8 +41,6 @@ public class SheetData {
         SheetData data = new();
         SheetBlock currentBlock = null;
         string currentChapter = null;
-        string currentSide = null;
-        Dictionary<SheetSegment, string> sides = new();
 
         foreach (string[] row in Csv.Parse(csvText)) {
             if (IsEmpty(row)) {
@@ -56,7 +54,6 @@ public class SheetData {
             if (tierStart > 0) {
                 currentBlock = new SheetBlock(row[0].Trim(), tierStart, row[1].Trim() == "Checkpoint");
                 currentChapter = null;
-                currentSide = null;
                 for (int i = tierStart; i < row.Length; i++) {
                     string label = row[i].Trim();
                     if (label.Length > 0) {
@@ -76,15 +73,6 @@ public class SheetData {
             // chapter (merged cells export as empty cells below), so carry it
             if (row[0].Trim().Length > 0) {
                 currentChapter = row[0].Trim();
-                currentSide = null;
-                // "6a Route" and "6b Route" are the two halves of one route
-                // choice: fold them into a single "6a/b" chapter (the layout
-                // the sheet itself uses for 5a/b), keeping the side around to
-                // disambiguate checkpoint names shared by both routes
-                if (currentChapter.EndsWith("a Route") || currentChapter.EndsWith("b Route")) {
-                    currentSide = currentChapter[..^" Route".Length];
-                    currentChapter = currentSide[..^1] + "a/b";
-                }
             }
 
             string name = currentBlock.HasCheckpoints && row.Length > 1 ? row[1].Trim() : currentChapter;
@@ -92,24 +80,7 @@ public class SheetData {
                 continue;
             }
 
-            // "Wake Up" rows time the wake-up animation, not a checkpoint
-            if (name == "Wake Up") {
-                continue;
-            }
-
-            // drop the chapter echoed in checkpoint names ("1a Start"):
-            // checkpoints are addressed by (chapter, name), the echo adds
-            // nothing (side prefixes like "5a Start" survive: they never
-            // match the full chapter name "5a/b")
-            if (name.StartsWith(currentChapter + " ", StringComparison.Ordinal)) {
-                name = name[(currentChapter.Length + 1)..];
-            }
-
             SheetSegment segment = new(currentChapter, name);
-            if (currentSide != null) {
-                sides[segment] = currentSide;
-            }
-
             for (int i = currentBlock.TierStart; i < currentBlock.TierStart + currentBlock.Columns.Count; i++) {
                 segment.Times.Add(i < row.Length ? TryParseTime(row[i]) : null);
             }
@@ -117,19 +88,49 @@ public class SheetData {
             currentBlock.Segments.Add(segment);
         }
 
-        RestoreSides(data, sides);
+        Normalize(data);
         return data;
     }
 
-    // inside a folded "6a/b" chapter both routes can use the same checkpoint
-    // name ("Rock Bottom"); those get their side back ("6a Rock Bottom",
-    // "6b Rock Bottom") so (chapter, name) stays a unique address
-    private static void RestoreSides(SheetData data, Dictionary<SheetSegment, string> sides) {
-        if (sides.Count == 0) {
-            return;
-        }
-
+    // sheet-specific cleanup of the raw rows, applied after parsing (folding
+    // needs the whole block: when "6a" is read, the "Route" chapters that make
+    // it a fold have not been reached yet):
+    // - "Wake Up" rows time the wake-up animation, not a checkpoint
+    // - "<X>a Route"/"<X>b Route" chapters are the two halves of one route
+    //   choice; they and the shared bare "<X>a"/"<X>b" chapter before them are
+    //   folded into a single "<X>a/b" chapter, the layout the sheet itself
+    //   uses for 5a/b, each segment remembering its Side
+    // - the chapter echoed in checkpoint names ("1a Start" -> "Start") is
+    //   dropped; in folded chapters raw side prefixes ("6a Start", "6b Start")
+    //   never match the "<X>a/b" chapter name and survive, matching 5a/b
+    // - names shared by both sides of a fold get their side back
+    //   ("6a Rock Bottom"/"6b Rock Bottom") so (chapter, name) stays a unique
+    //   address
+    private static void Normalize(SheetData data) {
         foreach (SheetBlock block in data.Blocks) {
+            block.Segments.RemoveAll(segment => segment.Name == "Wake Up");
+
+            // raw chapter -> side ("6a Route" -> "6a", plus bare "6a" -> "6a")
+            Dictionary<string, string> folds = new();
+            foreach (SheetSegment segment in block.Segments) {
+                if (segment.Chapter.EndsWith("a Route") || segment.Chapter.EndsWith("b Route")) {
+                    string side = segment.Chapter[..^" Route".Length];
+                    folds[segment.Chapter] = side;
+                    folds[side] = side;
+                }
+            }
+
+            foreach (SheetSegment segment in block.Segments) {
+                if (folds.TryGetValue(segment.Chapter, out string side)) {
+                    segment.Side = side;
+                    segment.Chapter = side[..^1] + "a/b";
+                }
+
+                if (segment.Name.StartsWith(segment.Chapter + " ", StringComparison.Ordinal)) {
+                    segment.Name = segment.Name[(segment.Chapter.Length + 1)..];
+                }
+            }
+
             Dictionary<string, int> counts = new();
             foreach (SheetSegment segment in block.Segments) {
                 string key = segment.Chapter + "\n" + segment.Name;
@@ -137,8 +138,8 @@ public class SheetData {
             }
 
             foreach (SheetSegment segment in block.Segments) {
-                if (counts[segment.Chapter + "\n" + segment.Name] > 1 && sides.TryGetValue(segment, out string side)) {
-                    segment.Name = side + " " + segment.Name;
+                if (segment.Side != null && counts[segment.Chapter + "\n" + segment.Name] > 1) {
+                    segment.Name = segment.Side + " " + segment.Name;
                 }
             }
         }
@@ -231,10 +232,13 @@ public class SheetBlock(string name, int tierStart, bool hasCheckpoints) {
 }
 
 public class SheetSegment(string chapter, string name) {
-    // owning chapter; equals Name in chapter-only blocks
-    public readonly string Chapter = chapter;
-    // mutable: RestoreSides re-prefixes duplicated names after parsing
+    // owning chapter; equals Name in chapter-only blocks.
+    // Chapter and Name are mutable: Normalize rewrites them after parsing
+    public string Chapter = chapter;
     public string Name = name;
+    // game side ("6a"/"6b") for segments folded into an "<X>a/b" chapter,
+    // null elsewhere — this is what maps a folded segment back to an AreaKey
+    public string Side;
     // aligned with the owning block's Columns; null = empty or unparseable cell
     public readonly List<TimeSpan?> Times = [];
 }
