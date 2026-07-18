@@ -6,7 +6,7 @@ namespace Celeste.Mod.SpeedrunSheet;
 // will be compared against (phase 4). Checkpoints come from the imported
 // sheet's checkpoint block, grouped by chapter; the selection is persisted by
 // (chapter, checkpoint) name — checkpoint names alone repeat across chapters
-// ("Wake Up", "Rock Bottom").
+// ("Start" in nearly all of them).
 public static class SegmentSelector {
     // the currently selected checkpoint, or null if the selection does not
     // match the imported data (no data yet, or the sheet changed)
