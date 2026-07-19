@@ -4,26 +4,6 @@
 
 Options under **Mod Options → Speedrun Sheet**.
 
-## Installation
-
-1. Install [Everest](https://everestapi.github.io/) and [SpeedrunTool](https://gamebanana.com/tools/6597) (v3.27.16+), e.g. via Olympus.
-2. Download/build srs (see [Build](#build)) and put `srs.zip` (or a `srs` folder containing `srs.dll`, `everest.yaml`, `Dialog/`) into `<Celeste>/Mods/`.
-3. Make sure `SpeedrunTool.zip` is **not** in `Mods/blacklist.txt` — it's a dependency.
-
-## Usage
-
-- **Mod Options → Speedrun Sheet → Update Sheet Data**: downloads the practice sheet as CSV (no Google account involved — the sheet just needs to be shared "anyone with the link"). The data is cached in `Saves/srs/sheet.csv` and reloaded on startup, so everything keeps working offline. Nothing is ever downloaded automatically.
-- **Manual import**: export the sheet yourself (File → Download → CSV) and drop it at `Saves/srs/sheet.csv` — same effect as the button.
-- The sheet URL can be changed in `Saves/modsettings-srs.celeste` (`SheetUrl`).
-
-## Build
-
-```
-dotnet build -p:CelestePrefix=<Celeste folder>
-```
-
-`CelestePrefix` is auto-detected if the repo is cloned into `<Celeste>/Mods/xxx/`. SpeedrunTool's DLL is automatically extracted from the installed `SpeedrunTool.zip`. The `OutputAsModStructure` target generates `build/`, ready to zip as `srs.zip` (or copy as a `srs` folder) into `<Celeste>/Mods/`.
-
 ## Changelog
 
 ### v1.0.0 — 2026-07-18
