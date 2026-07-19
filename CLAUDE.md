@@ -7,7 +7,7 @@ Roadmap dans `PLAN.md`. Le `README.md` sert de **changelog + instructions d'inst
 
 - .NET 8 (`net8.0`), projet unique `srs.csproj`. Sur cette machine : `~/.dotnet/dotnet build -p:CelestePrefix="$HOME/.steam/steam/steamapps/common/Celeste"`.
 - Références jeu résolues via `CelestePrefix` (auto-détecté si le repo est cloné dans `<Celeste>/Mods/xxx/`).
-- **`SpeedrunTool.dll` extraite automatiquement du `SpeedrunTool.zip` officiel installé** (cible `ExtractSpeedrunToolDll`), épinglé sur **v3.27.16** dans `everest.yaml`. Pas de Publicizer pour l'instant (rien d'interne utilisé) — à ajouter comme dans srta si la phase 4 l'exige.
+- **`SpeedrunTool.dll` extraite automatiquement du `SpeedrunTool.zip` officiel installé** (cible `ExtractSpeedrunToolDll`), épinglé sur **v3.27.17** dans `everest.yaml`. Pas de Publicizer pour l'instant (rien d'interne utilisé) — à ajouter comme dans srta si la phase 4 l'exige.
 - Cible `OutputAsModStructure` : génère `build/` (DLL + PDB + `everest.yaml` + `Dialog/`) → à zipper en `srs.zip` dans `<Celeste>/Mods/` (comme `srta.zip`) ou copier en dossier `Mods/srs/`.
 
 ## Architecture
