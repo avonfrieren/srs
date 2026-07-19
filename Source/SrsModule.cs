@@ -47,8 +47,8 @@ public class SrsModule : EverestModule {
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot) {
-        base.CreateModMenuSection(menu, inGame, snapshot);
         SegmentSelector.CreateMenuEntries(menu);
         SheetImporter.CreateMenuEntries(menu);
+        base.CreateModMenuSection(menu, inGame, snapshot);
     }
 }
