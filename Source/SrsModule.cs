@@ -46,9 +46,18 @@ public class SrsModule : EverestModule {
         }
     }
 
+    // base adds the section header itself, so it must run first (entries added
+    // before it would land in the previous mod's section); the key bindings it
+    // normally appends are suppressed by the override below and re-added last
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot) {
+        base.CreateModMenuSection(menu, inGame, snapshot);
         SegmentSelector.CreateMenuEntries(menu);
         SheetImporter.CreateMenuEntries(menu);
-        base.CreateModMenuSection(menu, inGame, snapshot);
+        base.CreateModMenuSectionKeyBindings(menu, inGame, snapshot);
+    }
+
+    protected override void CreateModMenuSectionKeyBindings(TextMenu menu, bool inGame, EventInstance snapshot) {
+        // no-op: called by base.CreateModMenuSection mid-section; the real one
+        // is invoked at the end of CreateModMenuSection instead
     }
 }
