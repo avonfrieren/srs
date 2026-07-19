@@ -1,6 +1,6 @@
-# srs — Speedrun Sheet
+# Speedrun Sheet (srs) 
 
-[Everest](https://everestapi.github.io/) mod, **companion** to [SpeedrunTool](https://gamebanana.com/tools/6597) for Celeste: it imports the community practice sheet (Google Sheets → local CSV) and — in upcoming versions — will color a segment's final room-timer time according to the sheet's tier thresholds (Gold, Pink, Purple, … Unranked).
+[Everest](https://everestapi.github.io/) mod that **require** [SpeedrunTool](https://gamebanana.com/tools/6597) for Celeste. It works by importing Astro's practice sheet and compare your time on a checkpoint with it to find and show the associated color. It also auto detect the checkpoint your in.
 
 Options under **Mod Options → Speedrun Sheet**.
 
