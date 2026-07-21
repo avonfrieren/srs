@@ -11,7 +11,7 @@ namespace Celeste.Mod.SpeedrunSheet;
 // TierComparison compares against the sheet.
 public static class RoomCounts {
     // checkpoints with no known room count (the "?" finals of each chapter,
-    // Granny, Hollows Tape): SpeedrunTool's own slider maximum keeps the room
+    // Granny): SpeedrunTool's own slider maximum keeps the room
     // count from ever completing the timer, so the run ends through what
     // actually ends it in game (chapter completion, cassette, summit flag)
     public const int Unknown = 99;
@@ -45,7 +45,11 @@ public static class RoomCounts {
         [("6a/b", "Hollows")] = 17,
         [("6a/b", "Reflection")] = 5,
         [("6a/b", "6a Rock Bottom")] = 21,
-        // Resolution unknown; Hollows Tape unknown (ends with the cassette)
+        // Resolution unknown
+        // cassette route; completes on room count, not the cassette grab (that
+        // does not trip SpeedrunTool's room timer). Manual-only: shares 6A's
+        // Hollows checkpoint, so it is never auto-detected
+        [("6a/b", "Hollows Tape")] = 2,
         [("6a/b", "6b Start")] = 7,
         [("6a/b", "Falling")] = 10, // the game's 6B Reflection, renamed by the sheet
         [("6a/b", "6b Rock Bottom")] = 5,

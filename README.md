@@ -4,7 +4,16 @@
 
 Options under **Mod Options → Speedrun Sheet**.
 
+## Notes
+
+- **Checkpoints that start at the same place as another one are not auto-detected.** A few sheet segments begin at the exact same in-game checkpoint as another segment, so auto-detection can't tell them apart and always picks the other one. Right now this is only **Hollows Tape**, which starts at 6A's **Hollows** checkpoint (so it gets detected as *Hollows*). To practice one of these, turn **Auto-Detect Checkpoint** off and select it by hand with the **Chapter** / **Checkpoint** sliders — the run then completes on its own room count and the tier shows.
+
 ## Changelog
+
+### v1.1.0 — 2026-07-20
+
+- **Distinct tier colors**: each tier now draws in its own palette color instead of an XNA named color. The rank suffix is significant, so `Purple 1`/`Purple 2`/`Purple 3` (and every other ranked tier) are three separate shades rather than one — matching the sheet's own coloring. WR and Hidden stay white, Unranked stays grey.
+- **Hollows Tape room count**: the 6B cassette-route "Hollows Tape" checkpoint now completes on a 2-room count instead of never completing (grabbing the 6A cassette doesn't stop SpeedrunTool's room timer), so it gets a tier. It still has to be selected manually — see Notes.
 
 ### v1.0.0 — 2026-07-18
 

@@ -1,5 +1,5 @@
 using System;
-using System.Reflection;
+using System.Collections.Generic;
 using Celeste.Mod.SpeedrunTool;
 using Celeste.Mod.SpeedrunTool.Message;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
@@ -145,30 +145,50 @@ public static class TierComparison {
         SetTier("Unranked");
     }
 
-    // tier colors come from the column names themselves: Gold, Pink, Purple,
-    // Indigo, Blue, Cyan, Green, Olive, Yellow, Orange and Red are all XNA
-    // named colors; the "1"-"3" rank suffix is dropped for the lookup only
+    // tier colors: each sheet column name maps to its exact palette hex. Unlike
+    // XNA's named colors, the "1"-"3" rank suffix is significant here, so
+    // Purple 1/2/3 (and the other ranked tiers) are three distinct shades.
+    // WR/Hidden are white; Unranked stays grey; unknown columns fall back white
+    private static readonly Dictionary<string, Color> TierColors =
+        new(StringComparer.OrdinalIgnoreCase) {
+            ["WR"] = Calc.HexToColor("ffffff"),
+            ["Hidden"] = Calc.HexToColor("ffffff"),
+            ["Gold"] = Calc.HexToColor("ffbf00"),
+            ["Pink"] = Calc.HexToColor("c27ba0"),
+            ["Purple 1"] = Calc.HexToColor("8e7cc3"),
+            ["Purple 2"] = Calc.HexToColor("b4a7d6"),
+            ["Purple 3"] = Calc.HexToColor("d9d2e9"),
+            ["Indigo 1"] = Calc.HexToColor("7980f7"),
+            ["Indigo 2"] = Calc.HexToColor("a2a7fe"),
+            ["Indigo 3"] = Calc.HexToColor("bbbfff"),
+            ["Blue 1"] = Calc.HexToColor("6fa8dc"),
+            ["Blue 2"] = Calc.HexToColor("9fc5e8"),
+            ["Blue 3"] = Calc.HexToColor("cfe2f3"),
+            ["Cyan 1"] = Calc.HexToColor("76a5af"),
+            ["Cyan 2"] = Calc.HexToColor("a2c4c9"),
+            ["Cyan 3"] = Calc.HexToColor("d0e0e3"),
+            ["Green 1"] = Calc.HexToColor("93c47d"),
+            ["Green 2"] = Calc.HexToColor("b6d7a8"),
+            ["Green 3"] = Calc.HexToColor("d9ead3"),
+            ["Olive 1"] = Calc.HexToColor("afc47d"),
+            ["Olive 2"] = Calc.HexToColor("cbde9e"),
+            ["Olive 3"] = Calc.HexToColor("e6f9ba"),
+            ["Yellow 1"] = Calc.HexToColor("ffd966"),
+            ["Yellow 2"] = Calc.HexToColor("ffe599"),
+            ["Yellow 3"] = Calc.HexToColor("fff2cc"),
+            ["Orange 1"] = Calc.HexToColor("f6b26b"),
+            ["Orange 2"] = Calc.HexToColor("f9cb9c"),
+            ["Orange 3"] = Calc.HexToColor("fce5cd"),
+            ["Red 1"] = Calc.HexToColor("e06666"),
+            ["Red 2"] = Calc.HexToColor("ea9999"),
+            ["Red 3"] = Calc.HexToColor("f4cccc"),
+        };
+
     private static void SetTier(string column) {
         tierText = column;
-        string name = column;
-        int space = name.LastIndexOf(' ');
-        if (space > 0 && int.TryParse(name[(space + 1)..], out _)) {
-            name = name[..space];
-        }
-
-        tierColor = name switch {
-            "WR" or "Hidden" => Color.White,
-            "Unranked" => Color.Gray,
-            _ => NamedColor(name),
-        };
-    }
-
-    private static Color NamedColor(string name) {
-        PropertyInfo property = typeof(Color).GetProperty(name,
-            BindingFlags.Public | BindingFlags.Static | BindingFlags.IgnoreCase);
-        return property != null && property.PropertyType == typeof(Color)
-            ? (Color)property.GetValue(null)
-            : Color.White;
+        tierColor = column.Trim().Equals("Unranked", StringComparison.OrdinalIgnoreCase)
+            ? Color.Gray
+            : TierColors.GetValueOrDefault(column.Trim(), Color.White);
     }
 
     private static void SpeedrunTimerDisplayOnRender(On.Celeste.SpeedrunTimerDisplay.orig_Render orig, SpeedrunTimerDisplay self) {
