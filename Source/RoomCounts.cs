@@ -22,7 +22,7 @@ public static class RoomCounts {
         [("1a", "Crossing")] = 8,
         // Chasm unknown
         [("2a", "Start")] = 12,
-        [("2a", "Intervention")] = 16,
+        [("2a", "Intervention")] = 13,
         // Awake unknown
         [("3a", "Start")] = 20,
         [("3a", "Huge Mess")] = 26,
