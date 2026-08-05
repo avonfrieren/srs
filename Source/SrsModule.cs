@@ -39,11 +39,6 @@ public class SrsModule : EverestModule {
         }
 
         base.LoadSettings();
-        // v0.1.0 pointed at the IL tab (whole chapters); checkpoint selection
-        // needs the CP tab, so move unchanged settings to the new default
-        if (Settings.SheetUrl == SrsSettings.LegacySheetUrl) {
-            Settings.SheetUrl = SrsSettings.DefaultSheetUrl;
-        }
     }
 
     // base adds the section header itself, so it must run first (entries added

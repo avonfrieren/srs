@@ -1,14 +1,20 @@
 # Speedrun Sheet (srs) 
 
-[Everest](https://everestapi.github.io/) mod that **require** [Speedrun Tool](https://gamebanana.com/tools/6597) for Celeste. It works by importing Astro's practice sheet and compare your time on a checkpoint with it to find and show the associated color. It also auto detect the checkpoint your in.
+[Everest](https://everestapi.github.io/) mod that **require** [Speedrun Tool](https://gamebanana.com/tools/6597) for Celeste. It works by importing the *Celeste Master Practice Sheet* time references and compare your time on a checkpoint with it to find and show the associated color. It also auto detect the checkpoint your in.
 
 Options under **Mod Options → Speedrun Sheet**.
 
 ## Notes
 
-- **Checkpoints that start at the same place as another one are not auto-detected.** A few sheet segments begin at the exact same in-game checkpoint as another segment, so auto-detection can't tell them apart and always picks the other one. Right now this is only **Hollows Tape**, which starts at 6A's **Hollows** checkpoint (so it gets detected as *Hollows*). To practice one of these, turn **Auto-Detect Checkpoint** off and select it by hand with the **Chapter** / **Checkpoint** sliders — the run then completes on its own room count and the tier shows.
+- **Checkpoints that start at the same place as another one are not auto-detected.** A few sheet segments begin at the exact same in-game checkpoint as another segment, so auto-detection can't tell them apart and always picks the other one. This is the case of the two cassette checkpoints: **Hollows Tape**, which starts at 6A's **Hollows** checkpoint (so it gets detected as *Hollows*), and **Depths Tape**, which starts at 5A's **Depths** checkpoint. To practice one of these, turn **Auto-Detect Checkpoint** off and select it by hand with the **Chapter** / **Checkpoint** sliders — the run then completes on its own room count and the tier shows.
 
 ## Changelog
+
+### v2.0.0 — 2026-08-05
+
+- **New practice sheet**: the mod now imports the *Time References for the Celeste Master Practice Sheet* (the old prototype sheet is retired). Data comes from two tabs — **A Sides Standards** for every A-side checkpoint and **B Sides Standards** for the any% route's 5B/6B checkpoints — downloaded and cached separately (`Saves/srs/asides.csv` + `bsides.csv`; the old `sheet.csv` cache is cleaned up automatically). Press **Update Sheet Data** once after installing to fetch the new data.
+- **Same checkpoints as before, plus Depths Tape**: only the checkpoints the mod already supported are imported (the sheet's heart/cassette/gem emoji variants and the per-chapter IL rows are for later), still folded into the familiar `5a/b` / `6a/b` chapters. The two cassette rows `Depths 📼 RTM` and `Hollows 📼 RTM` are imported as **Depths Tape** (new — 8 rooms, ending in the cassette room, manual-only like Hollows Tape, see Notes) and **Hollows Tape**.
+- **7A "Start" is now "0m"**, matching the new sheet's naming; auto-detection and the room count follow.
 
 ### v1.1.0 — 2026-07-20
 
