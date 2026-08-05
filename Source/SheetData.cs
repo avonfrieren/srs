@@ -45,7 +45,7 @@ public class SheetData {
     // chapter echo is dropped from names ("1a Start" -> "Start") except the
     // side-disambiguating ones ("5a Start"), and names shared by both sides
     // keep a side prefix ("6a Rock Bottom"/"6b Rock Bottom")
-    private static readonly Dictionary<(string Chapter, string Name), (string Chapter, string Name)> Import = new() {
+    internal static readonly Dictionary<(string Chapter, string Name), (string Chapter, string Name)> Import = new() {
         // A Sides Standards: "<X>a CP" groups (the "<X>a IL" groups and the
         // full-5A route past Depths — Unravelling, Search, Rescue — are not
         // imported yet)
@@ -131,8 +131,10 @@ public class SheetData {
     }
 
     // raw pass shared by both tabs: split the CSV into blocks of segments, one
-    // block per header row, keeping the sheet's own chapter/checkpoint names
-    private static List<SheetBlock> ParseBlocks(string csvText) {
+    // block per header row, keeping the sheet's own chapter/checkpoint names.
+    // internal rather than private so the tests can check the Import allowlist
+    // against the raw rows of the sheet
+    internal static List<SheetBlock> ParseBlocks(string csvText) {
         List<SheetBlock> blocks = [];
         SheetBlock currentBlock = null;
         string currentChapter = null;
