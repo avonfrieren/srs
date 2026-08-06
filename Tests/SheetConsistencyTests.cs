@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
@@ -69,6 +70,43 @@ public class SheetConsistencyTests {
         Assert.Equal("Depths", SegmentAutoDetect.GameNameOf("5a", "Depths Tape"));
         Assert.Equal("Hollows", SegmentAutoDetect.GameNameOf("6a", "Hollows Tape"));
         Assert.Equal("Start", SegmentAutoDetect.GameNameOf("7a", "0m"));
+    }
+
+    // 2ter. every start-room override names a (scope, game checkpoint) pair
+    // CheckpointMap actually knows. An override keyed on a checkpoint no table
+    // anchors would never fire — and, worse, the previous segment would keep
+    // ending at the checkpoint's own room, silently overlapping the next one
+    [Fact]
+    public void EveryStartRoomOverrideTargetsAKnownCheckpoint() {
+        List<(string, string)> unknown = SegmentAutoDetect.StartRoomOverrides.Keys
+            .Where(key => !SegmentAutoDetect.CheckpointMap.ContainsKey(key))
+            .ToList();
+
+        Assert.Empty(unknown);
+        // and the reverse lookup the auto-detection relies on agrees, scope
+        // included: end_0 is 2A's Awake, and nothing at all in 7A
+        Assert.Equal("Awake", SegmentAutoDetect.OverriddenCheckpointAt("2a", "end_0"));
+        Assert.Equal("Start", SegmentAutoDetect.OverriddenCheckpointAt("7a", "a-00"));
+        Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("7a", "end_0"));
+        Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("2a", "3"));
+    }
+
+    // 2quater. same for the untimed head added back to the captured time: an
+    // entry keyed on a checkpoint no table anchors would never be added, and
+    // the segment would be compared against thresholds that include a part of
+    // it — silently several tiers too high. The value is pinned: it is the
+    // sheet's own constant, not something derivable from the game
+    [Fact]
+    public void EveryUntimedHeadTargetsAKnownCheckpointAndKeepsItsValue() {
+        List<(string, string)> unknown = SegmentAutoDetect.UntimedSegmentHead.Keys
+            .Where(key => !SegmentAutoDetect.CheckpointMap.ContainsKey(key))
+            .ToList();
+
+        Assert.Empty(unknown);
+        Assert.Equal(TimeSpan.FromMilliseconds(5508), SegmentAutoDetect.UntimedSegmentHead[("7a", "Start")]);
+        // and it only concerns the segments that have an override start room
+        Assert.All(SegmentAutoDetect.UntimedSegmentHead.Keys,
+            key => Assert.True(SegmentAutoDetect.StartRoomOverrides.ContainsKey(key)));
     }
 
     // 3. auto-detection only points at checkpoints that were actually imported;

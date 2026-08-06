@@ -80,8 +80,18 @@ public static class RunWatcher {
     }
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
-        // srs loads after SpeedrunTool (dependency), so the timer data of this
-        // frame is final after orig
+        // the room timer as it stands *before* this frame is added to it
+        // (v3.2.0). SpeedrunTool runs inside orig — srs loads after it, so its
+        // hook is the inner one — and on the frame a room condition fires it
+        // does exactly this: RoomTimerManager.Timing() freezes the displayed
+        // time first (UpdateTimerState), then adds the frame's delta. Reading
+        // GetRoomTime() after orig therefore handed srs one frame more than
+        // SpeedrunTool shows, and than the sheet's references, which are all
+        // recorded with SpeedrunTool. It is also the right time on its own
+        // terms: the frame Session.Level has already flipped is a frame spent
+        // in the *next* room, and does not belong to the segment
+        long timeBeforeUpdate = RoomTimerImports.GetRoomTime?.Invoke() ?? 0;
+
         orig(self);
 
         long time = RoomTimerImports.GetRoomTime?.Invoke() ?? 0;
@@ -100,8 +110,10 @@ public static class RunWatcher {
         // A savestate load restores startRoom directly instead
         startRoom ??= self.Session.Level;
 
-        if (!completed) {
-            CheckRoomConditions(self, time);
+        // timeBeforeUpdate == 0 is that very edge frame: the timing starts
+        // here, so there is no run to finish yet
+        if (!completed && timeBeforeUpdate > 0) {
+            CheckRoomConditions(self, timeBeforeUpdate);
         }
     }
 
@@ -170,13 +182,28 @@ public static class RunWatcher {
 
     private static void Complete(Session session, SheetSegment segment, long time) {
         completed = true;
-        capturedTicks = time;
 
         // start guard: a tier only makes sense for a run of the whole
         // segment. The time freezes either way — the greyed row is the
         // visible cue that the run ended but did not start at the segment's
         // first room
         hasCapture = startRoom != null && startRoom == ExpectedStartRoom(segment, session);
+
+        // add back the head of the segment srs does not time (7A's 0m), so
+        // the frozen time is the one the sheet's thresholds describe. Only
+        // for a run that did start at the segment's start room: a time that
+        // earns no tier is not a segment time, and padding it would only
+        // make the greyed row lie about what the timer showed
+        capturedTicks = time + (hasCapture ? UntimedHeadOf(segment, session).Ticks : 0L);
+    }
+
+    private static TimeSpan UntimedHeadOf(SheetSegment segment, Session session) {
+        string gameName = GameAnchorOf(segment, session);
+        return gameName != null
+               && SegmentAutoDetect.UntimedSegmentHead.TryGetValue(
+                   (SegmentAutoDetect.ScopeOf(session), gameName), out TimeSpan head)
+            ? head
+            : TimeSpan.Zero;
     }
 
     // the selected segment, but only while the session is actually playing its
@@ -195,12 +222,20 @@ public static class RunWatcher {
 
     // the room a full run of the segment starts in: the game checkpoint the
     // segment is anchored to (variants inherit their plain sibling's — that is
-    // the whole point of the Category selector), "Start" being the map's own
-    // first room
+    // the whole point of the Category selector)
     private static string ExpectedStartRoom(SheetSegment segment, Session session) {
         string gameName = GameAnchorOf(segment, session);
-        if (gameName == null) {
-            return null;
+        return gameName == null ? null : StartRoomOf(gameName, session);
+    }
+
+    // the room a run anchored at this game checkpoint is timed from: the
+    // override when the sheet does not start the segment at the checkpoint's
+    // own room (2A Awake, 7A 0m), the map's first room for "Start" — which is
+    // the only anchor with no CheckpointData — the checkpoint's room otherwise
+    private static string StartRoomOf(string gameName, Session session) {
+        if (SegmentAutoDetect.StartRoomOverrides.TryGetValue(
+                (SegmentAutoDetect.ScopeOf(session), gameName), out string overridden)) {
+            return overridden;
         }
 
         if (gameName == "Start") {
@@ -219,9 +254,11 @@ public static class RunWatcher {
         return null;
     }
 
-    // where a Checkpoint segment ends: the next game checkpoint's start room,
-    // resolved from AreaData at runtime — zero hand-entered data. Null = no
-    // next checkpoint (the chapter ends the run instead)
+    // where a Checkpoint segment ends: exactly where the next segment starts,
+    // resolved from AreaData at runtime — zero hand-entered data beyond the
+    // overrides, which both ends read, so the finish line moves with the start
+    // line and the two segments never overlap. Null = no next checkpoint (the
+    // chapter ends the run instead)
     private static string EndRoomOf(SheetSegment segment, Session session) {
         string gameName = GameAnchorOf(segment, session);
         CheckpointData[] checkpoints = Checkpoints(session);
@@ -232,12 +269,12 @@ public static class RunWatcher {
         // CheckpointData only lists the non-start checkpoints, so the segment
         // starting at "Start" ends where the first of them begins
         if (gameName == "Start") {
-            return checkpoints[0].Level;
+            return StartRoomOf(EnglishName(checkpoints[0]), session);
         }
 
         for (int i = 0; i < checkpoints.Length - 1; i++) {
             if (EnglishName(checkpoints[i]) == gameName) {
-                return checkpoints[i + 1].Level;
+                return StartRoomOf(EnglishName(checkpoints[i + 1]), session);
             }
         }
 
@@ -245,12 +282,8 @@ public static class RunWatcher {
     }
 
     private static string GameAnchorOf(SheetSegment segment, Session session) {
-        if (!SegmentAutoDetect.ChapterMap.TryGetValue((session.Area.ID, session.Area.Mode),
-                out (string Chapter, string Side) chapter)) {
-            return null;
-        }
-
-        return SegmentAutoDetect.GameNameOf(chapter.Side ?? chapter.Chapter, segment.Name);
+        string scope = SegmentAutoDetect.ScopeOf(session);
+        return scope == null ? null : SegmentAutoDetect.GameNameOf(scope, segment.Name);
     }
 
     private static CheckpointData[] Checkpoints(Session session) =>

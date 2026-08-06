@@ -19,8 +19,16 @@ public enum SegmentCategory {
 // game-free like the rest of this file: a test checks the table still covers
 // every enum value
 public static class SegmentCategories {
-    // indexed by SegmentCategory
-    public static readonly string[] Names = ["Any%", "Cassette"];
+    // indexed by SegmentCategory. "Any% Cassettes" (v3.2.0, renamed from
+    // "Cassette"): the 5A and 6A cassettes are part of the any% run, so the
+    // name says which run these segments belong to rather than pretending to
+    // be a category of its own. The rule the split enforces is that no
+    // category ever holds two segments starting at the same in-game
+    // checkpoint — wider categories are described by what they *add* (a
+    // future "True Ending" = any% + Core + Farewell lists only Core and
+    // Farewell). The enum member keeps its short name: it is what gets
+    // persisted in the settings file
+    public static readonly string[] Names = ["Any%", "Any% Cassettes"];
 
     public static string NameOf(SegmentCategory category) =>
         (int)category >= 0 && (int)category < Names.Length ? Names[(int)category] : category.ToString();

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -66,6 +67,55 @@ public static partial class SegmentAutoDetect {
         [(SegmentCategory.Cassette, "Depths")] = "Depths Tape",
         [(SegmentCategory.Cassette, "Hollows")] = "Hollows Tape",
     };
+
+    // (scope, game checkpoint name) -> the room a run of that checkpoint's
+    // segment really starts in, for the segments the sheet does not time from
+    // the checkpoint's own room (v3.2.0). Keyed by *game* name, not sheet
+    // name, so both ends of a segment read the same entry: a segment ends
+    // exactly where the next one starts, so an override moves the previous
+    // segment's finish line with it, and the two never overlap. Variants
+    // inherit it like they inherit their anchor
+    internal static readonly Dictionary<(string Scope, string GameName), string> StartRoomOverrides = new() {
+        // the sheet times "Awake" from the moment Madeline wakes up, three
+        // rooms before the game's Awake checkpoint: end_0 is the campfire
+        // room right after the dream section, then end_1, end_2, and only
+        // then end_3, which carries the checkpoint. Corollary: a run of
+        // Intervention ends on entering end_0, not end_3
+        [("2a", "Awake")] = "end_0",
+        // 7A opens on a-00-intro, but neither that room nor Madeline's
+        // landing animation in a-00 is timed — the sheet adds their time
+        // afterwards, so they are none of this mod's business. Runs start
+        // from a savestate placed after the landing with a Current Room
+        // timer, which puts the start of the run in a-00
+        [("7a", "Start")] = "a-00",
+    };
+
+    // (scope, game checkpoint name) -> the head of the segment srs does not
+    // time, added back to the captured time so the tier is read off the same
+    // number the sheet's thresholds describe. Only 7A's 0m so far: the sheet
+    // starts it at a-00 (see StartRoomOverrides) and adds a fixed 5.508s
+    // afterwards for the intro room plus Madeline's landing animation. The
+    // mod cannot time that part — the run is practiced from a savestate
+    // placed after the landing — but it must still count it, otherwise a run
+    // is compared against thresholds that include it and lands several tiers
+    // too high
+    internal static readonly Dictionary<(string Scope, string GameName), TimeSpan> UntimedSegmentHead = new() {
+        [("7a", "Start")] = new TimeSpan(0, 0, 0, 5, 508),
+    };
+
+    // StartRoomOverrides read backwards: the game checkpoint whose segment is
+    // timed from this room, or null. This is what lets the auto-detection move
+    // the selection when the override room is entered — three rooms before the
+    // game checkpoint would otherwise still read as the previous segment
+    internal static string OverriddenCheckpointAt(string scope, string room) {
+        foreach (KeyValuePair<(string Scope, string GameName), string> entry in StartRoomOverrides) {
+            if (entry.Key.Scope == scope && entry.Value == room) {
+                return entry.Key.GameName;
+            }
+        }
+
+        return null;
+    }
 
     // variant -> plain sibling ("Depths Tape" -> "Depths"); plain names come
     // back unchanged. This is how a variant inherits its in-game anchor: both

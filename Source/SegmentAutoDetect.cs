@@ -76,11 +76,23 @@ public static partial class SegmentAutoDetect {
         checkpointRoom = session.StartCheckpoint;
     }
 
+    // rooms that carry a game checkpoint, plus (v3.2.0) the rooms a segment is
+    // timed from when the sheet does not start it at its checkpoint: entering
+    // 2A's end_0 is entering the Awake segment, three rooms before the game
+    // says so
     private static void OnTransitionTo(Level level, LevelData next, Microsoft.Xna.Framework.Vector2 direction) {
-        if (next.HasCheckpoint) {
+        if (next.HasCheckpoint || OverriddenCheckpointAt(ScopeOf(level.Session), next.Name) != null) {
             checkpointRoom = next.Name;
         }
     }
+
+    // the scope a chapter's name tables are keyed by: the side for the folded
+    // chapters (5a/b, 6a/b), the chapter itself otherwise. Null outside the
+    // chapters the sheet covers
+    internal static string ScopeOf(Session session) =>
+        ChapterMap.TryGetValue((session.Area.ID, session.Area.Mode), out (string Chapter, string Side) chapter)
+            ? chapter.Side ?? chapter.Chapter
+            : null;
 
     // applied every frame rather than on discrete events: this is what folds
     // savestate loads back into the selection (RegisterStaticTypes restores
@@ -160,6 +172,12 @@ public static partial class SegmentAutoDetect {
     private static string GameCheckpointName(Session session) {
         if (checkpointRoom == null) {
             return "Start";
+        }
+
+        // an override room stands for its checkpoint even though the game has
+        // none there; checked first, since such a room carries no CheckpointData
+        if (OverriddenCheckpointAt(ScopeOf(session), checkpointRoom) is { } overridden) {
+            return overridden;
         }
 
         CheckpointData[] checkpoints = AreaData.Get(session.Area)?.Mode[(int)session.Area.Mode]?.Checkpoints;
