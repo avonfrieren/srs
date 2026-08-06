@@ -100,8 +100,9 @@ public class SheetConsistencyTests {
     }
 
     // the two cassette routes the owner asked for in v2.0.0; they are the only
-    // emoji rows kept, and both are manual-only (they start at the same
-    // in-game checkpoint as their non-cassette sibling)
+    // emoji rows kept. They start at the same in-game checkpoint as their
+    // non-cassette sibling, so they are never in CheckpointMap — the Category
+    // setting resolves them through CategoryVariants instead
     [Theory]
     [InlineData("5a/b", "Depths Tape", 8)]
     [InlineData("6a/b", "Hollows Tape", 2)]
@@ -111,6 +112,44 @@ public class SheetConsistencyTests {
 
         Assert.Equal(rooms, RoomCounts.TargetFor(segment));
         Assert.DoesNotContain(name, SegmentAutoDetect.CheckpointMap.Values);
+    }
+
+    // 6. the category overlay resolves plain names produced by CheckpointMap
+    // into rows of its own category, inside the same chapter — a rename on
+    // either end would silently turn the variant back into its plain sibling
+    [Fact]
+    public void EveryCategoryVariantTargetsAnImportedRowOfItsCategory() {
+        foreach (KeyValuePair<(SegmentCategory Category, string SheetName), string> entry
+                 in SegmentAutoDetect.CategoryVariants) {
+            SheetSegment plain = Assert.Single(Fixtures.Imported, s => s.Name == entry.Key.SheetName);
+            SheetSegment variant = Assert.Single(Fixtures.Imported, s => s.Name == entry.Value);
+
+            Assert.Contains(entry.Key.SheetName, SegmentAutoDetect.CheckpointMap.Values);
+            Assert.Equal(plain.Chapter, variant.Chapter);
+            Assert.Equal(SegmentCategory.AnyPercent, plain.Category);
+            Assert.Equal(entry.Key.Category, variant.Category);
+        }
+    }
+
+    // 7. the category read off the raw sheet names matches the overlay: an
+    // imported 📼 row absent from CategoryVariants would never be selectable
+    // by auto-detection again (nothing else points at it)
+    [Fact]
+    public void EveryCassetteRowIsReachableThroughTheCategoryOverlay() {
+        HashSet<string> cassette = [
+            .. Fixtures.Imported
+                .Where(segment => segment.Category == SegmentCategory.Cassette)
+                .Select(segment => segment.Name)
+        ];
+
+        HashSet<string> variants = [
+            .. SegmentAutoDetect.CategoryVariants
+                .Where(entry => entry.Key.Category == SegmentCategory.Cassette)
+                .Select(entry => entry.Value)
+        ];
+
+        Assert.Equal(["Depths Tape", "Hollows Tape"], cassette.OrderBy(name => name).ToList());
+        Assert.Equal(cassette, variants);
     }
 
     // the tier columns are read positionally from the header row, so their

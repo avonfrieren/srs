@@ -12,9 +12,11 @@ public static partial class SegmentAutoDetect {
     // session's first room (which has no CheckpointData). Game checkpoints
     // not imported from the sheet (the full-5A route past Depths) are simply
     // not listed — reaching them leaves the selection where it was. The two
-    // cassette checkpoints stay manual-only: "Hollows Tape" starts at 6A's
-    // Hollows checkpoint and "Depths Tape" at 5A's Depths checkpoint,
-    // indistinguishable from "Hollows"/"Depths"
+    // cassette checkpoints start at the same in-game checkpoint as their
+    // plain sibling ("Hollows Tape" at 6A's Hollows, "Depths Tape" at 5A's
+    // Depths) — nothing observable tells them apart, so this table maps to
+    // the plain name and the player's Category setting picks the variant
+    // through CategoryVariants
     internal static readonly Dictionary<(string Scope, string GameName), string> CheckpointMap = new() {
         [("Prologue", "Start")] = "Granny",
         [("1a", "Start")] = "Start",
@@ -54,5 +56,14 @@ public static partial class SegmentAutoDetect {
         [("7a", "2000 M")] = "2000m",
         [("7a", "2500 M")] = "2500m",
         [("7a", "3000 M")] = "3000m",
+    };
+
+    // (category, sheet name from CheckpointMap) -> the category's variant of
+    // that checkpoint. The variant wins when the imported sheet has it; every
+    // unlisted pair keeps the plain row, so a category with no variant data
+    // yet still auto-detects the closest thing the sheet offers
+    internal static readonly Dictionary<(SegmentCategory Category, string SheetName), string> CategoryVariants = new() {
+        [(SegmentCategory.Cassette, "Depths")] = "Depths Tape",
+        [(SegmentCategory.Cassette, "Hollows")] = "Hollows Tape",
     };
 }

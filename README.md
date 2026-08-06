@@ -6,9 +6,13 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ## Notes
 
-- **Checkpoints that start at the same place as another one are not auto-detected.** A few sheet segments begin at the exact same in-game checkpoint as another segment, so auto-detection can't tell them apart and always picks the other one. This is the case of the two cassette checkpoints: **Hollows Tape**, which starts at 6A's **Hollows** checkpoint (so it gets detected as *Hollows*), and **Depths Tape**, which starts at 5A's **Depths** checkpoint. To practice one of these, turn **Auto-Detect Checkpoint** off and select it by hand with the **Chapter** / **Checkpoint** sliders — the run then completes on its own room count and the tier shows.
+- **Checkpoints that exist in several variants are resolved by the Category option.** A few sheet segments begin at the exact same in-game checkpoint as another segment — the two cassette checkpoints **Hollows Tape** (6A's **Hollows**) and **Depths Tape** (5A's **Depths**) — so nothing observable in-game tells them apart. The **Category** slider is how you tell the mod which one you mean: on **Cassette**, auto-detection picks the Tape variant of those checkpoints; on **Any%** (the default) it picks the plain one. Checkpoints with no variant in the selected category fall back to their plain row, so detection keeps working everywhere else.
 
 ## Changelog
+
+### v3.0.0 — unreleased
+
+- **Category selector**: a new **Category** slider in Mod Options (**Any%** / **Cassette**, persisted) tells the mod which practice category you are running, and auto-detection uses it to resolve the checkpoints that exist in several sheet variants. On **Cassette**, reaching 5A's Depths checkpoint selects **Depths Tape** and 6A's Hollows selects **Hollows Tape** — the two segments that previously could only be picked by hand with auto-detection turned off (the old "Notes" workaround). Checkpoints without a variant in the active category keep selecting their plain any% row.
 
 ### v2.0.0 — 2026-08-05
 

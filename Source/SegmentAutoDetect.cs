@@ -105,20 +105,38 @@ public static partial class SegmentAutoDetect {
 
         string gameName = GameCheckpointName(session);
         if (gameName == null
-            || !CheckpointMap.TryGetValue((chapter.Side ?? chapter.Chapter, gameName), out string sheetName)
-            || (Settings.SelectedChapter == chapter.Chapter && Settings.SelectedCheckpoint == sheetName)) {
+            || !CheckpointMap.TryGetValue((chapter.Side ?? chapter.Chapter, gameName), out string sheetName)) {
             return;
         }
 
-        // only select checkpoints the imported sheet actually has
-        foreach (SheetSegment segment in block.Checkpoints(chapter.Chapter)) {
-            if (segment.Name == sheetName) {
-                Settings.SelectedChapter = chapter.Chapter;
-                Settings.SelectedCheckpoint = sheetName;
-                RoomCounts.Apply(segment);
-                return;
+        // the active category's variant of this checkpoint takes precedence
+        // (Cassette: Hollows -> Hollows Tape); the plain row is the fallback,
+        // so checkpoints without a variant keep detecting. Only checkpoints
+        // the imported sheet actually has are selectable
+        SheetSegment target = null;
+        if (CategoryVariants.TryGetValue((Settings.Category, sheetName), out string variant)) {
+            target = Find(block, chapter.Chapter, variant);
+        }
+
+        target ??= Find(block, chapter.Chapter, sheetName);
+        if (target == null
+            || (Settings.SelectedChapter == chapter.Chapter && Settings.SelectedCheckpoint == target.Name)) {
+            return;
+        }
+
+        Settings.SelectedChapter = chapter.Chapter;
+        Settings.SelectedCheckpoint = target.Name;
+        RoomCounts.Apply(target);
+    }
+
+    private static SheetSegment Find(SheetBlock block, string chapter, string name) {
+        foreach (SheetSegment segment in block.Checkpoints(chapter)) {
+            if (segment.Name == name) {
+                return segment;
             }
         }
+
+        return null;
     }
 
     // resolve the tracked checkpoint room to the game's checkpoint name; null
