@@ -182,13 +182,28 @@ public static class RunWatcher {
 
     private static void Complete(Session session, SheetSegment segment, long time) {
         completed = true;
-        capturedTicks = time;
 
         // start guard: a tier only makes sense for a run of the whole
         // segment. The time freezes either way — the greyed row is the
         // visible cue that the run ended but did not start at the segment's
         // first room
         hasCapture = startRoom != null && startRoom == ExpectedStartRoom(segment, session);
+
+        // add back the head of the segment srs does not time (7A's 0m), so
+        // the frozen time is the one the sheet's thresholds describe. Only
+        // for a run that did start at the segment's start room: a time that
+        // earns no tier is not a segment time, and padding it would only
+        // make the greyed row lie about what the timer showed
+        capturedTicks = time + (hasCapture ? UntimedHeadOf(segment, session).Ticks : 0L);
+    }
+
+    private static TimeSpan UntimedHeadOf(SheetSegment segment, Session session) {
+        string gameName = GameAnchorOf(segment, session);
+        return gameName != null
+               && SegmentAutoDetect.UntimedSegmentHead.TryGetValue(
+                   (SegmentAutoDetect.ScopeOf(session), gameName), out TimeSpan head)
+            ? head
+            : TimeSpan.Zero;
     }
 
     // the selected segment, but only while the session is actually playing its

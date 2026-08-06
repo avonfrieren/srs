@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -87,6 +88,19 @@ public static partial class SegmentAutoDetect {
         // from a savestate placed after the landing with a Current Room
         // timer, which puts the start of the run in a-00
         [("7a", "Start")] = "a-00",
+    };
+
+    // (scope, game checkpoint name) -> the head of the segment srs does not
+    // time, added back to the captured time so the tier is read off the same
+    // number the sheet's thresholds describe. Only 7A's 0m so far: the sheet
+    // starts it at a-00 (see StartRoomOverrides) and adds a fixed 5.508s
+    // afterwards for the intro room plus Madeline's landing animation. The
+    // mod cannot time that part — the run is practiced from a savestate
+    // placed after the landing — but it must still count it, otherwise a run
+    // is compared against thresholds that include it and lands several tiers
+    // too high
+    internal static readonly Dictionary<(string Scope, string GameName), TimeSpan> UntimedSegmentHead = new() {
+        [("7a", "Start")] = new TimeSpan(0, 0, 0, 5, 508),
     };
 
     // StartRoomOverrides read backwards: the game checkpoint whose segment is

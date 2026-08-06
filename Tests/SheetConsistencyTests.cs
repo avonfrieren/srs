@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
@@ -88,6 +89,24 @@ public class SheetConsistencyTests {
         Assert.Equal("Start", SegmentAutoDetect.OverriddenCheckpointAt("7a", "a-00"));
         Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("7a", "end_0"));
         Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("2a", "3"));
+    }
+
+    // 2quater. same for the untimed head added back to the captured time: an
+    // entry keyed on a checkpoint no table anchors would never be added, and
+    // the segment would be compared against thresholds that include a part of
+    // it — silently several tiers too high. The value is pinned: it is the
+    // sheet's own constant, not something derivable from the game
+    [Fact]
+    public void EveryUntimedHeadTargetsAKnownCheckpointAndKeepsItsValue() {
+        List<(string, string)> unknown = SegmentAutoDetect.UntimedSegmentHead.Keys
+            .Where(key => !SegmentAutoDetect.CheckpointMap.ContainsKey(key))
+            .ToList();
+
+        Assert.Empty(unknown);
+        Assert.Equal(TimeSpan.FromMilliseconds(5508), SegmentAutoDetect.UntimedSegmentHead[("7a", "Start")]);
+        // and it only concerns the segments that have an override start room
+        Assert.All(SegmentAutoDetect.UntimedSegmentHead.Keys,
+            key => Assert.True(SegmentAutoDetect.StartRoomOverrides.ContainsKey(key)));
     }
 
     // 3. auto-detection only points at checkpoints that were actually imported;
