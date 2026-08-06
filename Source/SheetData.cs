@@ -13,6 +13,23 @@ public enum SegmentCategory {
     Cassette,
 }
 
+// what finishes a run of the segment (phase 6): derived from the sheet's own
+// naming vocabulary, evaluated by RunWatcher — SpeedrunTool's Number of Rooms
+// plays no part anymore.
+public enum EndCondition {
+    // ends where the next in-game checkpoint starts; resolved at runtime from
+    // AreaData (no next checkpoint ⇒ the chapter's completion ends the run)
+    Checkpoint,
+    // "... Clear" rows: the run ends with the chapter itself
+    ChapterComplete,
+    // "📼 RTM" rows: the run ends the moment the cassette is collected (the
+    // community convention for RTM segments — the menuing after the grab is
+    // not gameplay and is never timed by the room timer)
+    Cassette,
+    // "💙 RTM" rows: same, for the crystal heart
+    Heart,
+}
+
 // parsed practice sheet: one block of checkpoint segments merged from the two
 // imported tabs ("A Sides Standards" + "B Sides Standards"), with a header of
 // tier columns ("Hidden", "WR", "Gold", "Pink", "Purple 1", ... "Unranked")
@@ -131,7 +148,7 @@ public class SheetData {
                 foreach (SheetSegment segment in raw.Segments) {
                     if (Import.TryGetValue((segment.Chapter, segment.Name), out (string Chapter, string Name) target)) {
                         merged.Segments.Add(new SheetSegment(target.Chapter, target.Name, segment.Times,
-                            CategoryOf(segment.Name)));
+                            CategoryOf(segment.Name), EndConditionOf(segment.Name)));
                     }
                 }
             }
@@ -145,6 +162,25 @@ public class SheetData {
     // ("📼 RTM", "📼Clear"), so no exact-name matching here
     internal static SegmentCategory CategoryOf(string rawName) =>
         rawName.Contains("📼") ? SegmentCategory.Cassette : SegmentCategory.AnyPercent;
+
+    // the end of the run is in the raw name too: a "Clear" suffix means the
+    // chapter's completion (even with a marker — "📼 Clear" collects the
+    // cassette *and* finishes the chapter), "📼"/"💙" without it are RTM rows
+    // ending at the collect itself. Same spacing tolerance as CategoryOf
+    // ("📼Clear" exists). Combined "💙+📼" RTM rows default to Cassette until
+    // they are actually imported and their route settles which comes last
+    internal static EndCondition EndConditionOf(string rawName) {
+        string name = rawName.TrimEnd();
+        if (name.EndsWith("Clear", StringComparison.Ordinal)) {
+            return EndCondition.ChapterComplete;
+        }
+
+        if (name.Contains("📼")) {
+            return EndCondition.Cassette;
+        }
+
+        return name.Contains("💙") ? EndCondition.Heart : EndCondition.Checkpoint;
+    }
 
     // raw pass shared by both tabs: split the CSV into blocks of segments, one
     // block per header row, keeping the sheet's own chapter/checkpoint names.
@@ -291,15 +327,16 @@ public class SheetBlock(string name, int tierStart, bool hasCheckpoints) {
 }
 
 public class SheetSegment(string chapter, string name, List<TimeSpan?> times = null,
-    SegmentCategory category = SegmentCategory.AnyPercent) {
+    SegmentCategory category = SegmentCategory.AnyPercent, EndCondition end = EndCondition.Checkpoint) {
     // owning chapter; equals Name in chapter-only blocks
     public readonly string Chapter = chapter;
     public readonly string Name = name;
     // aligned with the owning block's Columns; null = empty or unparseable cell
     public readonly List<TimeSpan?> Times = times ?? [];
     // derived from the raw sheet name's marker at import (raw blocks keep the
-    // default: their names still carry the marker itself)
+    // defaults: their names still carry the marker itself)
     public readonly SegmentCategory Category = category;
+    public readonly EndCondition End = end;
 }
 
 // minimal RFC 4180 parser: quoted fields, "" escapes, \r\n or \n line ends

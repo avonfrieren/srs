@@ -31,8 +31,9 @@ public static partial class SegmentAutoDetect {
 #pragma warning restore CS0649
 
     // vanilla (AreaKey.ID, side) -> sheet chapter, plus the side name inside
-    // the folded chapters (the sheet routes 5 as 5B only, 6 as both sides)
-    private static readonly Dictionary<(int Id, AreaMode Mode), (string Chapter, string Side)> ChapterMap = new() {
+    // the folded chapters (the sheet routes 5 as 5B only, 6 as both sides).
+    // internal: RunWatcher anchors segments to game checkpoints through it
+    internal static readonly Dictionary<(int Id, AreaMode Mode), (string Chapter, string Side)> ChapterMap = new() {
         [(0, AreaMode.Normal)] = ("Prologue", null),
         [(1, AreaMode.Normal)] = ("1a", null),
         [(2, AreaMode.Normal)] = ("2a", null),
@@ -87,12 +88,12 @@ public static partial class SegmentAutoDetect {
         orig(self);
 
         // suspended while a completed run's tier is displayed: the completion
-        // transition lands in the next checkpoint's room, and moving the
-        // selection there would re-target Number of Rooms, un-complete the
-        // timer and hide the result. checkpointRoom keeps tracking meanwhile,
+        // usually transitions into the next checkpoint's room, and moving the
+        // selection there would re-point the tier comparison at the wrong
+        // segment and hide the result. checkpointRoom keeps tracking meanwhile,
         // so detection catches up as soon as the timer is reset (savestate
         // load, timer clear)
-        if (Settings.AutoDetect && !TierComparison.TimerCompleted) {
+        if (Settings.AutoDetect && !RunWatcher.Completed) {
             Apply(self.Session);
         }
     }
@@ -126,7 +127,6 @@ public static partial class SegmentAutoDetect {
 
         Settings.SelectedChapter = chapter.Chapter;
         Settings.SelectedCheckpoint = target.Name;
-        RoomCounts.Apply(target);
     }
 
     private static SheetSegment Find(SheetBlock block, string chapter, string name) {

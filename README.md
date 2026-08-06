@@ -7,12 +7,17 @@ Options under **Mod Options → Speedrun Sheet**.
 ## Notes
 
 - **Checkpoints that exist in several variants are resolved by the Category option.** A few sheet segments begin at the exact same in-game checkpoint as another segment — the two cassette checkpoints **Hollows Tape** (6A's **Hollows**) and **Depths Tape** (5A's **Depths**) — so nothing observable in-game tells them apart. The **Category** slider is how you tell the mod which one you mean: on **Cassette**, auto-detection picks the Tape variant of those checkpoints; on **Any%** (the default) it picks the plain one. Checkpoints with no variant in the selected category fall back to their plain row, so detection keeps working everywhere else.
+- **srs holds the reference time, SpeedrunTool holds the stopwatch.** Since v3.0.0 the mod decides itself when a run of the selected segment is finished and freezes that time on its own row (time + tier, in the tier's color). SpeedrunTool's displayed timer still obeys its own **Number of Rooms** setting — which srs never touches anymore — so it may keep running (or freeze at some other point) after srs has captured the segment's real end; the srs row is the one to read. The room timer (Next Room / Current Room) still has to be enabled for anything to show.
 
 ## Changelog
 
 ### v3.0.0 — unreleased
 
 - **Category selector**: a new **Category** slider in Mod Options (**Any%** / **Cassette**, persisted) tells the mod which practice category you are running, and auto-detection uses it to resolve the checkpoints that exist in several sheet variants. On **Cassette**, reaching 5A's Depths checkpoint selects **Depths Tape** and 6A's Hollows selects **Hollows Tape** — the two segments that previously could only be picked by hand with auto-detection turned off (the old "Notes" workaround). Checkpoints without a variant in the active category keep selecting their plain any% row.
+- **Declarative end conditions replace room counts**: a run of the selected segment now ends when its own condition fires — entering the next in-game checkpoint's room (resolved from the game's data at runtime, no hand-entered counts anymore), completing the chapter (chapter finals, Granny), or **collecting the cassette** for the two Tape segments (the community convention for 📼 RTM segments; previously they ended one room early, on entering the cassette room). The hand-maintained room count table is gone, and with it its route fragility — a checkpoint's segment now ends at the right place whatever path you take through it.
+- **SpeedrunTool's Number of Rooms is yours again**: srs no longer overwrites the setting on every selection change. SpeedrunTool's timer display follows it independently; srs evaluates its own end conditions and shows its own result (see Notes).
+- **The final time is displayed**: the srs row now shows the captured run time to the left of the tier name, both in the tier's color — it is the reference time of the run, frozen at the segment's real end.
+- **Start guard reworked**: the tier only shows when the run actually started at the selected segment's start room (tracked from where the room timer last sat at zero, savestate-aware) — starting mid-segment from a savestate completes the run but shows no tier, like the old partial-practice rule.
 
 ### v2.0.0 — 2026-08-05
 

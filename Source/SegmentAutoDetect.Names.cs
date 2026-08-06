@@ -66,4 +66,33 @@ public static partial class SegmentAutoDetect {
         [(SegmentCategory.Cassette, "Depths")] = "Depths Tape",
         [(SegmentCategory.Cassette, "Hollows")] = "Hollows Tape",
     };
+
+    // variant -> plain sibling ("Depths Tape" -> "Depths"); plain names come
+    // back unchanged. This is how a variant inherits its in-game anchor: both
+    // start at the same checkpoint
+    internal static string PlainNameOf(string sheetName) {
+        foreach (KeyValuePair<(SegmentCategory Category, string SheetName), string> entry in CategoryVariants) {
+            if (entry.Value == sheetName) {
+                return entry.Key.SheetName;
+            }
+        }
+
+        return sheetName;
+    }
+
+    // CheckpointMap read backwards: the game checkpoint a sheet segment starts
+    // at, inside one scope (game names repeat across scopes — "Start" — so the
+    // scope is required). Null when the sheet name is not anchored in this
+    // scope. RunWatcher resolves rooms from this: the start room of the run,
+    // and the end room of Checkpoint segments (the next checkpoint's room)
+    internal static string GameNameOf(string scope, string sheetName) {
+        string plain = PlainNameOf(sheetName);
+        foreach (KeyValuePair<(string Scope, string GameName), string> entry in CheckpointMap) {
+            if (entry.Key.Scope == scope && entry.Value == plain) {
+                return entry.Key.GameName;
+            }
+        }
+
+        return null;
+    }
 }

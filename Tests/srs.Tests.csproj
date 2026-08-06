@@ -14,7 +14,6 @@
     <ItemGroup>
         <Compile Include="*.cs" />
         <Compile Include="../Source/SheetData.cs" Link="Source/SheetData.cs" />
-        <Compile Include="../Source/RoomCounts.cs" Link="Source/RoomCounts.cs" />
         <Compile Include="../Source/SegmentAutoDetect.Names.cs" Link="Source/SegmentAutoDetect.Names.cs" />
     </ItemGroup>
 
