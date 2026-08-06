@@ -60,10 +60,20 @@ public static class TierComparison {
     // is 0:00.000 everywhere and never matches; empty/unparseable cells (null)
     // are skipped. The captured time is drawn left of the tier name, in the
     // tier's color — srs's frozen reference time, since SpeedrunTool's own
-    // display no longer freezes on the segment's real end
+    // display no longer freezes on the segment's real end. A completed run
+    // that failed the start guard (savestate planted mid-segment) shows its
+    // frozen time alone, greyed: the end of the run stays visible, the grey
+    // says it earned no tier
     private static void ComputeTier() {
         rowText = "";
+        if (!RunWatcher.Completed) {
+            return;
+        }
+
+        TimeSpan time = TimeSpan.FromTicks(RunWatcher.CapturedTicks);
         if (!RunWatcher.HasCapture) {
+            rowText = FormatTime(time);
+            tierColor = Color.Gray;
             return;
         }
 
@@ -73,7 +83,6 @@ public static class TierComparison {
             return;
         }
 
-        TimeSpan time = TimeSpan.FromTicks(RunWatcher.CapturedTicks);
         for (int i = 0; i < segment.Times.Count && i < block.Columns.Count; i++) {
             if (segment.Times[i] is { } threshold && threshold > TimeSpan.Zero && time <= threshold) {
                 SetTier(time, block.Columns[i]);

@@ -12,12 +12,14 @@ namespace Celeste.Mod.SpeedrunSheet;
 // old RoomCounts table is gone — room counts were route-fragile and blind to
 // categories; conditions are neither).
 public static class RunWatcher {
-    // the room the timer was last seen armed in (time == 0). A Next Room
-    // timer starts on the first transition, so on the 0 -> >0 edge the room
-    // the run started from is the one recorded while the timer was still 0.
+    // the room the run started in: Session.Level on the 0 -> >0 edge of the
+    // timer. That is the room whose entry started the timing — a Next Room
+    // timer armed one room before the segment (the standard practice setup)
+    // starts on the transition *into* the segment's first room, a Current
+    // Room timer starts right where it was reset; in both cases the frame
+    // the time first moves, Session.Level is the room the run is timed from.
     // Mutated during gameplay ⇒ registered with SpeedrunTool's save states:
     // loading a savestate restores the run in progress, capture included
-    private static string armRoom;
     private static string startRoom;
     private static bool completed;
     private static bool hasCapture;
@@ -30,9 +32,11 @@ public static class RunWatcher {
     // there would re-target the tier comparison and discard the shown result
     public static bool Completed => completed;
 
-    // the run's final time — only set when the run also started at the
-    // selected segment's start room (start guard): a run from a savestate
-    // planted mid-segment completes but gets no tier
+    // the final time is frozen on every completion; HasCapture tells whether
+    // the run also started at the selected segment's start room (start
+    // guard) — only then does it earn a tier. A run from a savestate planted
+    // mid-segment still shows its frozen time, greyed, so the end of the run
+    // is always visible
     public static bool HasCapture => hasCapture;
     public static long CapturedTicks => capturedTicks;
 
@@ -61,7 +65,7 @@ public static class RunWatcher {
         typeof(RoomTimerImports).ModInterop();
         typeof(SaveLoadImports).ModInterop();
         saveLoadAction = SaveLoadImports.RegisterStaticTypes?.Invoke(typeof(RunWatcher),
-            [nameof(armRoom), nameof(startRoom), nameof(completed), nameof(hasCapture), nameof(capturedTicks)]);
+            [nameof(startRoom), nameof(completed), nameof(hasCapture), nameof(capturedTicks)]);
     }
 
     public static void Unload() {
@@ -84,16 +88,17 @@ public static class RunWatcher {
         if (time == 0) {
             // armed (or reset — timer clear, savestate load back to zero):
             // whatever run was tracked is discarded, detection resumes
-            armRoom = self.Session.Level;
             startRoom = null;
             completed = false;
             hasCapture = false;
             return;
         }
 
-        // 0 -> >0 edge: the run just started from the room recorded while the
-        // timer was armed (a savestate load restores startRoom directly)
-        startRoom ??= armRoom;
+        // 0 -> >0 edge: the timing just started, and it started from the room
+        // the session is in on this very frame (SpeedrunTool starts a Next
+        // Room timer on the same frame Session.Level flips to the new room).
+        // A savestate load restores startRoom directly instead
+        startRoom ??= self.Session.Level;
 
         if (!completed) {
             CheckRoomConditions(self, time);
@@ -158,12 +163,13 @@ public static class RunWatcher {
 
     private static void Complete(Session session, SheetSegment segment, long time) {
         completed = true;
+        capturedTicks = time;
 
-        // start guard: a tier only makes sense for a run of the whole segment
-        if (startRoom != null && startRoom == ExpectedStartRoom(segment, session)) {
-            hasCapture = true;
-            capturedTicks = time;
-        }
+        // start guard: a tier only makes sense for a run of the whole
+        // segment. The time freezes either way — the greyed row is the
+        // visible cue that the run ended but did not start at the segment's
+        // first room
+        hasCapture = startRoom != null && startRoom == ExpectedStartRoom(segment, session);
     }
 
     // the selected segment, but only while the session is actually playing its
