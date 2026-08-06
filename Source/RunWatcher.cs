@@ -118,8 +118,15 @@ public static class RunWatcher {
             case EndCondition.Checkpoint:
                 string endRoom = EndRoomOf(segment, level.Session);
                 // no next checkpoint (chapter finals, Granny) ⇒ the chapter
-                // completion ends the run, exactly like ChapterComplete rows
-                if (endRoom == null ? level.Completed : level.Session.Level == endRoom) {
+                // completion ends the run, exactly like ChapterComplete rows.
+                // A run never ends in the room its own timing started from:
+                // on the frame a Next Room timer starts (the transition into
+                // the segment's first room), the selection can still be the
+                // previous segment — whose end room is exactly the room being
+                // entered. That entry is the start of this run, not the end
+                // of the previous one
+                if (endRoom == null ? level.Completed
+                        : level.Session.Level == endRoom && endRoom != startRoom) {
                     Complete(level.Session, segment, time);
                 }
 
