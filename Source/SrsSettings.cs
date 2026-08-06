@@ -3,20 +3,24 @@ using Microsoft.Xna.Framework.Input;
 namespace Celeste.Mod.SpeedrunSheet;
 
 public class SrsSettings : EverestModuleSettings {
-    // the "Celeste Any% Standards CP's" tab (gid 276158492): every checkpoint
-    // of the any% route, grouped by chapter
-    public const string DefaultSheetUrl =
-        "https://docs.google.com/spreadsheets/d/1WwqnaloO6I4gHcyzF3odz6n5LnSDTveS34BY-ljORuI/edit?gid=276158492";
+    // the two imported tabs of the practice sheet (v2.0.0): "A Sides
+    // Standards" (all the A-side checkpoints) and "B Sides Standards" (the
+    // any% route's 5B/6B checkpoints)
+    public const string DefaultASidesUrl =
+        "https://docs.google.com/spreadsheets/d/18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y/edit?gid=1796170425";
 
-    // pre-v0.2.0 default: the "Standards IL's" tab (whole chapters only);
-    // settings files still carrying it are migrated in SrsModule.LoadSettings
-    public const string LegacySheetUrl =
-        "https://docs.google.com/spreadsheets/d/1WwqnaloO6I4gHcyzF3odz6n5LnSDTveS34BY-ljORuI/edit?gid=639470957";
+    public const string DefaultBSidesUrl =
+        "https://docs.google.com/spreadsheets/d/18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y/edit?gid=1885706573";
 
-    // full Google Sheets edit URL (spreadsheet id + gid are extracted from it);
-    // not editable in-game — change it in Saves/modsettings-srs.celeste if the sheet moves
+    // full Google Sheets edit URLs (spreadsheet id + gid are extracted from
+    // them); not editable in-game — change them in the settings file if the
+    // sheet moves. The pre-2.0.0 single SheetUrl (old prototype sheet) is
+    // simply dropped by the settings deserializer
     [SettingIgnore]
-    public string SheetUrl { get; set; } = DefaultSheetUrl;
+    public string ASidesUrl { get; set; } = DefaultASidesUrl;
+
+    [SettingIgnore]
+    public string BSidesUrl { get; set; } = DefaultBSidesUrl;
 
     // checkpoint selected in Mod Options, addressed by name so the selection
     // survives sheet re-imports; empty until first picked

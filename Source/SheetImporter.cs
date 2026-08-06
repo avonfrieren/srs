@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// downloads the practice sheet as CSV (public "anyone with the link" sheet, no
-// account/credentials involved) and keeps a local cache so the mod works offline
+// downloads the two practice sheet tabs as CSV (public "anyone with the link"
+// sheet, no account/credentials involved) and keeps local caches so the mod
+// works offline
 public static class SheetImporter {
     private const string LogTag = "srs";
 
@@ -18,21 +19,35 @@ public static class SheetImporter {
 
     private static volatile bool updating;
 
-    // the cache doubles as the manual-import fallback: dropping a hand-exported
-    // sheet.csv at this path is equivalent to pressing the update button once
-    public static string CachePath => Path.Combine(Everest.PathSettings, "srs", "sheet.csv");
+    // the caches double as the manual-import fallback: dropping hand-exported
+    // CSVs of the two tabs at these paths is equivalent to pressing the update
+    // button once
+    public static string ACachePath => Path.Combine(Everest.PathSettings, "srs", "asides.csv");
+    public static string BCachePath => Path.Combine(Everest.PathSettings, "srs", "bsides.csv");
 
     public static void Load() {
         try {
-            if (File.Exists(CachePath)) {
-                SheetData data = SheetData.Parse(File.ReadAllText(CachePath));
-                if (data.SegmentCount > 0) {
-                    Data = data;
-                    CacheTime = File.GetLastWriteTime(CachePath);
-                    Logger.Log(LogLevel.Info, LogTag, $"Loaded {data.SegmentCount} segments from cache ({CachePath})");
-                } else {
-                    Logger.Log(LogLevel.Warn, LogTag, $"Cache file has no usable segments ({CachePath})");
-                }
+            // pre-2.0.0 single-tab cache: the old prototype sheet's CSV, which
+            // the current parser has no rows for — clean it up
+            File.Delete(Path.Combine(Everest.PathSettings, "srs", "sheet.csv"));
+        } catch (Exception) {
+            // fine, it just was not there (or is unreadable — harmless either way)
+        }
+
+        try {
+            string aSides = File.Exists(ACachePath) ? File.ReadAllText(ACachePath) : null;
+            string bSides = File.Exists(BCachePath) ? File.ReadAllText(BCachePath) : null;
+            if (aSides == null && bSides == null) {
+                return;
+            }
+
+            SheetData data = SheetData.Parse(aSides, bSides);
+            if (data.SegmentCount > 0) {
+                Data = data;
+                CacheTime = LatestCacheTime();
+                Logger.Log(LogLevel.Info, LogTag, $"Loaded {data.SegmentCount} segments from cache ({ACachePath}, {BCachePath})");
+            } else {
+                Logger.Log(LogLevel.Warn, LogTag, $"Cache files have no usable segments ({ACachePath}, {BCachePath})");
             }
         } catch (Exception e) {
             Logger.Log(LogLevel.Warn, LogTag, $"Failed to load sheet cache: {e}");
@@ -78,40 +93,69 @@ public static class SheetImporter {
 
     private static async Task<bool> UpdateFromSheet() {
         try {
-            string url = ExportUrl(SrsModule.Settings.SheetUrl);
-            if (url == null) {
-                Logger.Log(LogLevel.Warn, LogTag, $"Could not extract a spreadsheet id from SheetUrl: {SrsModule.Settings.SheetUrl}");
+            string aSides = await DownloadTab(SrsModule.Settings.ASidesUrl, "A Sides");
+            string bSides = await DownloadTab(SrsModule.Settings.BSidesUrl, "B Sides");
+            if (aSides == null || bSides == null) {
                 return false;
             }
 
-            Logger.Log(LogLevel.Info, LogTag, $"Downloading sheet: {url}");
-            string csv = await Http.GetStringAsync(url);
-
-            // a private sheet answers 200 with a Google sign-in page instead of CSV
-            if (csv.TrimStart().StartsWith("<", StringComparison.Ordinal)) {
-                Logger.Log(LogLevel.Warn, LogTag, "Got HTML instead of CSV — is the sheet shared publicly (anyone with the link)?");
-                return false;
-            }
-
-            SheetData data = SheetData.Parse(csv);
+            SheetData data = SheetData.Parse(aSides, bSides);
             if (data.SegmentCount == 0) {
-                Logger.Log(LogLevel.Warn, LogTag, "Downloaded CSV contains no recognizable segments");
+                Logger.Log(LogLevel.Warn, LogTag, "Downloaded CSVs contain no recognizable segments");
                 return false;
             }
 
-            Directory.CreateDirectory(Path.GetDirectoryName(CachePath));
-            string tmp = CachePath + ".tmp";
-            await File.WriteAllTextAsync(tmp, csv);
-            File.Move(tmp, CachePath, overwrite: true);
+            WriteCache(ACachePath, aSides);
+            WriteCache(BCachePath, bSides);
 
             Data = data;
             CacheTime = DateTime.Now;
-            Logger.Log(LogLevel.Info, LogTag, $"Sheet updated: {data.SegmentCount} segments in {data.Blocks.Count} blocks");
+            Logger.Log(LogLevel.Info, LogTag, $"Sheet updated: {data.SegmentCount} segments");
             return true;
         } catch (Exception e) {
             Logger.Log(LogLevel.Warn, LogTag, $"Sheet update failed: {e}");
             return false;
         }
+    }
+
+    private static async Task<string> DownloadTab(string sheetUrl, string label) {
+        string url = ExportUrl(sheetUrl);
+        if (url == null) {
+            Logger.Log(LogLevel.Warn, LogTag, $"Could not extract a spreadsheet id from the {label} url: {sheetUrl}");
+            return null;
+        }
+
+        Logger.Log(LogLevel.Info, LogTag, $"Downloading {label} tab: {url}");
+        string csv = await Http.GetStringAsync(url);
+
+        // a private sheet answers 200 with a Google sign-in page instead of CSV
+        if (csv.TrimStart().StartsWith("<", StringComparison.Ordinal)) {
+            Logger.Log(LogLevel.Warn, LogTag, $"Got HTML instead of CSV for the {label} tab — is the sheet shared publicly (anyone with the link)?");
+            return null;
+        }
+
+        return csv;
+    }
+
+    private static void WriteCache(string path, string csv) {
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        string tmp = path + ".tmp";
+        File.WriteAllText(tmp, csv);
+        File.Move(tmp, path, overwrite: true);
+    }
+
+    private static DateTime? LatestCacheTime() {
+        DateTime? latest = null;
+        foreach (string path in new[] { ACachePath, BCachePath }) {
+            if (File.Exists(path)) {
+                DateTime time = File.GetLastWriteTime(path);
+                if (latest == null || time > latest) {
+                    latest = time;
+                }
+            }
+        }
+
+        return latest;
     }
 
     // accepts a full edit URL (or just an id) and builds the no-auth CSV export URL

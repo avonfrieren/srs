@@ -47,12 +47,13 @@ public static class SegmentAutoDetect {
 
     // (side or chapter, game checkpoint name) -> sheet checkpoint name.
     // Deliberately a hardcoded table, no name normalization (owner decision
-    // 2026-07-18): the current sheet is a prototype and its successor will
-    // need a new parser anyway. "Start" stands for the session's first room
-    // (which has no CheckpointData). Game checkpoints absent from the sheet
-    // (the full-5A route past Depths) are simply not listed — reaching them
-    // leaves the selection where it was. "Hollows Tape" stays manual-only:
-    // it starts at 6A's Hollows checkpoint, indistinguishable from "Hollows"
+    // 2026-07-18, kept for the v2.0.0 sheet). "Start" stands for the
+    // session's first room (which has no CheckpointData). Game checkpoints
+    // not imported from the sheet (the full-5A route past Depths) are simply
+    // not listed — reaching them leaves the selection where it was. The two
+    // cassette checkpoints stay manual-only: "Hollows Tape" starts at 6A's
+    // Hollows checkpoint and "Depths Tape" at 5A's Depths checkpoint,
+    // indistinguishable from "Hollows"/"Depths"
     private static readonly Dictionary<(string Scope, string GameName), string> CheckpointMap = new() {
         [("Prologue", "Start")] = "Granny",
         [("1a", "Start")] = "Start",
@@ -85,7 +86,7 @@ public static class SegmentAutoDetect {
         [("6b", "Reflection")] = "Falling", // the sheet's name for 6B Reflection
         [("6b", "Rock Bottom")] = "6b Rock Bottom",
         [("6b", "Reprieve")] = "Reprieve",
-        [("7a", "Start")] = "Start",
+        [("7a", "Start")] = "0m", // the new sheet's name for 7a Start
         [("7a", "500 M")] = "500m",
         [("7a", "1000 M")] = "1000m",
         [("7a", "1500 M")] = "1500m",

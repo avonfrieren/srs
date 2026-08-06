@@ -34,8 +34,12 @@ public static class RoomCounts {
         // Cliff Face unknown
         [("5a/b", "5a Start")] = 10,
         [("5a/b", "Depths")] = 9,
-        // full-5a checkpoints absent from the current tab (5B route only):
-        // Unravelling = 12, Search = 8, Rescue unknown
+        // 5A cassette route (b-00 … b-22 through b-01b/b-02/b-11/b-13/b-17),
+        // 8 rooms counting the cassette room, same convention as Hollows Tape;
+        // manual-only like it (starts at the Depths checkpoint)
+        [("5a/b", "Depths Tape")] = 8,
+        // full-5a checkpoints on the sheet but not imported yet (owner decision
+        // 2026-08-05): Unravelling = 12, Search = 8, Rescue unknown
         [("5a/b", "5b Start")] = 4,
         [("5a/b", "Central Chamber")] = 8,
         [("5a/b", "Through The Mirror")] = 5,
@@ -54,7 +58,7 @@ public static class RoomCounts {
         [("6a/b", "Falling")] = 10, // the game's 6B Reflection, renamed by the sheet
         [("6a/b", "6b Rock Bottom")] = 5,
         // Reprieve unknown
-        [("7a", "Start")] = 7,
+        [("7a", "0m")] = 7, // the new sheet's name for 7a Start
         [("7a", "500m")] = 9,
         [("7a", "1000m")] = 9,
         [("7a", "1500m")] = 11,
