@@ -87,10 +87,10 @@ public static class SegmentSelector {
         });
 
         // category names are the sheet's own vocabulary, not translated;
-        // indexed by SegmentCategory. Only feeds the auto-detection (the
-        // manual sliders list every imported segment), applied on the next
-        // detection frame — no push here
-        string[] categories = ["Any%", "Cassette"];
+        // indexed by SegmentCategory (shared with the cycle hotkey's popup).
+        // Only feeds the auto-detection (the manual sliders list every
+        // imported segment), applied on the next detection frame — no push here
+        string[] categories = SegmentCategories.Names;
         TextMenu.Slider categorySlider = new(Dialog.Clean("SRS_CATEGORY"),
             i => categories[i], 0, categories.Length - 1, (int)settings.Category);
         categorySlider.Change(i => settings.Category = (SegmentCategory)i);

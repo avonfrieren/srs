@@ -34,6 +34,12 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public SegmentCategory Category { get; set; } = SegmentCategory.AnyPercent;
 
+    // rebindable hotkey cycling Category without opening Mod Options (v3.1.0),
+    // handled in SegmentAutoDetect — switching category is a mid-practice
+    // gesture (any% run, then the cassette variant of the same checkpoint)
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding CycleCategory { get; set; }
+
     [SettingIgnore]
     public string SelectedCheckpoint { get; set; } = "";
 
