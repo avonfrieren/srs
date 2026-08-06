@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AssemblyName>srs.Tests</AssemblyName>
+        <TargetFramework>net8.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>Celeste.Mod.SpeedrunSheet.Tests</RootNamespace>
+        <IsPackable>false</IsPackable>
+        <!-- the test assembly compiles the game-free sources directly instead of
+             referencing srs.dll, so no Celeste/SpeedrunTool references are
+             needed here (and internal members stay reachable from the tests) -->
+        <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="*.cs" />
+        <Compile Include="../Source/SheetData.cs" Link="Source/SheetData.cs" />
+        <Compile Include="../Source/RoomCounts.cs" Link="Source/RoomCounts.cs" />
+        <Compile Include="../Source/SegmentAutoDetect.Names.cs" Link="Source/SegmentAutoDetect.Names.cs" />
+    </ItemGroup>
+
+    <!-- snapshots of the two imported tabs; refreshing them is how a change in
+         the sheet gets noticed (see SheetConsistencyTests) -->
+    <ItemGroup>
+        <None Include="Fixtures/*.csv" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+        <PackageReference Include="xunit" Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    </ItemGroup>
+</Project>

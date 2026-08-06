@@ -10,7 +10,7 @@ namespace Celeste.Mod.SpeedrunSheet;
 // transitions and registered with SpeedrunTool's save states, so loading a
 // savestate restores the checkpoint of the moment of the save — exactly the
 // practice workflow.
-public static class SegmentAutoDetect {
+public static partial class SegmentAutoDetect {
     private static SrsSettings Settings => SrsModule.Settings;
 
     // room name of the last checkpoint room entered in the current session;
@@ -43,56 +43,6 @@ public static class SegmentAutoDetect {
         [(6, AreaMode.Normal)] = ("6a/b", "6a"),
         [(6, AreaMode.BSide)] = ("6a/b", "6b"),
         [(7, AreaMode.Normal)] = ("7a", null),
-    };
-
-    // (side or chapter, game checkpoint name) -> sheet checkpoint name.
-    // Deliberately a hardcoded table, no name normalization (owner decision
-    // 2026-07-18, kept for the v2.0.0 sheet). "Start" stands for the
-    // session's first room (which has no CheckpointData). Game checkpoints
-    // not imported from the sheet (the full-5A route past Depths) are simply
-    // not listed — reaching them leaves the selection where it was. The two
-    // cassette checkpoints stay manual-only: "Hollows Tape" starts at 6A's
-    // Hollows checkpoint and "Depths Tape" at 5A's Depths checkpoint,
-    // indistinguishable from "Hollows"/"Depths"
-    private static readonly Dictionary<(string Scope, string GameName), string> CheckpointMap = new() {
-        [("Prologue", "Start")] = "Granny",
-        [("1a", "Start")] = "Start",
-        [("1a", "Crossing")] = "Crossing",
-        [("1a", "Chasm")] = "Chasm",
-        [("2a", "Start")] = "Start",
-        [("2a", "Intervention")] = "Intervention",
-        [("2a", "Awake")] = "Awake",
-        [("3a", "Start")] = "Start",
-        [("3a", "Huge Mess")] = "Huge Mess",
-        [("3a", "Elevator Shaft")] = "Elevator Shaft",
-        [("3a", "Presidential Suite")] = "Presidential Suite",
-        [("4a", "Start")] = "Start",
-        [("4a", "Shrine")] = "Shrine",
-        [("4a", "Old Trail")] = "Old Trail",
-        [("4a", "Cliff Face")] = "Cliff Face",
-        [("5a", "Start")] = "5a Start",
-        [("5a", "Depths")] = "Depths",
-        [("5b", "Start")] = "5b Start",
-        [("5b", "Central Chamber")] = "Central Chamber",
-        [("5b", "Through the Mirror")] = "Through The Mirror",
-        [("5b", "Mix Master")] = "Mix Master",
-        [("6a", "Start")] = "6a Start",
-        [("6a", "Lake")] = "Lake",
-        [("6a", "Hollows")] = "Hollows",
-        [("6a", "Reflection")] = "Reflection",
-        [("6a", "Rock Bottom")] = "6a Rock Bottom",
-        [("6a", "Resolution")] = "Resolution",
-        [("6b", "Start")] = "6b Start",
-        [("6b", "Reflection")] = "Falling", // the sheet's name for 6B Reflection
-        [("6b", "Rock Bottom")] = "6b Rock Bottom",
-        [("6b", "Reprieve")] = "Reprieve",
-        [("7a", "Start")] = "0m", // the new sheet's name for 7a Start
-        [("7a", "500 M")] = "500m",
-        [("7a", "1000 M")] = "1000m",
-        [("7a", "1500 M")] = "1500m",
-        [("7a", "2000 M")] = "2000m",
-        [("7a", "2500 M")] = "2500m",
-        [("7a", "3000 M")] = "3000m",
     };
 
     public static void Load() {
@@ -155,20 +105,38 @@ public static class SegmentAutoDetect {
 
         string gameName = GameCheckpointName(session);
         if (gameName == null
-            || !CheckpointMap.TryGetValue((chapter.Side ?? chapter.Chapter, gameName), out string sheetName)
-            || (Settings.SelectedChapter == chapter.Chapter && Settings.SelectedCheckpoint == sheetName)) {
+            || !CheckpointMap.TryGetValue((chapter.Side ?? chapter.Chapter, gameName), out string sheetName)) {
             return;
         }
 
-        // only select checkpoints the imported sheet actually has
-        foreach (SheetSegment segment in block.Checkpoints(chapter.Chapter)) {
-            if (segment.Name == sheetName) {
-                Settings.SelectedChapter = chapter.Chapter;
-                Settings.SelectedCheckpoint = sheetName;
-                RoomCounts.Apply(segment);
-                return;
+        // the active category's variant of this checkpoint takes precedence
+        // (Cassette: Hollows -> Hollows Tape); the plain row is the fallback,
+        // so checkpoints without a variant keep detecting. Only checkpoints
+        // the imported sheet actually has are selectable
+        SheetSegment target = null;
+        if (CategoryVariants.TryGetValue((Settings.Category, sheetName), out string variant)) {
+            target = Find(block, chapter.Chapter, variant);
+        }
+
+        target ??= Find(block, chapter.Chapter, sheetName);
+        if (target == null
+            || (Settings.SelectedChapter == chapter.Chapter && Settings.SelectedCheckpoint == target.Name)) {
+            return;
+        }
+
+        Settings.SelectedChapter = chapter.Chapter;
+        Settings.SelectedCheckpoint = target.Name;
+        RoomCounts.Apply(target);
+    }
+
+    private static SheetSegment Find(SheetBlock block, string chapter, string name) {
+        foreach (SheetSegment segment in block.Checkpoints(chapter)) {
+            if (segment.Name == name) {
+                return segment;
             }
         }
+
+        return null;
     }
 
     // resolve the tracked checkpoint room to the game's checkpoint name; null

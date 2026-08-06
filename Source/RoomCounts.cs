@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Celeste.Mod.SpeedrunTool;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
@@ -9,7 +8,9 @@ namespace Celeste.Mod.SpeedrunSheet;
 // a checkpoint pushes its room count there: a run started from the beginning
 // of the checkpoint then completes exactly on its last room, which is what
 // TierComparison compares against the sheet.
-public static class RoomCounts {
+// game-free half (the table and its lookup), so the tests can cross-check it
+// against the imported sheet; Apply lives in RoomCounts.Game.cs
+public static partial class RoomCounts {
     // checkpoints with no known room count (the "?" finals of each chapter,
     // Granny): SpeedrunTool's own slider maximum keeps the room
     // count from ever completing the timer, so the run ends through what
@@ -69,10 +70,4 @@ public static class RoomCounts {
 
     public static int TargetFor(SheetSegment segment) =>
         Counts.TryGetValue((segment.Chapter, segment.Name), out int rooms) ? rooms : Unknown;
-
-    public static void Apply(SheetSegment segment) {
-        if (segment != null && SpeedrunToolSettings.Instance is { } settings) {
-            settings.NumberOfRooms = TargetFor(segment);
-        }
-    }
 }

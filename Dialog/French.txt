@@ -4,6 +4,7 @@
 MODOPTIONS_SRS_TITLE=     Speedrun Sheet
 MODOPTIONS_SRS_SHOWTIER=  Afficher le palier
 MODOPTIONS_SRS_TOGGLESHOWTIER= Afficher/masquer le palier
+SRS_CATEGORY=             Catégorie
 SRS_AUTO_DETECT=          Détection auto du checkpoint
 SRS_CHAPTER=              Chapitre
 SRS_CHECKPOINT=           Checkpoint

@@ -27,6 +27,13 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public string SelectedChapter { get; set; } = "";
 
+    // category being practiced: auto-detection resolves the checkpoints that
+    // exist in several variants with it (Cassette: Hollows -> Hollows Tape).
+    // Not auto-generated — SegmentSelector builds the slider itself, next to
+    // the chapter/checkpoint ones
+    [SettingIgnore]
+    public SegmentCategory Category { get; set; } = SegmentCategory.AnyPercent;
+
     [SettingIgnore]
     public string SelectedCheckpoint { get; set; } = "";
 

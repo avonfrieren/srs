@@ -97,6 +97,16 @@ public static class SegmentSelector {
             checkpointSlider.Disabled = on;
         });
 
+        // category names are the sheet's own vocabulary, not translated;
+        // indexed by SegmentCategory. Only feeds the auto-detection (the
+        // manual sliders list every imported segment), applied on the next
+        // detection frame — no push here
+        string[] categories = ["Any%", "Cassette"];
+        TextMenu.Slider categorySlider = new(Dialog.Clean("SRS_CATEGORY"),
+            i => categories[i], 0, categories.Length - 1, (int)settings.Category);
+        categorySlider.Change(i => settings.Category = (SegmentCategory)i);
+
+        menu.Add(categorySlider);
         menu.Add(autoToggle);
         menu.Add(chapterSlider);
         menu.Add(checkpointSlider);

@@ -4,6 +4,15 @@ using System.Globalization;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
+// the category a sheet row belongs to, read from the marker in its raw name
+// ("Hollows 📼 RTM" is the cassette variant of "Hollows"; no marker = plain
+// any% standard). More categories (💙 heart, 💎 gem) will appear here when
+// their rows get imported
+public enum SegmentCategory {
+    AnyPercent,
+    Cassette,
+}
+
 // parsed practice sheet: one block of checkpoint segments merged from the two
 // imported tabs ("A Sides Standards" + "B Sides Standards"), with a header of
 // tier columns ("Hidden", "WR", "Gold", "Pink", "Purple 1", ... "Unranked")
@@ -45,7 +54,7 @@ public class SheetData {
     // chapter echo is dropped from names ("1a Start" -> "Start") except the
     // side-disambiguating ones ("5a Start"), and names shared by both sides
     // keep a side prefix ("6a Rock Bottom"/"6b Rock Bottom")
-    private static readonly Dictionary<(string Chapter, string Name), (string Chapter, string Name)> Import = new() {
+    internal static readonly Dictionary<(string Chapter, string Name), (string Chapter, string Name)> Import = new() {
         // A Sides Standards: "<X>a CP" groups (the "<X>a IL" groups and the
         // full-5A route past Depths — Unravelling, Search, Rescue — are not
         // imported yet)
@@ -121,7 +130,8 @@ public class SheetData {
 
                 foreach (SheetSegment segment in raw.Segments) {
                     if (Import.TryGetValue((segment.Chapter, segment.Name), out (string Chapter, string Name) target)) {
-                        merged.Segments.Add(new SheetSegment(target.Chapter, target.Name, segment.Times));
+                        merged.Segments.Add(new SheetSegment(target.Chapter, target.Name, segment.Times,
+                            CategoryOf(segment.Name)));
                     }
                 }
             }
@@ -130,9 +140,17 @@ public class SheetData {
         return data;
     }
 
+    // the raw sheet name carries the category as an emoji marker; matched with
+    // Contains — the sheet's own spacing around the marker is inconsistent
+    // ("📼 RTM", "📼Clear"), so no exact-name matching here
+    internal static SegmentCategory CategoryOf(string rawName) =>
+        rawName.Contains("📼") ? SegmentCategory.Cassette : SegmentCategory.AnyPercent;
+
     // raw pass shared by both tabs: split the CSV into blocks of segments, one
-    // block per header row, keeping the sheet's own chapter/checkpoint names
-    private static List<SheetBlock> ParseBlocks(string csvText) {
+    // block per header row, keeping the sheet's own chapter/checkpoint names.
+    // internal rather than private so the tests can check the Import allowlist
+    // against the raw rows of the sheet
+    internal static List<SheetBlock> ParseBlocks(string csvText) {
         List<SheetBlock> blocks = [];
         SheetBlock currentBlock = null;
         string currentChapter = null;
@@ -272,12 +290,16 @@ public class SheetBlock(string name, int tierStart, bool hasCheckpoints) {
     }
 }
 
-public class SheetSegment(string chapter, string name, List<TimeSpan?> times = null) {
+public class SheetSegment(string chapter, string name, List<TimeSpan?> times = null,
+    SegmentCategory category = SegmentCategory.AnyPercent) {
     // owning chapter; equals Name in chapter-only blocks
     public readonly string Chapter = chapter;
     public readonly string Name = name;
     // aligned with the owning block's Columns; null = empty or unparseable cell
     public readonly List<TimeSpan?> Times = times ?? [];
+    // derived from the raw sheet name's marker at import (raw blocks keep the
+    // default: their names still carry the marker itself)
+    public readonly SegmentCategory Category = category;
 }
 
 // minimal RFC 4180 parser: quoted fields, "" escapes, \r\n or \n line ends
