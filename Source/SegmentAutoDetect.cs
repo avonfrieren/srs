@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Celeste.Mod.SpeedrunTool.Message;
 using MonoMod.ModInterop;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -86,6 +87,18 @@ public static partial class SegmentAutoDetect {
     // checkpointRoom silently, there is no callback to react to)
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         orig(self);
+
+        // hotkey (v3.1.0): cycle the practiced category without leaving the
+        // game — the natural gesture between an any% run of a checkpoint and
+        // the cassette variant of the same one. Handled here rather than in
+        // TierComparison because the category only feeds the detection right
+        // below, which picks the new variant up on this very frame
+        if (!self.Paused && Settings.CycleCategory.Pressed) {
+            Settings.Category = SegmentCategories.Next(Settings.Category);
+            SrsModule.Instance.SaveSettings();
+            PopupMessageUtils.ShowOptionState(Dialog.Clean("SRS_CATEGORY"),
+                SegmentCategories.NameOf(Settings.Category));
+        }
 
         // suspended while a completed run's tier is displayed: the completion
         // usually transitions into the next checkpoint's room, and moving the

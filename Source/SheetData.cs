@@ -13,6 +13,24 @@ public enum SegmentCategory {
     Cassette,
 }
 
+// how the categories are shown and walked through. The names are the sheet's
+// own vocabulary, deliberately untranslated, and both the Mod Options slider
+// and the cycle hotkey read them from here so the two never drift apart. Kept
+// game-free like the rest of this file: a test checks the table still covers
+// every enum value
+public static class SegmentCategories {
+    // indexed by SegmentCategory
+    public static readonly string[] Names = ["Any%", "Cassette"];
+
+    public static string NameOf(SegmentCategory category) =>
+        (int)category >= 0 && (int)category < Names.Length ? Names[(int)category] : category.ToString();
+
+    // the hotkey walks the slider's order and wraps around; driven by the enum
+    // rather than by Names so a category added without its label still cycles
+    public static SegmentCategory Next(SegmentCategory category) =>
+        (SegmentCategory)(((int)category + 1) % Enum.GetValues(typeof(SegmentCategory)).Length);
+}
+
 // what finishes a run of the segment (phase 6): derived from the sheet's own
 // naming vocabulary, evaluated by RunWatcher — SpeedrunTool's Number of Rooms
 // plays no part anymore.

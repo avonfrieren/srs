@@ -170,7 +170,6 @@ public static class TierComparison {
 
         PixelFont font = Dialog.Languages["english"].Font;
         float fontFaceSize = Dialog.Languages["english"].FontFaceSize;
-        float textWidth = font.Get(fontFaceSize).Measure(rowText).X * scale;
 
         MTexture bg = GFX.Gui["strawberryCountBG"];
         float rowHeight = bg.Height * scale + 1f;
@@ -180,7 +179,13 @@ public static class TierComparison {
             y += rowHeight + 1f;
         }
 
-        float width = timeMarginLeft + textWidth;
+        // SpeedrunTool's own PB-row width heuristic (v3.1.0), not the measured
+        // text width: the background is a 288px strip that fades out to the
+        // right, and every row of the stack is meant to end *inside* the text,
+        // letting the tail sit over the fade. Measuring the text put the whole
+        // fade past the last character instead, making this row visibly longer
+        // than the rows above it — same formula, same length now
+        float width = 60f + Math.Max(0f, 18f * (rowText.Length - 8));
         Draw.Rect(x, y - 1f, width + bg.Width * scale, 1f, Color.Black);
         Draw.Rect(x, y, width + 2f, rowHeight, Color.Black);
         bg.Draw(new Vector2(x + width, y), Vector2.Zero, Color.White, scale);
