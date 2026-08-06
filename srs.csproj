@@ -12,6 +12,12 @@
         <SpeedrunToolRefDir>$(BaseIntermediateOutputPath)SpeedrunToolRef/</SpeedrunToolRefDir>
     </PropertyGroup>
 
+    <!-- the SDK globs **/*.cs by default: without this the test project's own
+         sources (and its obj/ generated files) would be compiled into srs.dll -->
+    <ItemGroup>
+        <Compile Remove="Tests/**" />
+    </ItemGroup>
+
     <ItemDefinitionGroup>
         <Reference>
             <Private>False</Private>

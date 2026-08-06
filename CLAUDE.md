@@ -9,6 +9,14 @@ Roadmap dans `PLAN.md`. Le `README.md` sert de **changelog + instructions d'inst
 - Références jeu résolues via `CelestePrefix` (auto-détecté si le repo est cloné dans `<Celeste>/Mods/xxx/`).
 - **`SpeedrunTool.dll` extraite automatiquement du `SpeedrunTool.zip` officiel installé** (cible `ExtractSpeedrunToolDll`), épinglé sur **v3.27.17** dans `everest.yaml`. Pas de Publicizer pour l'instant (rien d'interne utilisé) — à ajouter comme dans srta si la phase 4 l'exige.
 - Cible `OutputAsModStructure` : génère `build/` (DLL + PDB + `everest.yaml` + `Dialog/`) → à zipper en `srs.zip` dans `<Celeste>/Mods/` (comme `srta.zip`) ou copier en dossier `Mods/srs/`.
+- `srs.csproj` contient `<Compile Remove="Tests/**" />` : **ne pas retirer** — le SDK globbe `**/*.cs`, sans ça les sources de test (et les fichiers générés de `Tests/obj/`) partiraient dans `srs.dll`.
+
+## Tests
+
+- `Tests/srs.Tests.csproj` (xUnit, net8.0). Lancement : `cd Tests && ~/.dotnet/dotnet test`. **Aucune référence à Celeste/SpeedrunTool** : le projet `<Compile Include>` directement les fichiers source game-free (`SheetData.cs`, `RoomCounts.cs`, `SegmentAutoDetect.Names.cs`) au lieu de référencer `srs.dll` — donc les membres `internal` (`Csv`, `Import`, `ParseBlocks`, `CheckpointMap`) sont visibles depuis les tests sans `InternalsVisibleTo`. Corollaire : garder ces fichiers-là sans `using` du jeu (d'où les découpes `RoomCounts.Game.cs` et `SegmentAutoDetect.Names.cs`, qui isolent les parties qui touchent SpeedrunTool/Celeste).
+- `Tests/SheetConsistencyTests.cs` — **le plus important** : croise les trois tables hardcodées (`SheetData.Import`, `RoomCounts.Counts`, `SegmentAutoDetect.CheckpointMap`) entre elles et avec les CSV réels. C'est ce qui rend visible la panne silencieuse typique — un renommage côté sheet, ou un nom qui diverge entre deux tables (l'import dit `0m`, `RoomCounts` dit encore `Start` ⇒ retour muet à 99 rooms).
+- `Tests/Fixtures/*.csv` — snapshots des deux onglets (2026-08-05, ~32 Ko). **Les rafraîchir est le mécanisme de détection** : re-télécharger les onglets et relancer les tests dit exactement quelles lignes la sheet a renommées ou supprimées. Ce ne sont volontairement pas des snapshots de valeurs (pas d'assertion sur les seuils, qui bougent tout le temps), seulement sur la structure.
+- Les fichiers couplés au jeu (`SegmentSelector`, `TierComparison`, hooks de `SegmentAutoDetect`, I/O de `SheetImporter`) ne sont pas testés unitairement : ils exigent `TextMenu`/`Dialog`/`GFX`/`Session`, les hooks MonoMod et l'interop SpeedrunTool, et leurs vrais bugs (timer qui se dé-complète, ordre capture/sélection) ne se révèlent qu'en jeu ⇒ checklist manuelle.
 
 ## Architecture
 
@@ -45,7 +53,8 @@ Roadmap dans `PLAN.md`. Le `README.md` sert de **changelog + instructions d'inst
 3. Réseau → uniquement à la demande explicite de l'utilisateur, timeout, erreurs loggées jamais levées.
 4. État statique muté en gameplay → interop `SpeedrunTool.SaveLoad`.
 5. Build, zipper `build/` en `srs.zip` dans `<Celeste>/Mods/` ; tester en jeu.
-6. Documenter dans le changelog du `README.md` (+ bump `Version` dans `everest.yaml` si release).
+6. Si la logique est game-free (parsing, tables de noms, calculs), ajouter le test dans `Tests/` ; toucher à l'une des trois tables hardcodées ⇒ vérifier que `SheetConsistencyTests` passe encore.
+7. Documenter dans le changelog du `README.md` (+ bump `Version` dans `everest.yaml` si release).
 
 ## Workflow git
 
