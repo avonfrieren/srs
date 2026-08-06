@@ -1,6 +1,6 @@
 # Speedrun Sheet (srs) 
 
-[Everest](https://everestapi.github.io/) mod that **require** [Speedrun Tool](https://gamebanana.com/tools/6597) for Celeste. It works by importing the *Celeste Master Practice Sheet* time references and compare your time on a checkpoint with it to find and show the associated color. It also auto detect the checkpoint your in.
+[Everest](https://everestapi.github.io/) mod that **require** [Speedrun Tool](https://gamebanana.com/tools/6597) for Celeste. It works by importing a community practice sheet's time references and compare your time on a checkpoint with it to find and show the associated color. It also auto detect the checkpoint your in.
 
 Options under **Mod Options → Speedrun Sheet**.
 
@@ -28,7 +28,7 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ### v2.0.0 — 2026-08-05
 
-- **New practice sheet**: the mod now imports the *Time References for the Celeste Master Practice Sheet* (the old prototype sheet is retired). Data comes from two tabs — **A Sides Standards** for every A-side checkpoint and **B Sides Standards** for the any% route's 5B/6B checkpoints — downloaded and cached separately (`Saves/srs/asides.csv` + `bsides.csv`; the old `sheet.csv` cache is cleaned up automatically). Press **Update Sheet Data** once after installing to fetch the new data.
+- **New practice sheet**: the mod now imports the community's current time-reference sheet (the old prototype sheet is retired). Data comes from two tabs — one for every A-side checkpoint, one for the any% route's 5B/6B checkpoints — downloaded and cached separately (`Saves/srs/asides.csv` + `bsides.csv`; the old `sheet.csv` cache is cleaned up automatically). Press **Update Sheet Data** once after installing to fetch the new data.
 - **Same checkpoints as before, plus Depths Tape**: only the checkpoints the mod already supported are imported (the sheet's heart/cassette/gem emoji variants and the per-chapter IL rows are for later), still folded into the familiar `5a/b` / `6a/b` chapters. The two cassette rows `Depths 📼 RTM` and `Hollows 📼 RTM` are imported as **Depths Tape** (new — 8 rooms, ending in the cassette room, manual-only like Hollows Tape, see Notes) and **Hollows Tape**.
 - **7A "Start" is now "0m"**, matching the new sheet's naming; auto-detection and the room count follow.
 
@@ -49,10 +49,10 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ### v0.2.0 — 2026-07-18
 
-- **Checkpoint selection** (phase 3): the imported tab is now "Celeste Any% Standards CP's" — every checkpoint of the any% route with its own tier times (e.g. 1a → Start, Crossing, Chasm), covering both route choices (5a/b and 6a/b). Two new entries in Mod Options — **Chapter** and **Checkpoint** — pick the checkpoint to compare against (persisted; picking a chapter rebuilds the checkpoint list). Existing installs with the old default `SheetUrl` (IL tab) are migrated automatically; press **Update Sheet Data** once to fetch the checkpoint data. Old chapter-only CSVs still parse.
+- **Checkpoint selection** (phase 3): the imported tab is now the any% checkpoints one — every checkpoint of the any% route with its own tier times (e.g. 1a → Start, Crossing, Chasm), covering both route choices (5a/b and 6a/b). Two new entries in Mod Options — **Chapter** and **Checkpoint** — pick the checkpoint to compare against (persisted; picking a chapter rebuilds the checkpoint list). Existing installs with the old default `SheetUrl` (IL tab) are migrated automatically; press **Update Sheet Data** once to fetch the checkpoint data. Old chapter-only CSVs still parse.
 - **Checkpoint list cleanup**: chapter echoes are dropped from checkpoint names ("1a Start" → "Start"; side prefixes like "5a Start"/"5b Start" are kept — they disambiguate the two routes), the sheet's "Wake Up" rows are skipped (they time the wake-up animation, not a checkpoint), and the "6a"/"6a Route"/"6b Route" groups are folded into a single **6a/b** chapter like the sheet's own 5a/b, with the duplicated "Rock Bottom" shown as "6a Rock Bottom"/"6b Rock Bottom".
 
 ### v0.1.0 — 2026-07-18
 
-- **Mod skeleton**: Everest module with SpeedrunTool declared as a dependency (same companion approach as [srta](https://github.com/avonfrieren/srta)).
-- **Sheet import**: downloads the "Celeste Any% Standars CP'S" tab of the practice sheet as CSV on demand, parses the tier columns (Gold → Red 3, Unranked) and the segment rows (Prologue, 1a … 7a, 6a Tape + Chapter Times block) into typed data, and caches the CSV locally with a status line (segment count + date) in Mod Options. Handles mixed time formats (`28`, `28.1`, `1:05.5`, `24:06.802`), offline play, private-sheet detection, and manual CSV drop-in as a fallback.
+- **Mod skeleton**: Everest module with SpeedrunTool declared as a dependency.
+- **Sheet import**: downloads the practice sheet's any% checkpoints tab as CSV on demand, parses the tier columns (Gold → Red 3, Unranked) and the segment rows (Prologue, 1a … 7a, 6a Tape + Chapter Times block) into typed data, and caches the CSV locally with a status line (segment count + date) in Mod Options. Handles mixed time formats (`28`, `28.1`, `1:05.5`, `24:06.802`), offline play, private-sheet detection, and manual CSV drop-in as a fallback.
