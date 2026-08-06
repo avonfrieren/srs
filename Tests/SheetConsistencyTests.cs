@@ -71,6 +71,25 @@ public class SheetConsistencyTests {
         Assert.Equal("Start", SegmentAutoDetect.GameNameOf("7a", "0m"));
     }
 
+    // 2ter. every start-room override names a (scope, game checkpoint) pair
+    // CheckpointMap actually knows. An override keyed on a checkpoint no table
+    // anchors would never fire — and, worse, the previous segment would keep
+    // ending at the checkpoint's own room, silently overlapping the next one
+    [Fact]
+    public void EveryStartRoomOverrideTargetsAKnownCheckpoint() {
+        List<(string, string)> unknown = SegmentAutoDetect.StartRoomOverrides.Keys
+            .Where(key => !SegmentAutoDetect.CheckpointMap.ContainsKey(key))
+            .ToList();
+
+        Assert.Empty(unknown);
+        // and the reverse lookup the auto-detection relies on agrees, scope
+        // included: end_0 is 2A's Awake, and nothing at all in 7A
+        Assert.Equal("Awake", SegmentAutoDetect.OverriddenCheckpointAt("2a", "end_0"));
+        Assert.Equal("Start", SegmentAutoDetect.OverriddenCheckpointAt("7a", "a-00"));
+        Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("7a", "end_0"));
+        Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("2a", "3"));
+    }
+
     // 3. auto-detection only points at checkpoints that were actually imported;
     // a stale name here silently stops the detection on that checkpoint
     [Fact]
