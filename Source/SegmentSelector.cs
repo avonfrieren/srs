@@ -55,23 +55,13 @@ public static class SegmentSelector {
         }
 
         // sync the settings with what the menu displays, so a stale selection
-        // (sheet changed, first run) becomes valid as soon as the menu opens.
-        // the room count is only pushed when the selection actually moved:
-        // reopening the menu must not stomp a manual Number of Rooms override
-        bool moved = settings.SelectedChapter != chapters[chapterIndex]
-            || settings.SelectedCheckpoint != checkpoints[checkpointIndex].Name;
+        // (sheet changed, first run) becomes valid as soon as the menu opens
         settings.SelectedChapter = chapters[chapterIndex];
         settings.SelectedCheckpoint = checkpoints[checkpointIndex].Name;
-        if (moved) {
-            RoomCounts.Apply(checkpoints[checkpointIndex]);
-        }
 
         TextMenu.Slider checkpointSlider = new(Dialog.Clean("SRS_CHECKPOINT"),
             i => checkpoints[i].Name, 0, checkpoints.Count - 1, checkpointIndex);
-        checkpointSlider.Change(i => {
-            settings.SelectedCheckpoint = checkpoints[i].Name;
-            RoomCounts.Apply(checkpoints[i]);
-        });
+        checkpointSlider.Change(i => settings.SelectedCheckpoint = checkpoints[i].Name);
 
         TextMenu.Slider chapterSlider = new(Dialog.Clean("SRS_CHAPTER"),
             i => chapters[i], 0, chapters.Count - 1, chapterIndex);
@@ -84,7 +74,6 @@ public static class SegmentSelector {
             }
 
             settings.SelectedCheckpoint = checkpoints[0].Name;
-            RoomCounts.Apply(checkpoints[0]);
         });
 
         chapterSlider.Disabled = settings.AutoDetect;

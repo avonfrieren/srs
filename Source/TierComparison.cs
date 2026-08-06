@@ -5,81 +5,42 @@ using Celeste.Mod.SpeedrunTool.Message;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
 using Microsoft.Xna.Framework;
 using Monocle;
-using MonoMod.ModInterop;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// Phase 4: when SpeedrunTool's room timer completes, compare the final time
-// against the selected checkpoint's sheet tiers and draw the reached tier's
-// name in its color under the timer, like srta's delta row.
+// Phase 4 (reshaped by phase 6): when RunWatcher captures a finished run of
+// the selected segment, compare the final time against the segment's sheet
+// tiers and draw the time + the reached tier's name in the tier's color under
+// the timer, like srta's delta row. srs is the holder of the reference time —
+// SpeedrunTool's own display keeps obeying its Number of Rooms setting, which
+// srs no longer touches.
 public static class TierComparison {
     private static SrsSettings Settings => SrsModule.Settings;
 
-    // final time captured on the frame the timer completes: GetRoomTime() keeps
-    // running in the background afterwards, only SpeedrunTool's display freezes.
-    // hasCapture is only set when that completion was a full run of the
-    // selected checkpoint (see IsFullRun); mutated during gameplay ⇒ registered
-    // with SpeedrunTool's save states, so loading a savestate restores the
-    // tier row of the moment of the save
-    private static bool wasCompleted;
-    private static bool hasCapture;
-    private static long capturedTicks;
-
-    // SegmentAutoDetect suspends itself while this is true: finishing a run
-    // transitions into the next checkpoint's room, and re-targeting Number of
-    // Rooms there would un-complete the timer and throw the result away
-    public static bool TimerCompleted => wasCompleted;
-
-    // recomputed every frame from capturedTicks (srta-style), so the row reacts
-    // instantly to selection changes and sheet re-imports; derived state only,
-    // deliberately not registered with save states
-    private static string tierText = "";
+    // recomputed every frame from RunWatcher's capture (srta-style), so the
+    // row reacts instantly to selection changes and sheet re-imports; derived
+    // state only, deliberately not registered with save states (the capture
+    // itself is, in RunWatcher)
+    private static string rowText = "";
     private static Color tierColor = Color.White;
 
     // drop the row below srta's delta row when srta is present; resolved on
     // first render (mod load order between srs and srta is not guaranteed)
     private static bool? srtaLoaded;
 
-    private static object saveLoadAction;
-
-    // fields are filled at runtime by ModInterop()
-#pragma warning disable CS0649
-    [ModImportName("SpeedrunTool.RoomTimer")]
-    private static class RoomTimerImports {
-        public static Func<bool> RoomTimerIsCompleted;
-        public static Func<long> GetRoomTime;
-    }
-
-    [ModImportName("SpeedrunTool.SaveLoad")]
-    private static class SaveLoadImports {
-        public static Func<Type, string[], object> RegisterStaticTypes;
-        public static Action<object> Unregister;
-    }
-#pragma warning restore CS0649
-
     public static void Load() {
+        // after RunWatcher's Level.Update hook: this one wraps it, so after
+        // orig the frame's capture is already settled when the tier computes
         On.Celeste.Level.Update += LevelOnUpdate;
         On.Celeste.SpeedrunTimerDisplay.Render += SpeedrunTimerDisplayOnRender;
-
-        typeof(RoomTimerImports).ModInterop();
-        typeof(SaveLoadImports).ModInterop();
-        saveLoadAction = SaveLoadImports.RegisterStaticTypes?.Invoke(typeof(TierComparison),
-            [nameof(wasCompleted), nameof(hasCapture), nameof(capturedTicks)]);
     }
 
     public static void Unload() {
         On.Celeste.Level.Update -= LevelOnUpdate;
         On.Celeste.SpeedrunTimerDisplay.Render -= SpeedrunTimerDisplayOnRender;
-
-        if (saveLoadAction != null) {
-            SaveLoadImports.Unregister?.Invoke(saveLoadAction);
-            saveLoadAction = null;
-        }
     }
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
-        // srs loads after SpeedrunTool (dependency), so this hook is outermost
-        // and the timer data of this frame is final after orig
         orig(self);
 
         // srta-style hotkey: flip the toggle and confirm with SpeedrunTool's
@@ -91,40 +52,28 @@ public static class TierComparison {
                 Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
         }
 
-        if (RoomTimerImports.RoomTimerIsCompleted == null) {
-            return;
-        }
-
-        bool completed = RoomTimerImports.RoomTimerIsCompleted();
-        if (!completed) {
-            hasCapture = false;
-        } else if (!wasCompleted && IsFullRun()) {
-            hasCapture = true;
-            capturedTicks = RoomTimerImports.GetRoomTime();
-        }
-
-        wasCompleted = completed;
         ComputeTier();
-    }
-
-    // the timer completing only means a finished run of the selected checkpoint
-    // when it stopped at the checkpoint's room count — SegmentSelector pushes
-    // it into SpeedrunTool's Number of Rooms on selection, so a mismatch is a
-    // deliberate manual override (partial-segment practice): no tier then
-    private static bool IsFullRun() {
-        SheetSegment segment = SegmentSelector.Current;
-        return segment != null
-            && SpeedrunToolSettings.Instance is { } settings
-            && settings.NumberOfRooms == RoomCounts.TargetFor(segment);
     }
 
     // first tier column whose threshold is >= the captured time wins; slower
     // than every threshold (i.e. beyond Red 3) is Unranked. The Hidden column
     // is 0:00.000 everywhere and never matches; empty/unparseable cells (null)
-    // are skipped
+    // are skipped. The captured time is drawn left of the tier name, in the
+    // tier's color — srs's frozen reference time, since SpeedrunTool's own
+    // display no longer freezes on the segment's real end. A completed run
+    // that failed the start guard (savestate planted mid-segment) shows its
+    // frozen time alone, greyed: the end of the run stays visible, the grey
+    // says it earned no tier
     private static void ComputeTier() {
-        tierText = "";
-        if (!hasCapture) {
+        rowText = "";
+        if (!RunWatcher.Completed) {
+            return;
+        }
+
+        TimeSpan time = TimeSpan.FromTicks(RunWatcher.CapturedTicks);
+        if (!RunWatcher.HasCapture) {
+            rowText = FormatTime(time);
+            tierColor = Color.Gray;
             return;
         }
 
@@ -134,16 +83,19 @@ public static class TierComparison {
             return;
         }
 
-        TimeSpan time = TimeSpan.FromTicks(capturedTicks);
         for (int i = 0; i < segment.Times.Count && i < block.Columns.Count; i++) {
             if (segment.Times[i] is { } threshold && threshold > TimeSpan.Zero && time <= threshold) {
-                SetTier(block.Columns[i]);
+                SetTier(time, block.Columns[i]);
                 return;
             }
         }
 
-        SetTier("Unranked");
+        SetTier(time, "Unranked");
     }
+
+    // SpeedrunTool's own time format ("s.fff" under a minute, "m:ss.fff" above)
+    private static string FormatTime(TimeSpan time) =>
+        time.ToString(time.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff");
 
     // tier colors: each sheet column name maps to its exact palette hex. Unlike
     // XNA's named colors, the "1"-"3" rank suffix is significant here, so
@@ -184,8 +136,8 @@ public static class TierComparison {
             ["Red 3"] = Calc.HexToColor("f4cccc"),
         };
 
-    private static void SetTier(string column) {
-        tierText = column;
+    private static void SetTier(TimeSpan time, string column) {
+        rowText = $"{FormatTime(time)} {column}";
         tierColor = column.Trim().Equals("Unranked", StringComparison.OrdinalIgnoreCase)
             ? Color.Gray
             : TierColors.GetValueOrDefault(column.Trim(), Color.White);
@@ -194,7 +146,7 @@ public static class TierComparison {
     private static void SpeedrunTimerDisplayOnRender(On.Celeste.SpeedrunTimerDisplay.orig_Render orig, SpeedrunTimerDisplay self) {
         orig(self);
 
-        if (!Settings.ShowTier || tierText.Length == 0) {
+        if (!Settings.ShowTier || rowText.Length == 0) {
             return;
         }
 
@@ -218,7 +170,7 @@ public static class TierComparison {
 
         PixelFont font = Dialog.Languages["english"].Font;
         float fontFaceSize = Dialog.Languages["english"].FontFaceSize;
-        float textWidth = font.Get(fontFaceSize).Measure(tierText).X * scale;
+        float textWidth = font.Get(fontFaceSize).Measure(rowText).X * scale;
 
         MTexture bg = GFX.Gui["strawberryCountBG"];
         float rowHeight = bg.Height * scale + 1f;
@@ -233,7 +185,7 @@ public static class TierComparison {
         Draw.Rect(x, y, width + 2f, rowHeight, Color.Black);
         bg.Draw(new Vector2(x + width, y), Vector2.Zero, Color.White, scale);
 
-        font.DrawOutline(fontFaceSize, tierText, new Vector2(x + timeMarginLeft, y + 28.4f),
+        font.DrawOutline(fontFaceSize, rowText, new Vector2(x + timeMarginLeft, y + 28.4f),
             new Vector2(0f, 1f), Vector2.One * scale, tierColor, 2f, Color.Black);
     }
 

@@ -6,11 +6,11 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 
 // The mod addresses checkpoints by name across three hardcoded tables that
 // nothing forces to agree: SheetData.Import (which sheet rows to keep and what
-// to call them), RoomCounts.Counts (when a run is finished) and
-// SegmentAutoDetect.CheckpointMap (what the played checkpoint selects). A
-// rename on either side degrades silently — the checkpoint just disappears
-// from the sliders, or the room count quietly falls back to 99. These tests
-// cross-check the three tables against each other and against the sheet.
+// to call them), SegmentAutoDetect.CheckpointMap (what the played checkpoint
+// selects) and SegmentAutoDetect.CategoryVariants (which variant the Category
+// setting resolves). A rename on either side degrades silently — the
+// checkpoint just disappears from the sliders, or auto-detection stops moving.
+// These tests cross-check the tables against each other and against the sheet.
 public class SheetConsistencyTests {
     // every raw (chapter, checkpoint) pair present in the exported tabs
     private static readonly HashSet<(string, string)> RawRows = [
@@ -18,22 +18,6 @@ public class SheetConsistencyTests {
             .SelectMany(SheetData.ParseBlocks)
             .SelectMany(block => block.Segments)
             .Select(segment => (segment.Chapter, segment.Name))
-    ];
-
-    // checkpoints the sheet has no room count for: the last checkpoint of each
-    // chapter (the run ends with the chapter itself) and the Prologue. They get
-    // RoomCounts.Unknown on purpose — listing them here means an accidental
-    // fallback to Unknown, caused by a typo or a rename, fails the test instead
-    private static readonly HashSet<(string, string)> ExpectedUnknown = [
-        ("Prologue", "Granny"),
-        ("1a", "Chasm"),
-        ("2a", "Awake"),
-        ("3a", "Presidential Suite"),
-        ("4a", "Cliff Face"),
-        ("5a/b", "Mix Master"),
-        ("6a/b", "Resolution"),
-        ("6a/b", "Reprieve"),
-        ("7a", "3000m"),
     ];
 
     // 1. the allowlist still matches the sheet. This is the test that catches a
@@ -48,18 +32,43 @@ public class SheetConsistencyTests {
         Assert.Empty(missing);
     }
 
-    // 2. every checkpoint the mod imports has a room count, or is a deliberate
-    // Unknown. Without this, Import saying "0m" while RoomCounts still says
-    // "Start" would just make the timer never complete
+    // 2. every imported segment carries the end condition its raw sheet name
+    // declares: the two 📼 RTM rows end at the cassette collect, everything
+    // else ends at the next in-game checkpoint (or the chapter's completion
+    // when there is none — resolved at runtime, no table for it). A marker
+    // slipping through Import unnoticed would silently mistime the segment
     [Fact]
-    public void EveryImportedCheckpointHasAKnownRoomCountOrIsExplicitlyUnknown() {
-        HashSet<(string, string)> unknown = [
+    public void EveryImportedSegmentEndsTheWayItsRawNameDeclares() {
+        HashSet<(string, string)> cassette = [
             .. Fixtures.Imported
-                .Where(segment => RoomCounts.TargetFor(segment) == RoomCounts.Unknown)
+                .Where(segment => segment.End == EndCondition.Cassette)
                 .Select(segment => (segment.Chapter, segment.Name))
         ];
 
-        Assert.Equal(ExpectedUnknown, unknown);
+        Assert.Equal([("5a/b", "Depths Tape"), ("6a/b", "Hollows Tape")], cassette);
+        Assert.All(Fixtures.Imported.Where(segment => segment.End != EndCondition.Cassette),
+            segment => Assert.Equal(EndCondition.Checkpoint, segment.End));
+    }
+
+    // 2bis. every imported segment resolves back to a game checkpoint through
+    // GameNameOf — that anchor is what RunWatcher uses for both the start
+    // guard and the end room of Checkpoint segments. The scopes are the ones
+    // CheckpointMap itself uses; a segment resolving in none of them means a
+    // broken rename between the tables
+    [Fact]
+    public void EveryImportedSegmentIsAnchoredToAGameCheckpoint() {
+        HashSet<string> scopes = [.. SegmentAutoDetect.CheckpointMap.Keys.Select(key => key.Scope)];
+
+        List<string> unanchored = Fixtures.Imported
+            .Select(segment => segment.Name)
+            .Where(name => !scopes.Any(scope => SegmentAutoDetect.GameNameOf(scope, name) != null))
+            .ToList();
+
+        Assert.Empty(unanchored);
+        // the two variants inherit their plain sibling's anchor
+        Assert.Equal("Depths", SegmentAutoDetect.GameNameOf("5a", "Depths Tape"));
+        Assert.Equal("Hollows", SegmentAutoDetect.GameNameOf("6a", "Hollows Tape"));
+        Assert.Equal("Start", SegmentAutoDetect.GameNameOf("7a", "0m"));
     }
 
     // 3. auto-detection only points at checkpoints that were actually imported;
@@ -102,15 +111,16 @@ public class SheetConsistencyTests {
     // the two cassette routes the owner asked for in v2.0.0; they are the only
     // emoji rows kept. They start at the same in-game checkpoint as their
     // non-cassette sibling, so they are never in CheckpointMap — the Category
-    // setting resolves them through CategoryVariants instead
+    // setting resolves them through CategoryVariants instead — and their runs
+    // end at the cassette collect, not in any room
     [Theory]
-    [InlineData("5a/b", "Depths Tape", 8)]
-    [InlineData("6a/b", "Hollows Tape", 2)]
-    public void ImportsTheCassetteCheckpointsWithTheirRoomCount(string chapter, string name, int rooms) {
+    [InlineData("5a/b", "Depths Tape")]
+    [InlineData("6a/b", "Hollows Tape")]
+    public void ImportsTheCassetteCheckpointsEndingAtTheCollect(string chapter, string name) {
         SheetSegment segment = Assert.Single(Fixtures.Imported,
             s => s.Chapter == chapter && s.Name == name);
 
-        Assert.Equal(rooms, RoomCounts.TargetFor(segment));
+        Assert.Equal(EndCondition.Cassette, segment.End);
         Assert.DoesNotContain(name, SegmentAutoDetect.CheckpointMap.Values);
     }
 

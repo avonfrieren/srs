@@ -16,15 +16,20 @@ public class SrsModule : EverestModule {
 
     public override void Load() {
         SheetImporter.Load();
+        // Level.Update hook order matters: each later Load wraps the previous
+        // hooks, so after orig the frame runs innermost-first — RunWatcher
+        // captures the finished run, TierComparison computes the tier from it,
+        // SegmentAutoDetect moves the selection last (suspended while a
+        // completed run's tier is shown)
+        RunWatcher.Load();
         TierComparison.Load();
-        // after TierComparison: its Level.Update hook must stay innermost so a
-        // completion is captured before auto-detection moves the selection
         SegmentAutoDetect.Load();
     }
 
     public override void Unload() {
         SegmentAutoDetect.Unload();
         TierComparison.Unload();
+        RunWatcher.Unload();
         SheetImporter.Unload();
     }
 
