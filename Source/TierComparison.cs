@@ -14,6 +14,9 @@ namespace Celeste.Mod.SpeedrunSheet;
 // the timer, like srta's delta row. srs is the holder of the reference time —
 // SpeedrunTool's own display keeps obeying its Number of Rooms setting, which
 // srs no longer touches.
+// Owner of every row srs adds to the timer stack: the tier row and, under it,
+// the greyed selection row (v3.3.0). They share the same slot geometry and the
+// same visibility gate, so they are drawn from one hook rather than two.
 public static class TierComparison {
     private static SrsSettings Settings => SrsModule.Settings;
 
@@ -23,6 +26,14 @@ public static class TierComparison {
     // itself is, in RunWatcher)
     private static string rowText = "";
     private static Color tierColor = Color.White;
+
+    // "category - checkpoint" of the armed comparison (v3.3.0), recomputed the
+    // same way — auto-detection moves the selection from under it constantly
+    private static string selectionText = "";
+
+    // dimmer than the tierless grey: this row is a reminder, it must never
+    // read as a result. The black outline keeps it legible over any background
+    private static readonly Color SelectionColor = Calc.HexToColor("6f6f6f");
 
     // drop the row below srta's delta row when srta is present; resolved on
     // first render (mod load order between srs and srta is not guaranteed)
@@ -52,7 +63,28 @@ public static class TierComparison {
                 Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
         }
 
+        if (!self.Paused && Settings.ToggleShowSelection.Pressed) {
+            Settings.ShowSelection = !Settings.ShowSelection;
+            SrsModule.Instance.SaveSettings();
+            PopupMessageUtils.ShowOptionState(Dialog.Clean("MODOPTIONS_SRS_SHOWSELECTION"),
+                Dialog.Clean(Settings.ShowSelection ? DialogIds.On : DialogIds.Off));
+        }
+
         ComputeTier();
+        ComputeSelection();
+    }
+
+    // the segment the next run will be compared against, named the way the two
+    // things that pick it are: the Category setting (hotkey or slider) and the
+    // sheet's own checkpoint name (so a variant reads "Any% Cassettes -
+    // Hollows Tape", not "Hollows"). Empty while nothing is armed — no sheet
+    // data yet, or a selection the imported data no longer has: there is no
+    // comparison to announce then, and the tier row would stay empty too
+    private static void ComputeSelection() {
+        SheetSegment segment = SegmentSelector.Current;
+        selectionText = segment == null
+            ? ""
+            : $"{SegmentCategories.NameOf(Settings.Category)} - {segment.Name}";
     }
 
     // first tier column whose threshold is >= the captured time wins; slower
@@ -146,22 +178,29 @@ public static class TierComparison {
     private static void SpeedrunTimerDisplayOnRender(On.Celeste.SpeedrunTimerDisplay.orig_Render orig, SpeedrunTimerDisplay self) {
         orig(self);
 
-        if (!Settings.ShowTier || rowText.Length == 0) {
-            return;
-        }
-
         // hidden along with the room timer itself
         if (SpeedrunToolSettings.Instance is not { Enabled: true } settings
             || settings.RoomTimerType == RoomTimerType.Off || self.DrawLerp <= 0f) {
             return;
         }
 
-        DrawTier(self);
+        // fixed slots, not a stack that closes up: the selection row is a
+        // landmark read mid-run, and a run completing must not slide it out
+        // from under the eye. It stays on the second slot, the tier's one
+        // simply being empty until a run finishes
+        if (Settings.ShowTier && rowText.Length > 0) {
+            DrawRow(self, 0, rowText, tierColor);
+        }
+
+        if (Settings.ShowSelection && selectionText.Length > 0) {
+            DrawRow(self, 1, selectionText, SelectionColor);
+        }
     }
 
     // row below SpeedrunTool's time + PB rows (below srta's delta row when srta
-    // is installed), same background and sliding animation
-    private static void DrawTier(SpeedrunTimerDisplay self) {
+    // is installed), same background and sliding animation; row 0 is the first
+    // slot srs owns, each following one sits a row lower
+    private static void DrawRow(SpeedrunTimerDisplay self, int row, string text, Color color) {
         const float topTimeHeight = 38f;
         const float timeMarginLeft = 32f;
         const float scale = 0.6f;
@@ -174,7 +213,7 @@ public static class TierComparison {
         MTexture bg = GFX.Gui["strawberryCountBG"];
         float rowHeight = bg.Height * scale + 1f;
         float x = -300f * Ease.CubeIn(1f - self.DrawLerp);
-        float y = self.Y + topTimeHeight + rowHeight;
+        float y = self.Y + topTimeHeight + rowHeight + row * (rowHeight + 1f);
         if (srtaLoaded.Value) {
             y += rowHeight + 1f;
         }
@@ -185,13 +224,13 @@ public static class TierComparison {
         // letting the tail sit over the fade. Measuring the text put the whole
         // fade past the last character instead, making this row visibly longer
         // than the rows above it — same formula, same length now
-        float width = 60f + Math.Max(0f, 18f * (rowText.Length - 8));
+        float width = 60f + Math.Max(0f, 18f * (text.Length - 8));
         Draw.Rect(x, y - 1f, width + bg.Width * scale, 1f, Color.Black);
         Draw.Rect(x, y, width + 2f, rowHeight, Color.Black);
         bg.Draw(new Vector2(x + width, y), Vector2.Zero, Color.White, scale);
 
-        font.DrawOutline(fontFaceSize, rowText, new Vector2(x + timeMarginLeft, y + 28.4f),
-            new Vector2(0f, 1f), Vector2.One * scale, tierColor, 2f, Color.Black);
+        font.DrawOutline(fontFaceSize, text, new Vector2(x + timeMarginLeft, y + 28.4f),
+            new Vector2(0f, 1f), Vector2.One * scale, color, 2f, Color.Black);
     }
 
     private static bool IsSrtaLoaded() {

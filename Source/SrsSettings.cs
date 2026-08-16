@@ -50,6 +50,15 @@ public class SrsSettings : EverestModuleSettings {
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding ToggleShowTier { get; set; }
 
+    // discreet "category - checkpoint" row under the tier row (v3.3.0): what
+    // the next run will be compared against, readable at a glance without
+    // opening Mod Options. Same shape as ShowTier — auto-generated menu toggle
+    // + rebindable hotkey, both handled in TierComparison
+    public bool ShowSelection { get; set; } = true;
+
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ToggleShowSelection { get; set; }
+
     // the played checkpoint drives the selection (SegmentAutoDetect); the two
     // sliders become a manual override when turned off. Not auto-generated:
     // SegmentSelector builds the toggle itself so it can grey out the sliders

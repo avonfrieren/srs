@@ -6,6 +6,10 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ## Changelog
 
+### v3.3.0 — 2026-08-16
+
+- **Selection row**: a discreet greyed row under the tier row now names the comparison that is armed, as `category - checkpoint` (`Any% - Chasm`, `Any% Cassettes - Hollows Tape`) — the checkpoint auto-detection picked, or the sliders' if it is off. New **Show Selection** toggle in Mod Options (on by default) plus its own rebindable hotkey (unbound by default), like the tier row's. It shows as soon as the room timer does and keeps its place: the tier row's slot above it stays empty until a run finishes, so a completion never slides the row you were reading. Nothing is drawn while no segment is selected (no sheet data yet, or a selection the imported data no longer has).
+
 ### v3.2.0 — 2026-08-06
 
 - **Segments the sheet does not time from their checkpoint**: two any% segments start somewhere else than the in-game checkpoint they belong to, and both were mistimed. **2A Awake** is timed from the moment Madeline wakes up — room `end_0`, the campfire right after the dream section — which is *three* rooms before the game's Awake checkpoint; it now starts there, and a run of **Intervention** ends there too instead of overrunning into Awake's first three rooms. **7A 0m** is timed from `a-00`: neither the intro room nor Madeline's landing animation counts, their time being added on the sheet afterwards (run it the usual way — savestate placed after the landing, **Current Room** timer). Auto-detection follows: entering one of those rooms selects the segment, without waiting for the checkpoint.
