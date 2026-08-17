@@ -106,8 +106,7 @@ public class SheetData {
     // names shared by both sides keep a side prefix ("6a Rock Bottom"/"6b Rock
     // Bottom")
     internal static readonly Dictionary<(string Chapter, string Name), (string Chapter, string Name)> Import = new() {
-        // A Sides Standards: "<X>a CP" groups (the "<X>a IL" groups and the
-        // full-5A route past Depths — Unravelling, Search, Rescue — are not
+        // A Sides Standards: "<X>a CP" groups (the "<X>a IL" groups are not
         // imported yet)
         [("Prologue", "Granny")] = ("Prologue", "Granny"),
         [("1a CP", "1a Start")] = ("1a", "Start"),
@@ -129,6 +128,12 @@ public class SheetData {
         [("5a CP", "5a Start")] = ("5a/b", "5a Start"),
         [("5a CP", "Depths")] = ("5a/b", "Depths"),
         [("5a CP", "Depths 📼 RTM")] = ("5a/b", "Depths Tape"),
+        // 5A past the mirror (v3.6.0). The sheet's "Wake Up" row between Depths
+        // and Unraveling stays out on purpose: it times the wake-up animation,
+        // which is always the same 2.533s — there is nothing to compare
+        [("5a CP", "Unraveling")] = ("5a/b", "Unraveling"),
+        [("5a CP", "Search")] = ("5a/b", "Search"),
+        [("5a CP", "Rescue")] = ("5a/b", "Rescue"),
         [("6a CP", "6a Start")] = ("6a/b", "6a Start"),
         [("6a CP", "Lake")] = ("6a/b", "Lake"),
         [("6a CP", "Hollows")] = ("6a/b", "Hollows"),

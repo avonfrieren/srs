@@ -76,8 +76,10 @@ public class SheetConsistencyTests {
         Assert.Equal("Start", SegmentAutoDetect.GameNameOf("Farewell", "Start DTS"));
         Assert.Equal("Start", SegmentAutoDetect.GameNameOf("7a", "0m"));
         // and the sheet's spelling of Farewell's seventh checkpoint is not the
-        // game's, which is exactly what the table is for
+        // game's, which is exactly what the table is for — same for 5A's first
+        // checkpoint past the mirror, one l on the sheet and two in the game
         Assert.Equal("Stubbornness", SegmentAutoDetect.GameNameOf("Farewell", "Stubborness"));
+        Assert.Equal("Unravelling", SegmentAutoDetect.GameNameOf("5a", "Unraveling"));
     }
 
     // 2ter. every start-room override names a (scope, game checkpoint) pair
@@ -311,7 +313,9 @@ public class SheetConsistencyTests {
 
     // none of the excluded row families may leak into the sliders; the emoji
     // markers themselves never survive Import either — the imported hearts and
-    // cassettes are renamed after what they collect
+    // cassettes are renamed after what they collect. "Wake Up" is excluded for
+    // good (owner decision 2026-08-18): those rows time a wake-up animation
+    // whose duration is fixed, so there is nothing to compare a run against
     [Theory]
     [InlineData("💙")]
     [InlineData("📼")]

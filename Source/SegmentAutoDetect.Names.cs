@@ -11,8 +11,8 @@ public static partial class SegmentAutoDetect {
     // Deliberately a hardcoded table, no name normalization (owner decision
     // 2026-07-18, kept for the v2.0.0 sheet). "Start" stands for the
     // session's first room (which has no CheckpointData). Game checkpoints
-    // not imported from the sheet (the full-5A route past Depths) are simply
-    // not listed — reaching them leaves the selection where it was. The
+    // not imported from the sheet are simply not listed — reaching them
+    // leaves the selection where it was. The
     // cassette and heart checkpoints start at the same in-game checkpoint as
     // their plain sibling ("Hollows Tape" at 6A's Hollows, "Huge Mess Heart"
     // at 3A's Huge Mess) — nothing observable tells them apart, so this table
@@ -38,6 +38,10 @@ public static partial class SegmentAutoDetect {
         [("4a", "Cliff Face")] = "Cliff Face",
         [("5a", "Start")] = "5a Start",
         [("5a", "Depths")] = "Depths",
+        // the game spells it with two l's, the sheet with one
+        [("5a", "Unravelling")] = "Unraveling",
+        [("5a", "Search")] = "Search",
+        [("5a", "Rescue")] = "Rescue",
         [("5b", "Start")] = "5b Start",
         [("5b", "Central Chamber")] = "Central Chamber",
         [("5b", "Through the Mirror")] = "Through The Mirror",
