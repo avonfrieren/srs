@@ -6,6 +6,10 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ## Changelog
 
+### v3.5.1 — 2026-08-18
+
+- **The checkpoints you wake up in are detected again**: three segments start in a room the game *teleports* you into instead of walking you there — 5B's `Through The Mirror` and 5A's `Unraveling`, both after the mirror, and 2A's `Awake` after the dream. srs only watched room transitions, and a teleport raises none, so the selection stayed on the previous checkpoint (`Central Chamber` while you were already running Through The Mirror) until the next ordinary transition, several rooms later. The current room is now polled every frame, the same thing the end of a run already watched. 6A's reflection fall skip lands the same way and is covered too.
+
 ### v3.5.0 — 2026-08-17
 
 - **The sheet updates itself on launch**: srs now refreshes the three tabs in the background every time the game starts, so a retimed or extended sheet reaches you without a trip to Mod Options. The cached data loads first and keeps being used while the download runs, and a failed download changes nothing — offline, you simply keep the last cache. **Update Sheet Data** stays for refreshing mid-session; pressing it while the launch refresh is still running joins that one instead of downloading everything twice. A first install with no cache at all now fills itself in, too.
