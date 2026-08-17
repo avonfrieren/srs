@@ -17,7 +17,11 @@ public static class SheetImporter {
     public static SheetData Data { get; private set; }
     public static DateTime? CacheTime { get; private set; }
 
-    private static volatile bool updating;
+    // the download in flight, shared by the startup refresh and the menu
+    // button: pressing the button during the startup one joins it instead of
+    // downloading the same three tabs twice
+    private static Task<bool> running;
+    private static readonly object RunningGate = new();
 
     // the caches double as the manual-import fallback: dropping hand-exported
     // CSVs of the tabs at these paths is equivalent to pressing the update
@@ -54,6 +58,13 @@ public static class SheetImporter {
             }
         } catch (Exception e) {
             Logger.Log(LogLevel.Warn, LogTag, $"Failed to load sheet cache: {e}");
+        } finally {
+            // the sheet is retimed and extended regularly, so every launch
+            // refreshes it in the background (v3.5.0). The cache above is
+            // already serving by then, and a failed download leaves it
+            // untouched — offline play is unaffected, and a first launch with
+            // no cache at all still ends up with data
+            BeginUpdate(null);
         }
     }
 
@@ -66,23 +77,34 @@ public static class SheetImporter {
         TextMenu.SubHeader status = new(StatusText(), topPadding: false);
         TextMenu.Button update = new(Dialog.Clean("SRS_UPDATE_SHEET"));
         update.Pressed(() => {
-            if (updating) {
-                return;
-            }
-
-            updating = true;
             update.Label = Dialog.Clean("SRS_UPDATING");
-            Task.Run(UpdateFromSheet).ContinueWith(task => {
-                // menu items just read these strings each frame, so mutating them
-                // from the worker thread is safe
-                bool ok = task.Status == TaskStatus.RanToCompletion && task.Result;
+            // menu items just read these strings each frame, so mutating them
+            // from the worker thread is safe
+            BeginUpdate(ok => {
                 update.Label = Dialog.Clean(ok ? "SRS_UPDATE_OK" : "SRS_UPDATE_FAIL");
                 status.Title = StatusText();
-                updating = false;
             });
         });
         menu.Add(update);
         menu.Add(status);
+    }
+
+    // starts a refresh unless one is already running, and reports its outcome
+    // to onDone either way
+    private static void BeginUpdate(Action<bool> onDone) {
+        Task<bool> task;
+        lock (RunningGate) {
+            if (running == null || running.IsCompleted) {
+                running = Task.Run(UpdateFromSheet);
+            }
+
+            task = running;
+        }
+
+        if (onDone != null) {
+            task.ContinueWith(finished =>
+                onDone(finished.Status == TaskStatus.RanToCompletion && finished.Result));
+        }
     }
 
     private static string StatusText() {

@@ -6,6 +6,10 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ## Changelog
 
+### v3.5.0 — 2026-08-17
+
+- **The sheet updates itself on launch**: srs now refreshes the three tabs in the background every time the game starts, so a retimed or extended sheet reaches you without a trip to Mod Options. The cached data loads first and keeps being used while the download runs, and a failed download changes nothing — offline, you simply keep the last cache. **Update Sheet Data** stays for refreshing mid-session; pressing it while the launch refresh is still running joins that one instead of downloading everything twice. A first install with no cache at all now fills itself in, too.
+
 ### v3.4.0 — 2026-08-17
 
 - **Core, Farewell and the True Ending categories**: the run past 7A is now covered. **8a** brings `Start`, `Into the Core`, `Hot and Cold`, `HotM Vertical` and `HotM Horizontal`; the new **Farewell** chapter brings `Start`, `Singular`, `Power Source`, `Remembered`, `Event Horizon`, `Determination`, `Stubborness`, `Reconciliation` and `Farewell`. Two new categories go with them — **True Ending**, which adds the 3A and 4A hearts (`Huge Mess Heart`, `Shrine Heart`: the same segments as their plain siblings, run with the heart detour in them) to the any% segments, and **True Ending DTS**, the same run with the double-dash skip: on it, Farewell's first six checkpoints select their `... DTS` row instead. Everything else keeps falling back to its any% row, so the two new categories are complete runs, not partial ones.
