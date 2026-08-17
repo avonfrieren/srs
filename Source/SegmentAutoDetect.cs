@@ -54,7 +54,6 @@ public static partial class SegmentAutoDetect {
 
     public static void Load() {
         Everest.Events.Level.OnEnter += OnLevelEnter;
-        Everest.Events.Level.OnTransitionTo += OnTransitionTo;
         // subscribed after TierComparison's hook ⇒ outermost: on a completion
         // frame the capture still sees the selection the run was started with,
         // the detection only moves it afterwards
@@ -67,7 +66,6 @@ public static partial class SegmentAutoDetect {
 
     public static void Unload() {
         Everest.Events.Level.OnEnter -= OnLevelEnter;
-        Everest.Events.Level.OnTransitionTo -= OnTransitionTo;
         On.Celeste.Level.Update -= LevelOnUpdate;
 
         if (saveLoadAction != null) {
@@ -82,12 +80,26 @@ public static partial class SegmentAutoDetect {
     }
 
     // rooms that carry a game checkpoint, plus (v3.2.0) the rooms a segment is
-    // timed from when the sheet does not start it at its checkpoint: entering
-    // 2A's end_0 is entering the Awake segment, three rooms before the game
-    // says so
-    private static void OnTransitionTo(Level level, LevelData next, Microsoft.Xna.Framework.Vector2 direction) {
-        if (next.HasCheckpoint || OverriddenCheckpointAt(ScopeOf(level.Session), next.Name) != null) {
-            checkpointRoom = next.Name;
+    // timed from when the sheet does not start it at its checkpoint: being in
+    // 2A's end_0 is being in the Awake segment, three rooms before the game
+    // says so.
+    // Polled on Session.Level rather than caught on transition (v3.5.1): the
+    // game enters some of these rooms without one. Every "wake up" of the run
+    // is a cutscene assigning Session.Level and reloading the level — 2A's
+    // dream into end_0, 5A's mirror into c-00 (Unraveling), 5B's into c-00
+    // (Through The Mirror) — and no transition is raised for any of them, so
+    // the selection used to sit on the previous checkpoint until the *next*
+    // real transition. This is also what RunWatcher watches, so both ends of
+    // a segment now react to the same thing
+    private static void TrackCheckpointRoom(Session session) {
+        string room = session.Level;
+        if (room == null || room == checkpointRoom) {
+            return;
+        }
+
+        if (session.LevelData?.HasCheckpoint == true
+            || OverriddenCheckpointAt(ScopeOf(session), room) != null) {
+            checkpointRoom = room;
         }
     }
 
@@ -116,6 +128,8 @@ public static partial class SegmentAutoDetect {
             PopupMessageUtils.ShowOptionState(Dialog.Clean("SRS_CATEGORY"),
                 SegmentCategories.NameOf(Settings.Category));
         }
+
+        TrackCheckpointRoom(self.Session);
 
         // suspended while a completed run's tier is displayed: the completion
         // usually transitions into the next checkpoint's room, and moving the
