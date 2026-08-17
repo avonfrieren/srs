@@ -52,8 +52,8 @@ public class MalformedInputTests {
         Assert.Null(segment.Times[2]);
     }
 
-    // either tab may be missing (first run, half-written cache, one download
-    // that failed): whatever is there still has to load
+    // any tab may be missing (first run, half-written cache, a cache written
+    // before Farewell was imported at all): whatever is there still has to load
     [Fact]
     public void ParsesTheASidesTabOnItsOwn() {
         SheetData data = SheetData.Parse(Fixtures.ASides, null);
@@ -69,6 +69,30 @@ public class MalformedInputTests {
         Assert.NotEmpty(data.CheckpointBlock.Segments);
         Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "5b Start");
         Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Name == "Granny");
+    }
+
+    // the Farewell tab has no Chapter column of its own, so it is the one that
+    // would silently import nothing if the implicit chapter stopped being
+    // passed: every row would land outside the allowlist
+    [Fact]
+    public void ParsesTheFarewellTabOnItsOwn() {
+        SheetData data = SheetData.Parse(null, null, Fixtures.Farewell);
+
+        Assert.All(data.CheckpointBlock.Segments, s => Assert.Equal("Farewell", s.Chapter));
+        Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "Stubborness");
+        // the four SoB/IL totals at the bottom of the tab are not checkpoints
+        Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Name.Contains("SoB"));
+        Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Name.Contains("IL"));
+    }
+
+    // an old cache pairs with a freshly downloaded tab all the time — the two
+    // A-side chapters must not go missing because Farewell arrived
+    [Fact]
+    public void KeepsTheOtherTabsWhenFarewellIsMissing() {
+        SheetData data = SheetData.Parse(Fixtures.ASides, Fixtures.BSides);
+
+        Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "HotM Horizontal");
+        Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Chapter == "Farewell");
     }
 
     [Fact]
@@ -99,13 +123,14 @@ public class MalformedInputTests {
     }
 }
 
-// the two tabs as they were exported on 2026-08-05; refreshing them is how a
+// the three tabs as they were exported on 2026-08-17; refreshing them is how a
 // change in the sheet becomes a failing test (see SheetConsistencyTests)
 internal static class Fixtures {
     public static string ASides { get; } = Read("asides.csv");
     public static string BSides { get; } = Read("bsides.csv");
+    public static string Farewell { get; } = Read("farewell.csv");
 
-    public static SheetData Parsed { get; } = SheetData.Parse(ASides, BSides);
+    public static SheetData Parsed { get; } = SheetData.Parse(ASides, BSides, Farewell);
 
     public static List<SheetSegment> Imported => Parsed.CheckpointBlock.Segments;
 

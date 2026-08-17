@@ -3,14 +3,17 @@ using Microsoft.Xna.Framework.Input;
 namespace Celeste.Mod.SpeedrunSheet;
 
 public class SrsSettings : EverestModuleSettings {
-    // the two imported tabs of the practice sheet (v2.0.0): "A Sides
-    // Standards" (all the A-side checkpoints) and "B Sides Standards" (the
-    // any% route's 5B/6B checkpoints)
+    // the imported tabs of the practice sheet: "A Sides Standards" (all the
+    // A-side checkpoints) and "B Sides Standards" (the any% route's 5B/6B
+    // checkpoints) since v2.0.0, plus "Farewell Standards" since v3.4.0
     public const string DefaultASidesUrl =
         "https://docs.google.com/spreadsheets/d/18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y/edit?gid=1796170425";
 
     public const string DefaultBSidesUrl =
         "https://docs.google.com/spreadsheets/d/18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y/edit?gid=1885706573";
+
+    public const string DefaultFarewellUrl =
+        "https://docs.google.com/spreadsheets/d/18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y/edit?gid=1826331297";
 
     // full Google Sheets edit URLs (spreadsheet id + gid are extracted from
     // them); not editable in-game — change them in the settings file if the
@@ -21,6 +24,9 @@ public class SrsSettings : EverestModuleSettings {
 
     [SettingIgnore]
     public string BSidesUrl { get; set; } = DefaultBSidesUrl;
+
+    [SettingIgnore]
+    public string FarewellUrl { get; set; } = DefaultFarewellUrl;
 
     // checkpoint selected in Mod Options, addressed by name so the selection
     // survives sheet re-imports; empty until first picked

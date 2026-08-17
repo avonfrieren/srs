@@ -6,11 +6,15 @@ namespace Celeste.Mod.SpeedrunSheet;
 
 // the category a sheet row belongs to, read from the marker in its raw name
 // ("Hollows 📼 RTM" is the cassette variant of "Hollows"; no marker = plain
-// any% standard). More categories (💙 heart, 💎 gem) will appear here when
-// their rows get imported
+// any% standard). A row can be practiced in several categories — the heart
+// rows belong to both True Ending variants — so this is only the category the
+// marker *denotes*; CategoryVariants is what says which categories point at
+// it. The 💎 gem rows will appear here when they get imported
 public enum SegmentCategory {
     AnyPercent,
     Cassette,
+    TrueEnding,
+    TrueEndingDts,
 }
 
 // how the categories are shown and walked through. The names are the sheet's
@@ -24,11 +28,14 @@ public static class SegmentCategories {
     // name says which run these segments belong to rather than pretending to
     // be a category of its own. The rule the split enforces is that no
     // category ever holds two segments starting at the same in-game
-    // checkpoint — wider categories are described by what they *add* (a
-    // future "True Ending" = any% + Core + Farewell lists only Core and
-    // Farewell). The enum member keeps its short name: it is what gets
-    // persisted in the settings file
-    public static readonly string[] Names = ["Any%", "Any% Cassettes"];
+    // checkpoint — wider categories are described by what they *add*, and
+    // fall back to the any% row everywhere they add nothing: "True Ending"
+    // (v3.4.0) only names the 3A and 4A hearts, since Core and Farewell start
+    // at checkpoints no other category has a segment for. "True Ending DTS"
+    // is that same run with the double-dash skip, which the sheet times
+    // separately from Farewell's Start to Determination. The enum member
+    // keeps its short name: it is what gets persisted in the settings file
+    public static readonly string[] Names = ["Any%", "Any% Cassettes", "True Ending", "True Ending DTS"];
 
     public static string NameOf(SegmentCategory category) =>
         (int)category >= 0 && (int)category < Names.Length ? Names[(int)category] : category.ToString();
@@ -46,8 +53,6 @@ public enum EndCondition {
     // ends where the next in-game checkpoint starts; resolved at runtime from
     // AreaData (no next checkpoint ⇒ the chapter's completion ends the run)
     Checkpoint,
-    // "... Clear" rows: the run ends with the chapter itself
-    ChapterComplete,
     // "📼 RTM" rows: the run ends the moment the cassette is collected (the
     // community convention for RTM segments — the menuing after the grab is
     // not gameplay and is never timed by the room timer)
@@ -56,9 +61,10 @@ public enum EndCondition {
     Heart,
 }
 
-// parsed practice sheet: one block of checkpoint segments merged from the two
-// imported tabs ("A Sides Standards" + "B Sides Standards"), with a header of
-// tier columns ("Hidden", "WR", "Gold", "Pink", "Purple 1", ... "Unranked")
+// parsed practice sheet: one block of checkpoint segments merged from the
+// three imported tabs ("A Sides Standards", "B Sides Standards" and, since
+// v3.4.0, "Farewell Standards"), with a header of tier columns ("Hidden",
+// "WR", "Gold", "Pink", "Purple 1", ... "Unranked")
 public class SheetData {
     public readonly List<SheetBlock> Blocks = [];
 
@@ -89,14 +95,16 @@ public class SheetData {
     // raw (chapter, checkpoint) of the sheet -> (chapter, name) of the mod.
     // Deliberately a hardcoded allowlist, no name normalization (owner decision
     // 2026-07-18, renewed 2026-08-05 for the new sheet): only the checkpoints
-    // the mod supports are imported — the heart/cassette/gem emoji variants
-    // (no room counts known) and the IL rows are for later. Two cassette
-    // exceptions requested by the owner: "Depths 📼 RTM" and "Hollows 📼 RTM"
-    // become the Depths Tape / Hollows Tape checkpoints. Like the old sheet,
-    // the two route choices are folded into single "5a/b"/"6a/b" chapters, the
-    // chapter echo is dropped from names ("1a Start" -> "Start") except the
-    // side-disambiguating ones ("5a Start"), and names shared by both sides
-    // keep a side prefix ("6a Rock Bottom"/"6b Rock Bottom")
+    // the mod supports are imported — the remaining emoji variants and the IL
+    // rows are for later. The emoji rows kept so far are the ones the any% and
+    // True Ending routes actually run: the two cassettes ("Depths 📼 RTM",
+    // "Hollows 📼 RTM") and the two hearts ("Huge Mess 💙", "Shrine 💙
+    // Clear"), renamed after their plain sibling plus what they collect. Like
+    // the old sheet, the two route choices are folded into single
+    // "5a/b"/"6a/b" chapters, the chapter echo is dropped from names ("1a
+    // Start" -> "Start") except the side-disambiguating ones ("5a Start"), and
+    // names shared by both sides keep a side prefix ("6a Rock Bottom"/"6b Rock
+    // Bottom")
     internal static readonly Dictionary<(string Chapter, string Name), (string Chapter, string Name)> Import = new() {
         // A Sides Standards: "<X>a CP" groups (the "<X>a IL" groups and the
         // full-5A route past Depths — Unravelling, Search, Rescue — are not
@@ -110,10 +118,12 @@ public class SheetData {
         [("2a CP", "Awake")] = ("2a", "Awake"),
         [("3a CP", "3a Start")] = ("3a", "Start"),
         [("3a CP", "Huge Mess")] = ("3a", "Huge Mess"),
+        [("3a CP", "Huge Mess 💙")] = ("3a", "Huge Mess Heart"),
         [("3a CP", "Elevator Shaft")] = ("3a", "Elevator Shaft"),
         [("3a CP", "Presidential Suite")] = ("3a", "Presidential Suite"),
         [("4a CP", "4a Start")] = ("4a", "Start"),
         [("4a CP", "Shrine")] = ("4a", "Shrine"),
+        [("4a CP", "Shrine 💙 Clear")] = ("4a", "Shrine Heart"),
         [("4a CP", "Old Trail")] = ("4a", "Old Trail"),
         [("4a CP", "Cliff Face")] = ("4a", "Cliff Face"),
         [("5a CP", "5a Start")] = ("5a/b", "5a Start"),
@@ -133,6 +143,14 @@ public class SheetData {
         [("7a CP", "2000m")] = ("7a", "2000m"),
         [("7a CP", "2500m")] = ("7a", "2500m"),
         [("7a CP", "3000m")] = ("7a", "3000m"),
+        // 8a CP (v3.4.0): the sheet cuts the game's single "Heart of the
+        // Mountain" checkpoint in two, the vertical climb then the horizontal
+        // chase — SegmentAutoDetect.SplitCheckpoints anchors the second half
+        [("8a CP", "8a Start")] = ("8a", "Start"),
+        [("8a CP", "Into the Core")] = ("8a", "Into the Core"),
+        [("8a CP", "Hot and Cold")] = ("8a", "Hot and Cold"),
+        [("8a CP", "HotM Vertical")] = ("8a", "HotM Vertical"),
+        [("8a CP", "HotM Horizontal")] = ("8a", "HotM Horizontal"),
         // B Sides Standards: only the any% route's two B-sides
         [("5b", "5b Start")] = ("5a/b", "5b Start"),
         [("5b", "Central Chamber")] = ("5a/b", "Central Chamber"),
@@ -142,26 +160,52 @@ public class SheetData {
         [("6b", "Falling")] = ("6a/b", "Falling"),
         [("6b", "Rock Bottom")] = ("6a/b", "6b Rock Bottom"),
         [("6b", "Reprieve")] = ("6a/b", "Reprieve"),
+        // Farewell Standards (v3.4.0): the tab has no Chapter column, its rows
+        // are read under the implicit "Farewell" chapter (see Parse). Every
+        // row is kept except the four SoB/IL totals at the bottom. "DTS" rows
+        // are the double-dash skip's version of the first six segments — same
+        // in-game checkpoints, so they are a category of their own. The
+        // sheet's "Stubborness" spelling is kept as-is: the sheet is the
+        // authority on names, the game writes "Stubbornness"
+        [("Farewell", "Start")] = ("Farewell", "Start"),
+        [("Farewell", "Singular")] = ("Farewell", "Singular"),
+        [("Farewell", "Power Source")] = ("Farewell", "Power Source"),
+        [("Farewell", "Remembered")] = ("Farewell", "Remembered"),
+        [("Farewell", "Event Horizon")] = ("Farewell", "Event Horizon"),
+        [("Farewell", "Determination")] = ("Farewell", "Determination"),
+        [("Farewell", "Start DTS")] = ("Farewell", "Start DTS"),
+        [("Farewell", "Singular DTS")] = ("Farewell", "Singular DTS"),
+        [("Farewell", "Power Source DTS")] = ("Farewell", "Power Source DTS"),
+        [("Farewell", "Remembered DTS")] = ("Farewell", "Remembered DTS"),
+        [("Farewell", "Event Horizon DTS")] = ("Farewell", "Event Horizon DTS"),
+        [("Farewell", "Determination DTS")] = ("Farewell", "Determination DTS"),
+        [("Farewell", "Stubborness")] = ("Farewell", "Stubborness"),
+        [("Farewell", "Reconciliation")] = ("Farewell", "Reconciliation"),
+        [("Farewell", "Farewell")] = ("Farewell", "Farewell"),
     };
 
     // never throws on malformed content: unparseable cells become null times,
     // rows outside any block or absent from the Import allowlist are skipped.
-    // Segments from both tabs land in one merged block, in tab row order (A
-    // then B), so the B-side rows of the folded chapters follow their A-side
-    // ones like on the old sheet. Both tabs share the same tier columns; the
-    // merged header is taken from the first tab that has one
-    public static SheetData Parse(string aSidesCsv, string bSidesCsv) {
+    // Segments from the three tabs land in one merged block, in tab row order
+    // (A, then B, then Farewell), so the B-side rows of the folded chapters
+    // follow their A-side ones like on the old sheet and Farewell closes the
+    // chapter list. All three tabs share the same tier columns; the merged
+    // header is taken from the first tab that has one. Farewell is the tab
+    // whose rows carry no chapter cell (see ParseBlocks)
+    public static SheetData Parse(string aSidesCsv, string bSidesCsv, string farewellCsv = null) {
         SheetData data = new();
         SheetBlock merged = null;
 
-        foreach (string csv in new[] { aSidesCsv, bSidesCsv }) {
+        foreach ((string csv, string implicitChapter) in
+                 new[] { (aSidesCsv, null), (bSidesCsv, null), (farewellCsv, "Farewell") }) {
             if (string.IsNullOrWhiteSpace(csv)) {
                 continue;
             }
 
-            foreach (SheetBlock raw in ParseBlocks(csv)) {
-                // the "Chapter Times ..." blocks have no Checkpoint column
-                if (!raw.HasCheckpoints) {
+            foreach (SheetBlock raw in ParseBlocks(csv, implicitChapter)) {
+                // the "Chapter Times ..." blocks have no Checkpoint column —
+                // and neither has the Farewell tab, whose chapter is implicit
+                if (!raw.HasCheckpoints && implicitChapter == null) {
                     continue;
                 }
 
@@ -173,7 +217,8 @@ public class SheetData {
 
                 foreach (SheetSegment segment in raw.Segments) {
                     if (Import.TryGetValue((segment.Chapter, segment.Name), out (string Chapter, string Name) target)) {
-                        merged.Segments.Add(new SheetSegment(target.Chapter, target.Name, segment.Times,
+                        merged.Segments.Add(new SheetSegment(target.Chapter, target.Name,
+                            Realigned(segment.Times, merged.Columns.Count),
                             CategoryOf(segment.Name), EndConditionOf(segment.Name)));
                     }
                 }
@@ -183,22 +228,62 @@ public class SheetData {
         return data;
     }
 
+    // one segment's times, stretched (or cut) to the merged block's tier
+    // columns. The tabs do not all end on the same column: Farewell stops at
+    // "Red 3" where the A and B tabs have a trailing "Unranked". Since
+    // "Unranked" is a column with no values anyway (the tier beyond Red 3),
+    // padding with nulls is exactly what a missing column means — and it keeps
+    // the block's promise that Times is indexable by Columns
+    private static List<TimeSpan?> Realigned(List<TimeSpan?> times, int columns) {
+        List<TimeSpan?> aligned = new(columns);
+        for (int i = 0; i < columns; i++) {
+            aligned.Add(i < times.Count ? times[i] : null);
+        }
+
+        return aligned;
+    }
+
     // the raw sheet name carries the category as an emoji marker; matched with
     // Contains — the sheet's own spacing around the marker is inconsistent
-    // ("📼 RTM", "📼Clear"), so no exact-name matching here
-    internal static SegmentCategory CategoryOf(string rawName) =>
-        rawName.Contains("📼") ? SegmentCategory.Cassette : SegmentCategory.AnyPercent;
+    // ("📼 RTM", "📼Clear"), so no exact-name matching here. The Farewell tab
+    // marks its double-dash-skip rows with a plain " DTS" suffix instead
+    // ("Start DTS"), which is exact enough to match on: the four SoB/IL totals
+    // that start with "DTS" are not imported anyway
+    internal static SegmentCategory CategoryOf(string rawName) {
+        string name = rawName.TrimEnd();
+        if (name.Contains("📼")) {
+            return SegmentCategory.Cassette;
+        }
 
-    // the end of the run is in the raw name too: a "Clear" suffix means the
-    // chapter's completion (even with a marker — "📼 Clear" collects the
-    // cassette *and* finishes the chapter), "📼"/"💙" without it are RTM rows
-    // ending at the collect itself. Same spacing tolerance as CategoryOf
-    // ("📼Clear" exists). Combined "💙+📼" RTM rows default to Cassette until
-    // they are actually imported and their route settles which comes last
+        if (name.EndsWith(" DTS", StringComparison.Ordinal)) {
+            return SegmentCategory.TrueEndingDts;
+        }
+
+        // the heart rows are run by both True Ending variants; the category
+        // here is only the one the marker denotes, CategoryVariants lists the
+        // categories that actually point at the row
+        return name.Contains("💙") ? SegmentCategory.TrueEnding : SegmentCategory.AnyPercent;
+    }
+
+    // the end of the run is in the raw name too, and "RTM" is the only thing
+    // that ends one early: it is the sheet's marker for "collect and reset",
+    // and the community convention is that the segment stops at the collect
+    // (the menuing after it is not gameplay and is never timed). Every other
+    // row runs to the end of its segment — the next in-game checkpoint, or
+    // the chapter itself when there is none, which RunWatcher resolves at
+    // runtime with no help from here.
+    // A "Clear" suffix on a checkpoint row is *not* the chapter's completion,
+    // whatever it reads like: "Shrine 💙 Clear" (27.5s) cannot contain Old
+    // Trail and Cliff Face (78s of run after it), and the sheet's own chapter
+    // totals go up by exactly what the heart detour costs that one segment.
+    // It means "collect it and keep going", as opposed to the "Shrine 💙 RTM"
+    // row next to it (owner confirmed 2026-08-17).
+    // Combined "💙+📼" RTM rows default to Cassette until they are actually
+    // imported and their route settles which comes last
     internal static EndCondition EndConditionOf(string rawName) {
         string name = rawName.TrimEnd();
-        if (name.EndsWith("Clear", StringComparison.Ordinal)) {
-            return EndCondition.ChapterComplete;
+        if (!name.EndsWith("RTM", StringComparison.Ordinal)) {
+            return EndCondition.Checkpoint;
         }
 
         if (name.Contains("📼")) {
@@ -208,11 +293,14 @@ public class SheetData {
         return name.Contains("💙") ? EndCondition.Heart : EndCondition.Checkpoint;
     }
 
-    // raw pass shared by both tabs: split the CSV into blocks of segments, one
-    // block per header row, keeping the sheet's own chapter/checkpoint names.
-    // internal rather than private so the tests can check the Import allowlist
-    // against the raw rows of the sheet
-    internal static List<SheetBlock> ParseBlocks(string csvText) {
+    // raw pass shared by the three tabs: split the CSV into blocks of segments,
+    // one block per header row, keeping the sheet's own chapter/checkpoint
+    // names. internal rather than private so the tests can check the Import
+    // allowlist against the raw rows of the sheet.
+    // implicitChapter is for the Farewell tab, which has no Chapter column at
+    // all: its rows read like the "Chapter Times" ones (a single label column)
+    // but each label is a checkpoint of that one chapter
+    internal static List<SheetBlock> ParseBlocks(string csvText, string implicitChapter = null) {
         List<SheetBlock> blocks = [];
         SheetBlock currentBlock = null;
         string currentChapter = null;
@@ -255,7 +343,7 @@ public class SheetData {
                 continue;
             }
 
-            SheetSegment segment = new(currentChapter, name);
+            SheetSegment segment = new(implicitChapter ?? currentChapter, name);
             for (int i = currentBlock.TierStart; i < currentBlock.TierStart + currentBlock.Columns.Count; i++) {
                 segment.Times.Add(i < row.Length ? TryParseTime(row[i]) : null);
             }

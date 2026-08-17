@@ -13,10 +13,12 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 // checkpoint just disappears from the sliders, or auto-detection stops moving.
 // These tests cross-check the tables against each other and against the sheet.
 public class SheetConsistencyTests {
-    // every raw (chapter, checkpoint) pair present in the exported tabs
+    // every raw (chapter, checkpoint) pair present in the exported tabs. The
+    // Farewell tab is parsed under the same implicit chapter the importer
+    // gives it, so its Import keys read like the other tabs'
     private static readonly HashSet<(string, string)> RawRows = [
-        .. new[] { Fixtures.ASides, Fixtures.BSides }
-            .SelectMany(SheetData.ParseBlocks)
+        .. new[] { (Fixtures.ASides, (string)null), (Fixtures.BSides, null), (Fixtures.Farewell, "Farewell") }
+            .SelectMany(tab => SheetData.ParseBlocks(tab.Item1, tab.Item2))
             .SelectMany(block => block.Segments)
             .Select(segment => (segment.Chapter, segment.Name))
     ];
@@ -35,9 +37,10 @@ public class SheetConsistencyTests {
 
     // 2. every imported segment carries the end condition its raw sheet name
     // declares: the two 📼 RTM rows end at the cassette collect, everything
-    // else ends at the next in-game checkpoint (or the chapter's completion
-    // when there is none — resolved at runtime, no table for it). A marker
-    // slipping through Import unnoticed would silently mistime the segment
+    // else — the two hearts included, their rows are not RTM ones — ends at
+    // the next in-game checkpoint (or the chapter's completion when there is
+    // none, resolved at runtime, no table for it). A marker slipping through
+    // Import unnoticed would silently mistime the segment
     [Fact]
     public void EveryImportedSegmentEndsTheWayItsRawNameDeclares() {
         HashSet<(string, string)> cassette = [
@@ -66,10 +69,15 @@ public class SheetConsistencyTests {
             .ToList();
 
         Assert.Empty(unanchored);
-        // the two variants inherit their plain sibling's anchor
+        // the variants inherit their plain sibling's anchor
         Assert.Equal("Depths", SegmentAutoDetect.GameNameOf("5a", "Depths Tape"));
         Assert.Equal("Hollows", SegmentAutoDetect.GameNameOf("6a", "Hollows Tape"));
+        Assert.Equal("Huge Mess", SegmentAutoDetect.GameNameOf("3a", "Huge Mess Heart"));
+        Assert.Equal("Start", SegmentAutoDetect.GameNameOf("Farewell", "Start DTS"));
         Assert.Equal("Start", SegmentAutoDetect.GameNameOf("7a", "0m"));
+        // and the sheet's spelling of Farewell's seventh checkpoint is not the
+        // game's, which is exactly what the table is for
+        Assert.Equal("Stubbornness", SegmentAutoDetect.GameNameOf("Farewell", "Stubborness"));
     }
 
     // 2ter. every start-room override names a (scope, game checkpoint) pair
@@ -89,6 +97,27 @@ public class SheetConsistencyTests {
         Assert.Equal("Start", SegmentAutoDetect.OverriddenCheckpointAt("7a", "a-00"));
         Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("7a", "end_0"));
         Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("2a", "3"));
+        // the virtual checkpoint's room is what makes it detectable at all:
+        // the game has no checkpoint there to notice
+        Assert.Equal("HotM Horizontal", SegmentAutoDetect.OverriddenCheckpointAt("8a", "d-08"));
+    }
+
+    // 2ter bis. a checkpoint the sheet cuts in two names a real game
+    // checkpoint on one side and a virtual one on the other, and the virtual
+    // half must have a room: it is both where its own run starts and where the
+    // first half's run ends, so a missing room would silently let the first
+    // half run to the end of the chapter
+    [Fact]
+    public void EverySplitCheckpointHasBothHalvesAnchored() {
+        foreach (KeyValuePair<(string Scope, string GameName), string> entry
+                 in SegmentAutoDetect.SplitCheckpoints) {
+            Assert.Contains(entry.Key, SegmentAutoDetect.CheckpointMap.Keys);
+            Assert.Contains((entry.Key.Scope, entry.Value), SegmentAutoDetect.CheckpointMap.Keys);
+            Assert.Contains((entry.Key.Scope, entry.Value), SegmentAutoDetect.StartRoomOverrides.Keys);
+        }
+
+        Assert.Equal("HotM Horizontal", SegmentAutoDetect.SplitCheckpoints[("8a", "Heart of the Mountain")]);
+        Assert.Equal("d-08", SegmentAutoDetect.StartRoomOverrides[("8a", "HotM Horizontal")]);
     }
 
     // 2quater. same for the untimed head added back to the captured time: an
@@ -142,7 +171,7 @@ public class SheetConsistencyTests {
     public void ImportsTheExpectedCheckpointsInRouteOrder() {
         Assert.Equal(SheetData.Import.Count, Fixtures.Parsed.SegmentCount);
         Assert.Equal(
-            ["Prologue", "1a", "2a", "3a", "4a", "5a/b", "6a/b", "7a"],
+            ["Prologue", "1a", "2a", "3a", "4a", "5a/b", "6a/b", "7a", "8a", "Farewell"],
             Fixtures.Parsed.CheckpointBlock.Chapters());
     }
 
@@ -163,41 +192,101 @@ public class SheetConsistencyTests {
     }
 
     // 6. the category overlay resolves plain names produced by CheckpointMap
-    // into rows of its own category, inside the same chapter — a rename on
-    // either end would silently turn the variant back into its plain sibling
+    // into imported rows of the same chapter — a rename on either end would
+    // silently turn the variant back into its plain sibling. The plain row is
+    // always the any% one (that is what "a category adds to any%" means) and
+    // the variant never is, or the overlay would be resolving a row onto itself
     [Fact]
-    public void EveryCategoryVariantTargetsAnImportedRowOfItsCategory() {
-        foreach (KeyValuePair<(SegmentCategory Category, string SheetName), string> entry
+    public void EveryCategoryVariantTargetsAnImportedRowOfTheSameChapter() {
+        foreach (KeyValuePair<(SegmentCategory Category, string Chapter, string SheetName), string> entry
                  in SegmentAutoDetect.CategoryVariants) {
-            SheetSegment plain = Assert.Single(Fixtures.Imported, s => s.Name == entry.Key.SheetName);
-            SheetSegment variant = Assert.Single(Fixtures.Imported, s => s.Name == entry.Value);
+            SheetSegment plain = Assert.Single(Fixtures.Imported,
+                s => s.Chapter == entry.Key.Chapter && s.Name == entry.Key.SheetName);
+            SheetSegment variant = Assert.Single(Fixtures.Imported,
+                s => s.Chapter == entry.Key.Chapter && s.Name == entry.Value);
 
             Assert.Contains(entry.Key.SheetName, SegmentAutoDetect.CheckpointMap.Values);
             Assert.Equal(plain.Chapter, variant.Chapter);
             Assert.Equal(SegmentCategory.AnyPercent, plain.Category);
-            Assert.Equal(entry.Key.Category, variant.Category);
+            Assert.NotEqual(SegmentCategory.AnyPercent, variant.Category);
         }
     }
 
     // 7. the category read off the raw sheet names matches the overlay: an
-    // imported 📼 row absent from CategoryVariants would never be selectable
-    // by auto-detection again (nothing else points at it)
+    // imported marked row absent from CategoryVariants would never be
+    // selectable by auto-detection again (nothing else points at it)
     [Fact]
-    public void EveryCassetteRowIsReachableThroughTheCategoryOverlay() {
-        HashSet<string> cassette = [
+    public void EveryMarkedRowIsReachableThroughTheCategoryOverlay() {
+        HashSet<string> marked = [
             .. Fixtures.Imported
-                .Where(segment => segment.Category == SegmentCategory.Cassette)
+                .Where(segment => segment.Category != SegmentCategory.AnyPercent)
                 .Select(segment => segment.Name)
         ];
 
-        HashSet<string> variants = [
-            .. SegmentAutoDetect.CategoryVariants
-                .Where(entry => entry.Key.Category == SegmentCategory.Cassette)
-                .Select(entry => entry.Value)
-        ];
+        HashSet<string> variants = [.. SegmentAutoDetect.CategoryVariants.Values];
 
-        Assert.Equal(["Depths Tape", "Hollows Tape"], cassette.OrderBy(name => name).ToList());
-        Assert.Equal(cassette, variants);
+        Assert.Equal(marked, variants);
+        Assert.Contains("Hollows Tape", marked);
+        Assert.Contains("Shrine Heart", marked);
+        Assert.Contains("Determination DTS", marked);
+    }
+
+    // 7bis. the whole point of the category slider: no category may hold two
+    // segments starting at the same in-game checkpoint, or the auto-detection
+    // would have to guess between them. Checked per (category, chapter,
+    // anchor), the anchor being the game checkpoint the segment is timed from
+    [Fact]
+    public void NoCategoryHasTwoSegmentsOnTheSameCheckpoint() {
+        HashSet<string> scopes = [.. SegmentAutoDetect.CheckpointMap.Keys.Select(key => key.Scope)];
+
+        foreach (SegmentCategory category in Enum.GetValues<SegmentCategory>()) {
+            List<(string Chapter, string Anchor)> anchors = Fixtures.Imported
+                .Where(segment => SelectedIn(category, segment))
+                .Select(segment => (segment.Chapter, Anchor: scopes
+                    .Select(scope => scope + "/" + SegmentAutoDetect.GameNameOf(scope, segment.Name))
+                    .First(anchor => !anchor.EndsWith("/", StringComparison.Ordinal))))
+                .ToList();
+
+            Assert.Equal(anchors.Distinct().Count(), anchors.Count);
+        }
+    }
+
+    // 7ter. what the Category slider is for, spelled out on the checkpoints
+    // that exist in several versions: the same in-game checkpoint, four
+    // categories, four answers (a category with nothing to say keeps the any%
+    // row). This is the table SegmentAutoDetect.Apply reads on every frame
+    [Theory]
+    [InlineData(SegmentCategory.AnyPercent, "6a/b", "Hollows", "Hollows")]
+    [InlineData(SegmentCategory.Cassette, "6a/b", "Hollows", "Hollows Tape")]
+    [InlineData(SegmentCategory.TrueEnding, "6a/b", "Hollows", "Hollows")]
+    [InlineData(SegmentCategory.AnyPercent, "3a", "Huge Mess", "Huge Mess")]
+    [InlineData(SegmentCategory.TrueEnding, "3a", "Huge Mess", "Huge Mess Heart")]
+    [InlineData(SegmentCategory.TrueEndingDts, "3a", "Huge Mess", "Huge Mess Heart")]
+    [InlineData(SegmentCategory.TrueEnding, "Farewell", "Start", "Start")]
+    [InlineData(SegmentCategory.TrueEndingDts, "Farewell", "Start", "Start DTS")]
+    // the skip is over by Stubborness: both True Ending categories run it
+    [InlineData(SegmentCategory.TrueEndingDts, "Farewell", "Stubborness", "Stubborness")]
+    public void TheCategoryResolvesTheVariantOfTheCheckpoint(
+        SegmentCategory category, string chapter, string plain, string expected) {
+        string resolved = SegmentAutoDetect.CategoryVariants
+            .TryGetValue((category, chapter, plain), out string variant)
+            ? variant
+            : plain;
+
+        Assert.Equal(expected, resolved);
+        Assert.Contains(Fixtures.Imported, s => s.Chapter == chapter && s.Name == resolved);
+    }
+
+    // the segments a category actually selects: its own variants, plus every
+    // any% row it does not override
+    private static bool SelectedIn(SegmentCategory category, SheetSegment segment) {
+        bool isVariantOfThisCategory = SegmentAutoDetect.CategoryVariants
+            .Any(entry => entry.Key.Category == category && entry.Value == segment.Name);
+        bool isOverridden = SegmentAutoDetect.CategoryVariants
+            .ContainsKey((category, segment.Chapter, segment.Name));
+
+        return isVariantOfThisCategory
+               || (segment.Category == SegmentCategory.AnyPercent && !isOverridden);
     }
 
     // the tier columns are read positionally from the header row, so their
@@ -211,23 +300,34 @@ public class SheetConsistencyTests {
         Assert.Equal("Gold", columns[2]);
         Assert.Equal("Unranked", columns[^1]);
         Assert.All(Fixtures.Imported, segment => Assert.Equal(columns.Count, segment.Times.Count));
+        // the Farewell tab stops at Red 3, one column short of the header the
+        // merged block took from the A tab: its rows are padded rather than
+        // left ragged, or TierComparison would run off the end of them
+        SheetSegment farewell = Assert.Single(Fixtures.Imported,
+            s => s.Chapter == "Farewell" && s.Name == "Farewell");
+        Assert.Equal(TimeSpan.Parse("00:01:18.353"), farewell.Times[1]);
+        Assert.Null(farewell.Times[^1]);
     }
 
-    // none of the excluded row families may leak into the sliders
+    // none of the excluded row families may leak into the sliders; the emoji
+    // markers themselves never survive Import either — the imported hearts and
+    // cassettes are renamed after what they collect
     [Theory]
     [InlineData("💙")]
+    [InlineData("📼")]
     [InlineData("💎")]
     [InlineData("Clear")]
     [InlineData("Wake Up")]
     [InlineData("3k ")]
+    [InlineData("SoB")]
     public void LeavesTheNotYetSupportedRowsOut(string marker) {
         Assert.DoesNotContain(Fixtures.Imported, segment => segment.Name.Contains(marker));
     }
 
     [Theory]
-    [InlineData("8a")]
     [InlineData("1b")]
     [InlineData("7b")]
+    [InlineData("8b")]
     [InlineData("Chapter Times")]
     [InlineData("Filetime Buffer")]
     public void LeavesTheNotYetSupportedChaptersOut(string chapter) {

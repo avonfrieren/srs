@@ -12,12 +12,14 @@ public static partial class SegmentAutoDetect {
     // 2026-07-18, kept for the v2.0.0 sheet). "Start" stands for the
     // session's first room (which has no CheckpointData). Game checkpoints
     // not imported from the sheet (the full-5A route past Depths) are simply
-    // not listed — reaching them leaves the selection where it was. The two
-    // cassette checkpoints start at the same in-game checkpoint as their
-    // plain sibling ("Hollows Tape" at 6A's Hollows, "Depths Tape" at 5A's
-    // Depths) — nothing observable tells them apart, so this table maps to
-    // the plain name and the player's Category setting picks the variant
-    // through CategoryVariants
+    // not listed — reaching them leaves the selection where it was. The
+    // cassette and heart checkpoints start at the same in-game checkpoint as
+    // their plain sibling ("Hollows Tape" at 6A's Hollows, "Huge Mess Heart"
+    // at 3A's Huge Mess) — nothing observable tells them apart, so this table
+    // maps to the plain name and the player's Category setting picks the
+    // variant through CategoryVariants. "HotM Horizontal" is the one key that
+    // is not a game checkpoint name at all: it is a virtual one the sheet
+    // needs (see SplitCheckpoints), recognised by its StartRoomOverrides room
     internal static readonly Dictionary<(string Scope, string GameName), string> CheckpointMap = new() {
         [("Prologue", "Start")] = "Granny",
         [("1a", "Start")] = "Start",
@@ -57,15 +59,60 @@ public static partial class SegmentAutoDetect {
         [("7a", "2000 M")] = "2000m",
         [("7a", "2500 M")] = "2500m",
         [("7a", "3000 M")] = "3000m",
+        [("8a", "Start")] = "Start",
+        [("8a", "Into the Core")] = "Into the Core",
+        [("8a", "Hot and Cold")] = "Hot and Cold",
+        [("8a", "Heart of the Mountain")] = "HotM Vertical",
+        [("8a", "HotM Horizontal")] = "HotM Horizontal",
+        [("Farewell", "Start")] = "Start",
+        [("Farewell", "Singular")] = "Singular",
+        [("Farewell", "Power Source")] = "Power Source",
+        [("Farewell", "Remembered")] = "Remembered",
+        [("Farewell", "Event Horizon")] = "Event Horizon",
+        [("Farewell", "Determination")] = "Determination",
+        [("Farewell", "Stubbornness")] = "Stubborness", // the sheet drops an n
+        [("Farewell", "Reconciliation")] = "Reconciliation",
+        [("Farewell", "Farewell")] = "Farewell",
     };
 
-    // (category, sheet name from CheckpointMap) -> the category's variant of
-    // that checkpoint. The variant wins when the imported sheet has it; every
-    // unlisted pair keeps the plain row, so a category with no variant data
-    // yet still auto-detects the closest thing the sheet offers
-    internal static readonly Dictionary<(SegmentCategory Category, string SheetName), string> CategoryVariants = new() {
-        [(SegmentCategory.Cassette, "Depths")] = "Depths Tape",
-        [(SegmentCategory.Cassette, "Hollows")] = "Hollows Tape",
+    // (category, mod chapter, sheet name from CheckpointMap) -> the category's
+    // variant of that checkpoint. The variant wins when the imported sheet has
+    // it; every unlisted triple keeps the plain row, so a category is exactly
+    // "any% plus what it lists" — True Ending owns Core and Farewell without a
+    // single entry here, because nothing else has a segment starting at those
+    // checkpoints. The chapter is part of the key because plain checkpoint
+    // names repeat across chapters, "Start" in nearly all of them
+    internal static readonly Dictionary<(SegmentCategory Category, string Chapter, string SheetName), string>
+        CategoryVariants = new() {
+            [(SegmentCategory.Cassette, "5a/b", "Depths")] = "Depths Tape",
+            [(SegmentCategory.Cassette, "6a/b", "Hollows")] = "Hollows Tape",
+            // the 3A and 4A hearts are collected by both True Ending variants:
+            // DTS is a Farewell skip, it changes nothing before it
+            [(SegmentCategory.TrueEnding, "3a", "Huge Mess")] = "Huge Mess Heart",
+            [(SegmentCategory.TrueEnding, "4a", "Shrine")] = "Shrine Heart",
+            [(SegmentCategory.TrueEndingDts, "3a", "Huge Mess")] = "Huge Mess Heart",
+            [(SegmentCategory.TrueEndingDts, "4a", "Shrine")] = "Shrine Heart",
+            // the skip runs from Farewell's start to Determination; the three
+            // segments after it are the same in both True Ending categories
+            [(SegmentCategory.TrueEndingDts, "Farewell", "Start")] = "Start DTS",
+            [(SegmentCategory.TrueEndingDts, "Farewell", "Singular")] = "Singular DTS",
+            [(SegmentCategory.TrueEndingDts, "Farewell", "Power Source")] = "Power Source DTS",
+            [(SegmentCategory.TrueEndingDts, "Farewell", "Remembered")] = "Remembered DTS",
+            [(SegmentCategory.TrueEndingDts, "Farewell", "Event Horizon")] = "Event Horizon DTS",
+            [(SegmentCategory.TrueEndingDts, "Farewell", "Determination")] = "Determination DTS",
+        };
+
+    // (scope, game checkpoint) -> the virtual checkpoint the sheet inserts
+    // right after it. The game gives 8A's finale a single "Heart of the
+    // Mountain" checkpoint; the sheet times its vertical climb and its
+    // horizontal chase as two segments, so "HotM Horizontal" exists only here
+    // and in CheckpointMap, anchored by its StartRoomOverrides room. That one
+    // room is read by both ends, exactly like a real checkpoint's: it is where
+    // the second half starts and where the first half's run ends. Only
+    // virtual checkpoints closing their chapter are supported — nothing
+    // resolves the end room of one followed by a real checkpoint
+    internal static readonly Dictionary<(string Scope, string GameName), string> SplitCheckpoints = new() {
+        [("8a", "Heart of the Mountain")] = "HotM Horizontal",
     };
 
     // (scope, game checkpoint name) -> the room a run of that checkpoint's
@@ -88,6 +135,10 @@ public static partial class SegmentAutoDetect {
         // from a savestate placed after the landing with a Current Room
         // timer, which puts the start of the run in a-00
         [("7a", "Start")] = "a-00",
+        // 8A's HotM Horizontal has no checkpoint of its own to start from
+        // (see SplitCheckpoints): d-08 is where the climb of the d rooms tops
+        // out and the chase to the right begins
+        [("8a", "HotM Horizontal")] = "d-08",
     };
 
     // (scope, game checkpoint name) -> the head of the segment srs does not
@@ -119,9 +170,14 @@ public static partial class SegmentAutoDetect {
 
     // variant -> plain sibling ("Depths Tape" -> "Depths"); plain names come
     // back unchanged. This is how a variant inherits its in-game anchor: both
-    // start at the same checkpoint
+    // start at the same checkpoint. Matched on the variant name alone, without
+    // the key's chapter: two categories may point at the same variant row (the
+    // hearts do), but a variant name is unique across the sheet — the mod's
+    // own addressing already depends on it (ImportedCheckpointsAreUniquely-
+    // Addressed), so the plain sibling it comes back to is unambiguous
     internal static string PlainNameOf(string sheetName) {
-        foreach (KeyValuePair<(SegmentCategory Category, string SheetName), string> entry in CategoryVariants) {
+        foreach (KeyValuePair<(SegmentCategory Category, string Chapter, string SheetName), string> entry
+                 in CategoryVariants) {
             if (entry.Value == sheetName) {
                 return entry.Key.SheetName;
             }

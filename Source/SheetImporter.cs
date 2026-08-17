@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// downloads the two practice sheet tabs as CSV (public "anyone with the link"
-// sheet, no account/credentials involved) and keeps local caches so the mod
-// works offline
+// downloads the three practice sheet tabs as CSV (public "anyone with the
+// link" sheet, no account/credentials involved) and keeps local caches so the
+// mod works offline
 public static class SheetImporter {
     private const string LogTag = "srs";
 
@@ -20,10 +20,12 @@ public static class SheetImporter {
     private static volatile bool updating;
 
     // the caches double as the manual-import fallback: dropping hand-exported
-    // CSVs of the two tabs at these paths is equivalent to pressing the update
-    // button once
+    // CSVs of the tabs at these paths is equivalent to pressing the update
+    // button once. A cache from before v3.4.0 simply has no farewell.csv —
+    // everything else still loads, Farewell appears on the next update
     public static string ACachePath => Path.Combine(Everest.PathSettings, "srs", "asides.csv");
     public static string BCachePath => Path.Combine(Everest.PathSettings, "srs", "bsides.csv");
+    public static string FarewellCachePath => Path.Combine(Everest.PathSettings, "srs", "farewell.csv");
 
     public static void Load() {
         try {
@@ -37,17 +39,18 @@ public static class SheetImporter {
         try {
             string aSides = File.Exists(ACachePath) ? File.ReadAllText(ACachePath) : null;
             string bSides = File.Exists(BCachePath) ? File.ReadAllText(BCachePath) : null;
-            if (aSides == null && bSides == null) {
+            string farewell = File.Exists(FarewellCachePath) ? File.ReadAllText(FarewellCachePath) : null;
+            if (aSides == null && bSides == null && farewell == null) {
                 return;
             }
 
-            SheetData data = SheetData.Parse(aSides, bSides);
+            SheetData data = SheetData.Parse(aSides, bSides, farewell);
             if (data.SegmentCount > 0) {
                 Data = data;
                 CacheTime = LatestCacheTime();
-                Logger.Log(LogLevel.Info, LogTag, $"Loaded {data.SegmentCount} segments from cache ({ACachePath}, {BCachePath})");
+                Logger.Log(LogLevel.Info, LogTag, $"Loaded {data.SegmentCount} segments from cache ({CachePaths})");
             } else {
-                Logger.Log(LogLevel.Warn, LogTag, $"Cache files have no usable segments ({ACachePath}, {BCachePath})");
+                Logger.Log(LogLevel.Warn, LogTag, $"Cache files have no usable segments ({CachePaths})");
             }
         } catch (Exception e) {
             Logger.Log(LogLevel.Warn, LogTag, $"Failed to load sheet cache: {e}");
@@ -95,11 +98,14 @@ public static class SheetImporter {
         try {
             string aSides = await DownloadTab(SrsModule.Settings.ASidesUrl, "A Sides");
             string bSides = await DownloadTab(SrsModule.Settings.BSidesUrl, "B Sides");
-            if (aSides == null || bSides == null) {
+            string farewell = await DownloadTab(SrsModule.Settings.FarewellUrl, "Farewell");
+            // all or nothing: a half-updated cache would silently drop whole
+            // chapters from the sliders
+            if (aSides == null || bSides == null || farewell == null) {
                 return false;
             }
 
-            SheetData data = SheetData.Parse(aSides, bSides);
+            SheetData data = SheetData.Parse(aSides, bSides, farewell);
             if (data.SegmentCount == 0) {
                 Logger.Log(LogLevel.Warn, LogTag, "Downloaded CSVs contain no recognizable segments");
                 return false;
@@ -107,6 +113,7 @@ public static class SheetImporter {
 
             WriteCache(ACachePath, aSides);
             WriteCache(BCachePath, bSides);
+            WriteCache(FarewellCachePath, farewell);
 
             Data = data;
             CacheTime = DateTime.Now;
@@ -144,9 +151,13 @@ public static class SheetImporter {
         File.Move(tmp, path, overwrite: true);
     }
 
+    private static string CachePaths => string.Join(", ", CacheFiles);
+
+    private static string[] CacheFiles => [ACachePath, BCachePath, FarewellCachePath];
+
     private static DateTime? LatestCacheTime() {
         DateTime? latest = null;
-        foreach (string path in new[] { ACachePath, BCachePath }) {
+        foreach (string path in CacheFiles) {
             if (File.Exists(path)) {
                 DateTime time = File.GetLastWriteTime(path);
                 if (latest == null || time > latest) {
