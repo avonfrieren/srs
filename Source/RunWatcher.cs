@@ -117,9 +117,10 @@ public static class RunWatcher {
         }
     }
 
-    // the two room-shaped conditions, polled like SpeedrunTool polls its own
-    // room count: entering the end room (Session.Level flips on the same frame
-    // SpeedrunTool counts the room) and the chapter's completion
+    // the room-shaped condition, polled like SpeedrunTool polls its own room
+    // count: entering the end room (Session.Level flips on the same frame
+    // SpeedrunTool counts the room), or the chapter's completion when the
+    // segment has no next checkpoint to end at
     private static void CheckRoomConditions(Level level, long time) {
         SheetSegment segment = SelectedSegmentFor(level.Session);
         if (segment == null) {
@@ -129,8 +130,8 @@ public static class RunWatcher {
         switch (segment.End) {
             case EndCondition.Checkpoint:
                 string endRoom = EndRoomOf(segment, level.Session);
-                // no next checkpoint (chapter finals, Granny) ⇒ the chapter
-                // completion ends the run, exactly like ChapterComplete rows.
+                // no next checkpoint (chapter finals, Granny) ⇒ the chapter's
+                // completion ends the run instead.
                 // A run never ends in the room its own timing started from:
                 // on the frame a Next Room timer starts (the transition into
                 // the segment's first room), the selection can still be the
@@ -139,12 +140,6 @@ public static class RunWatcher {
                 // of the previous one
                 if (endRoom == null ? level.Completed
                         : level.Session.Level == endRoom && endRoom != startRoom) {
-                    Complete(level.Session, segment, time);
-                }
-
-                break;
-            case EndCondition.ChapterComplete:
-                if (level.Completed) {
                     Complete(level.Session, segment, time);
                 }
 
@@ -264,6 +259,13 @@ public static class RunWatcher {
         CheckpointData[] checkpoints = Checkpoints(session);
         if (gameName == null || checkpoints == null || checkpoints.Length == 0) {
             return null;
+        }
+
+        // a checkpoint the sheet cuts in two ends where its own second half
+        // starts (8A's Heart of the Mountain), not at the next game checkpoint
+        if (SegmentAutoDetect.SplitCheckpoints.TryGetValue(
+                (SegmentAutoDetect.ScopeOf(session), gameName), out string secondHalf)) {
+            return StartRoomOf(secondHalf, session);
         }
 
         // CheckpointData only lists the non-start checkpoints, so the segment

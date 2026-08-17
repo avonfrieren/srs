@@ -22,6 +22,8 @@ public class CategoryTests {
     public void LabelsAreTheSheetVocabulary() {
         Assert.Equal("Any%", SegmentCategories.NameOf(SegmentCategory.AnyPercent));
         Assert.Equal("Any% Cassettes", SegmentCategories.NameOf(SegmentCategory.Cassette));
+        Assert.Equal("True Ending", SegmentCategories.NameOf(SegmentCategory.TrueEnding));
+        Assert.Equal("True Ending DTS", SegmentCategories.NameOf(SegmentCategory.TrueEndingDts));
     }
 
     // the hotkey walks the slider's order and wraps back to the first category

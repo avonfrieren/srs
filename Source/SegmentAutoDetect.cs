@@ -45,6 +45,11 @@ public static partial class SegmentAutoDetect {
         [(6, AreaMode.Normal)] = ("6a/b", "6a"),
         [(6, AreaMode.BSide)] = ("6a/b", "6b"),
         [(7, AreaMode.Normal)] = ("7a", null),
+        // vanilla numbering skips the Epilogue (area 8): Core is 9, Farewell
+        // is 10. The sheet gives Farewell a tab of its own, and the mod a
+        // chapter of its own — named after the tab rather than "9a"
+        [(9, AreaMode.Normal)] = ("8a", null),
+        [(10, AreaMode.Normal)] = ("Farewell", null),
     };
 
     public static void Load() {
@@ -140,7 +145,7 @@ public static partial class SegmentAutoDetect {
         // so checkpoints without a variant keep detecting. Only checkpoints
         // the imported sheet actually has are selectable
         SheetSegment target = null;
-        if (CategoryVariants.TryGetValue((Settings.Category, sheetName), out string variant)) {
+        if (CategoryVariants.TryGetValue((Settings.Category, chapter.Chapter, sheetName), out string variant)) {
             target = Find(block, chapter.Chapter, variant);
         }
 
