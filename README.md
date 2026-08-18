@@ -6,6 +6,11 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ## Changelog
 
+### v3.6.0 — 2026-08-18
+
+- **The rest of 5A**: `Unraveling`, `Search` and `Rescue` — everything past the mirror — are imported and auto-detected, so chapter 5 is now covered end to end on both sides. `Rescue` has no checkpoint after it, so a run of it ends with the chapter, like the other chapter finales. The sheet spells the first one with one `l` where the game uses two; the name table absorbs that, as it already did for Farewell's `Stubborness`.
+- The sheet's `Wake Up` rows stay out of the import on purpose: they time the wake-up animation after the mirror (and after 2A's dream), whose duration is fixed at 2.533s — there is no run in there to compare.
+
 ### v3.5.1 — 2026-08-18
 
 - **The checkpoints you wake up in are detected again**: three segments start in a room the game *teleports* you into instead of walking you there — 5B's `Through The Mirror` and 5A's `Unraveling`, both after the mirror, and 2A's `Awake` after the dream. srs only watched room transitions, and a teleport raises none, so the selection stayed on the previous checkpoint (`Central Chamber` while you were already running Through The Mirror) until the next ordinary transition, several rooms later. The current room is now polled every frame, the same thing the end of a run already watched. 6A's reflection fall skip lands the same way and is covered too.

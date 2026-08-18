@@ -46,6 +46,7 @@ Le code porte ses propres justifications en commentaires ; ne sont notées ici q
 - Variantes marquées par emoji (`💙` cœur, `📼` cassette, `💎` gem) à l'**espacement irrégulier** (`📼 RTM`, `📼Clear`) ⇒ dérivation par `Contains`. Farewell marque son skip par un simple suffixe ` DTS`. La whitelist `Import` filtre le reste ; les lignes gardées sont renommées d'après ce qu'elles collectent (`Hollows Tape`, `Shrine Heart`), le marqueur ne survit jamais à l'import.
 - **`RTM` est le seul suffixe qui arrête une run avant la fin de son segment.** `Clear` sur une ligne de checkpoint veut dire « on ramasse et on continue » (opposé au `... RTM` d'à côté), *pas* « fin du chapitre » — vérifié par l'arithmétique (v3.4.0, cf. `EndConditionOf`).
 - Un contrôle qui vaut de l'or quand la structure bouge : la somme des segments d'un chapitre doit tomber sur sa ligne SoB, et le surcoût d'un détour (cœur, cassette) doit se retrouver à la fois dans le segment et dans le total du chapitre. C'est ce qui a confirmé que `Start` de Farewell est bien timé depuis la 1re room du chapitre (22.236 s, intro comprise) et qu'aucun segment n'a de tête non timée.
+- Les lignes `Wake Up` (2A, 5A, 5B) **ne s'importent pas** (décision propriétaire 2026-08-18) : elles chronomètrent l'animation de réveil, de durée fixe — il n'y a rien à comparer. Épinglé par `LeavesTheNotYetSupportedRowsOut`.
 - `Hidden` vaut `0:00.000` partout, et certains `WR` aussi ⇒ ignorés par la comparaison (`threshold > TimeSpan.Zero`). `Unranked` est une colonne sans valeurs (palier « au-delà de Red 3 »).
 - Sémantique : **premier seuil ≥ temps réalisé ⇒ palier atteint**.
 
@@ -73,7 +74,6 @@ Branche `feature/<nom>` depuis `dev`, PR vers `dev`, release = merge dans `main`
 ## Reste à faire
 
 - **Import des catégories restantes** (gems 7A, ILs, C-sides, B-sides hors route any%). Les lignes IL sont des chapitres entiers partant de `Start` : `EndCondition.Checkpoint` les ferait finir au 1er checkpoint ⇒ il faudra leur rendre une condition « fin du chapitre » (supprimée en v3.4.0, plus personne ne la dérivait). Principe acté et maintenant appliqué : **une catégorie ne contient jamais deux segments partant du même checkpoint jeu** (test `NoCategoryHasTwoSegmentsOnTheSameCheckpoint`), et les catégories plus larges se décrivent par ce qu'elles *ajoutent* — `True Ending` ne liste que les deux cœurs, Core et Farewell n'entrant en collision avec rien.
-- **Route 5A complète** (Unraveling, Search, Rescue) : présente sur l'onglet, non importée — atteindre ces checkpoints ne bouge pas la sélection. Les lignes `Wake Up`, elles, **ne s'importent pas** (décision propriétaire 2026-08-18) : le temps est toujours le même, il n'y a rien à comparer.
 - **Confettis / PB SpeedrunTool** : plus déclenchés depuis que srs décide lui-même des fins de run (dette assumée, interop à demander à DemoJameson).
 
 ## Écarté définitivement
