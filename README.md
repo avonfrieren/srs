@@ -6,7 +6,7 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ## Changelog
 
-### Unreleased
+### v3.7.0 — 2026-08-27 by Axiome
 
 - **Master switch**: a new **Enabled** toggle at the top of Mod Options turns the whole mod off — no tier row, no selection row, no auto-detection, no hotkey and no sheet download on launch. While it is off the section shows nothing but that toggle. Nothing is discarded: switching back on resumes on the same checkpoint and category, and refreshes the sheet on the spot in case it was retimed meanwhile.
 - **Hotkeys are combos, and have their own screen**: the three rebindable hotkeys (Switch Category, Toggle Tier Display, Toggle Selection Display) now fire only when *all* the keys bound to them are held together — `Ctrl + C` rather than "Ctrl or C" — and they are bound from **Keybinds**, a new screen inside the mod's own section, with a keyboard list and a controller list. Press a key to add it to a combo, press it again to remove it, **Delete** clears a row and the button at the bottom clears everything. They no longer show up in Everest's key config screen, which has no way to express a combo. Bindings already set there are kept, and a single-key one behaves exactly as before; a binding holding two keys, however, used to mean either of them and is now read as both at once, so rebind those from the new screen.
