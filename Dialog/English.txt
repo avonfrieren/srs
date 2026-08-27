@@ -18,3 +18,15 @@ SRS_UPDATE_OK=            Sheet updated
 SRS_UPDATE_FAIL=          Update failed (see log.txt)
 SRS_STATUS_NONE=          No sheet data yet — update to download it
 SRS_STATUS_LOADED=        Segments loaded
+
+# Keybinds
+SRS_KEYBINDS=             Keybinds
+SRS_KEYBIND_COMBO_SUB=    Binding several keys makes a combo: all of them must be held
+SRS_KEYBIND_CLEAR_HINT=   Press Delete to clear a binding
+SRS_KEYBIND_KEYBOARD=     Keyboard
+SRS_KEYBIND_CONTROLLER=   Controller
+SRS_KEYBIND_RESET=        Clear all bindings
+SRS_KEYBIND_COMBO_HINT=   Hold several keys at once to bind a combo
+SRS_KEYBIND_PRESS_KEY=    PRESS A KEY FOR
+SRS_KEYBIND_PRESS_BUTTON= PRESS A BUTTON FOR
+SRS_KEYBIND_NO_CONTROLLER= No controller connected

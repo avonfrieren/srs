@@ -17,10 +17,12 @@ public class SrsModule : EverestModule {
     public override void Load() {
         SheetImporter.Load();
         // Level.Update hook order matters: each later Load wraps the previous
-        // hooks, so after orig the frame runs innermost-first — RunWatcher
-        // captures the finished run, TierComparison computes the tier from it,
+        // hooks, so after orig the frame runs innermost-first — Hotkeys reads
+        // the frame's input before anything consumes it, RunWatcher captures
+        // the finished run, TierComparison computes the tier from it,
         // SegmentAutoDetect moves the selection last (suspended while a
         // completed run's tier is shown)
+        Hotkeys.Load();
         RunWatcher.Load();
         TierComparison.Load();
         SegmentAutoDetect.Load();
@@ -30,6 +32,7 @@ public class SrsModule : EverestModule {
         SegmentAutoDetect.Unload();
         TierComparison.Unload();
         RunWatcher.Unload();
+        Hotkeys.Unload();
         SheetImporter.Unload();
     }
 
@@ -53,8 +56,5 @@ public class SrsModule : EverestModule {
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot) {
         CreateModMenuSectionHeader(menu, inGame, snapshot);
         ModMenu.CreateMenu(menu);
-        // last, and outside what the master switch hides: this is still how the
-        // three hotkeys are bound
-        CreateModMenuSectionKeyBindings(menu, inGame, snapshot);
     }
 }

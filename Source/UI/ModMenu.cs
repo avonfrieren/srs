@@ -1,10 +1,13 @@
 using System.Collections.Generic;
+using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
 // the whole Mod Options section, built by hand instead of letting Everest
-// generate the toggles: the master switch has to hide every other entry, and an
-// auto-generated entry cannot be reached to be hidden
+// generate the toggles: the master switch has to hide every other entry, which
+// means holding them all in one list. Nothing is auto-generated any more, so
+// the key bindings Everest would append are gone too — they are combos now,
+// and KeybindConfigUi owns them
 internal static class ModMenu {
     internal static void CreateMenu(TextMenu menu) {
         SrsSettings settings = SrsModule.Settings;
@@ -25,6 +28,15 @@ internal static class ModMenu {
 
         SegmentSelector.CreateMenuEntries(menu);
         SheetImporter.CreateMenuEntries(menu);
+
+        TextMenu.Button keybinds = new(Dialog.Clean("SRS_KEYBINDS"));
+        keybinds.Pressed(() => {
+            menu.Focused = false;
+            KeybindConfigUi ui = new() { OnClose = () => menu.Focused = true };
+            Engine.Scene.Add(ui);
+            Engine.Scene.OnEndOfFrame += () => Engine.Scene.Entities.UpdateLists();
+        });
+        menu.Add(keybinds);
 
         // taken as a range rather than listed entry by entry: SegmentSelector
         // adds nothing at all when no sheet data is loaded, so the list cannot

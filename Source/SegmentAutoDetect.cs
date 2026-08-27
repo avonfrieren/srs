@@ -132,7 +132,7 @@ public static partial class SegmentAutoDetect {
         // the cassette variant of the same one. Handled here rather than in
         // TierComparison because the category only feeds the detection right
         // below, which picks the new variant up on this very frame
-        if (!self.Paused && Settings.CycleCategory.Pressed) {
+        if (Hotkeys.CycleCategory.Pressed) {
             Settings.Category = SegmentCategories.Next(Settings.Category);
             SrsModule.Instance.SaveSettings();
             PopupMessageUtils.ShowOptionState(Dialog.Clean("SRS_CATEGORY"),

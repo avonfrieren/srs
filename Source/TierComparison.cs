@@ -59,15 +59,17 @@ public static class TierComparison {
         }
 
         // srta-style hotkey: flip the toggle and confirm with SpeedrunTool's
-        // popup, so the row can be hidden without leaving the game
-        if (!self.Paused && Settings.ToggleShowTier.Pressed) {
+        // popup, so the row can be hidden without leaving the game. Hotkeys
+        // already answers false while paused, so the rows cannot be toggled
+        // from behind the pause menu
+        if (Hotkeys.ToggleShowTier.Pressed) {
             Settings.ShowTier = !Settings.ShowTier;
             SrsModule.Instance.SaveSettings();
             PopupMessageUtils.ShowOptionState(Dialog.Clean("MODOPTIONS_SRS_SHOWTIER"),
                 Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
         }
 
-        if (!self.Paused && Settings.ToggleShowSelection.Pressed) {
+        if (Hotkeys.ToggleShowSelection.Pressed) {
             Settings.ShowSelection = !Settings.ShowSelection;
             SrsModule.Instance.SaveSettings();
             PopupMessageUtils.ShowOptionState(Dialog.Clean("MODOPTIONS_SRS_SHOWSELECTION"),

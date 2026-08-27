@@ -1,5 +1,3 @@
-using Microsoft.Xna.Framework.Input;
-
 namespace Celeste.Mod.SpeedrunSheet;
 
 public class SrsSettings : EverestModuleSettings {
@@ -49,9 +47,12 @@ public class SrsSettings : EverestModuleSettings {
 
     // rebindable hotkey cycling Category without opening Mod Options (v3.1.0),
     // handled in SegmentAutoDetect — switching category is a mid-practice
-    // gesture (any% run, then the cassette variant of the same checkpoint)
-    [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding CycleCategory { get; set; }
+    // gesture (any% run, then the cassette variant of the same checkpoint).
+    // [SettingIgnore] keeps it out of Everest's key config screen: the three
+    // hotkeys are read as combos (Hotkeys/ComboHotkey), which that screen has
+    // no way to express, and KeybindConfigUi binds them instead
+    [SettingIgnore]
+    public ButtonBinding CycleCategory { get; set; } = new();
 
     [SettingIgnore]
     public string SelectedCheckpoint { get; set; } = "";
@@ -61,8 +62,8 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public bool ShowTier { get; set; } = true;
 
-    [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ToggleShowTier { get; set; }
+    [SettingIgnore]
+    public ButtonBinding ToggleShowTier { get; set; } = new();
 
     // discreet "category - checkpoint" row under the tier row (v3.3.0): what
     // the next run will be compared against, readable at a glance without
@@ -71,8 +72,8 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public bool ShowSelection { get; set; } = true;
 
-    [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ToggleShowSelection { get; set; }
+    [SettingIgnore]
+    public ButtonBinding ToggleShowSelection { get; set; } = new();
 
     // the played checkpoint drives the selection (SegmentAutoDetect); the two
     // sliders become a manual override when turned off. Not auto-generated:
