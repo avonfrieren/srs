@@ -1,6 +1,6 @@
 - Name: Speedrun Sheet
   Version: 3.6.0
-  DLL: srs.dll
+  DLL: bin/srs.dll
   Dependencies:
     - Name: Everest
       Version: 1.6397
