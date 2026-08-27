@@ -63,8 +63,12 @@ public static class SheetImporter {
             // refreshes it in the background (v3.5.0). The cache above is
             // already serving by then, and a failed download leaves it
             // untouched — offline play is unaffected, and a first launch with
-            // no cache at all still ends up with data
-            BeginUpdate(null);
+            // no cache at all still ends up with data. Skipped while the mod is
+            // switched off — nothing reads the result, and an off mod has no
+            // business on the network; the master switch runs it on the way back on
+            if (SrsModule.Settings.Enabled) {
+                BeginUpdate(null);
+            }
         }
     }
 
@@ -91,7 +95,7 @@ public static class SheetImporter {
 
     // starts a refresh unless one is already running, and reports its outcome
     // to onDone either way
-    private static void BeginUpdate(Action<bool> onDone) {
+    internal static void BeginUpdate(Action<bool> onDone) {
         Task<bool> task;
         lock (RunningGate) {
             if (running == null || running.IsCompleted) {

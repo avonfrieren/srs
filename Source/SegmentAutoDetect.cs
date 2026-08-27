@@ -117,19 +117,27 @@ public static partial class SegmentAutoDetect {
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         orig(self);
 
+        // above the gate, unlike everything else here: this is a side-effect-free
+        // read of Session.Level, and letting it go stale while the mod is off
+        // arms the wrong segment when the switch comes back on mid-chapter
+        // (OnLevelEnter has seeded it with the chapter's start checkpoint)
+        TrackCheckpointRoom(self.Session);
+
+        if (!Settings.Enabled) {
+            return;
+        }
+
         // hotkey (v3.1.0): cycle the practiced category without leaving the
         // game — the natural gesture between an any% run of a checkpoint and
         // the cassette variant of the same one. Handled here rather than in
         // TierComparison because the category only feeds the detection right
         // below, which picks the new variant up on this very frame
-        if (!self.Paused && Settings.CycleCategory.Pressed) {
+        if (Hotkeys.CycleCategory.Pressed) {
             Settings.Category = SegmentCategories.Next(Settings.Category);
             SrsModule.Instance.SaveSettings();
             PopupMessageUtils.ShowOptionState(Dialog.Clean("SRS_CATEGORY"),
                 SegmentCategories.NameOf(Settings.Category));
         }
-
-        TrackCheckpointRoom(self.Session);
 
         // suspended while a completed run's tier is displayed: the completion
         // usually transitions into the next checkpoint's room, and moving the

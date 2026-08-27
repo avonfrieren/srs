@@ -17,10 +17,12 @@ public class SrsModule : EverestModule {
     public override void Load() {
         SheetImporter.Load();
         // Level.Update hook order matters: each later Load wraps the previous
-        // hooks, so after orig the frame runs innermost-first — RunWatcher
-        // captures the finished run, TierComparison computes the tier from it,
+        // hooks, so after orig the frame runs innermost-first — Hotkeys reads
+        // the frame's input before anything consumes it, RunWatcher captures
+        // the finished run, TierComparison computes the tier from it,
         // SegmentAutoDetect moves the selection last (suspended while a
         // completed run's tier is shown)
+        Hotkeys.Load();
         RunWatcher.Load();
         TierComparison.Load();
         SegmentAutoDetect.Load();
@@ -30,6 +32,7 @@ public class SrsModule : EverestModule {
         SegmentAutoDetect.Unload();
         TierComparison.Unload();
         RunWatcher.Unload();
+        Hotkeys.Unload();
         SheetImporter.Unload();
     }
 
@@ -46,18 +49,12 @@ public class SrsModule : EverestModule {
         base.LoadSettings();
     }
 
-    // base adds the section header itself, so it must run first (entries added
-    // before it would land in the previous mod's section); the key bindings it
-    // normally appends are suppressed by the override below and re-added last
+    // only the header comes from base: every entry of the section is built by
+    // hand in ModMenu, since the master switch has to be able to hide them all.
+    // The header must still come first — entries added before it would land in
+    // the previous mod's section
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot) {
-        base.CreateModMenuSection(menu, inGame, snapshot);
-        SegmentSelector.CreateMenuEntries(menu);
-        SheetImporter.CreateMenuEntries(menu);
-        base.CreateModMenuSectionKeyBindings(menu, inGame, snapshot);
-    }
-
-    protected override void CreateModMenuSectionKeyBindings(TextMenu menu, bool inGame, EventInstance snapshot) {
-        // no-op: called by base.CreateModMenuSection mid-section; the real one
-        // is invoked at the end of CreateModMenuSection instead
+        CreateModMenuSectionHeader(menu, inGame, snapshot);
+        ModMenu.CreateMenu(menu);
     }
 }

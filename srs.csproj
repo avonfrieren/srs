@@ -10,6 +10,8 @@
         <CelestePrefix Condition="'$(CelestePrefix)' == '' And Exists('../../../Celeste.dll')">../../..</CelestePrefix>
         <SpeedrunToolZip>$(CelestePrefix)/Mods/SpeedrunTool.zip</SpeedrunToolZip>
         <SpeedrunToolRefDir>$(BaseIntermediateOutputPath)SpeedrunToolRef/</SpeedrunToolRefDir>
+        <!-- fallback for a machine with no Celeste install: a DLL pre-extracted next to the stripped assemblies -->
+        <SpeedrunToolRefDir Condition="!Exists('$(SpeedrunToolZip)') And Exists('$(CelestePrefix)/SpeedrunTool.dll')">$(CelestePrefix)/</SpeedrunToolRefDir>
     </PropertyGroup>
 
     <!-- the SDK globs **/*.cs by default: without this the test project's own
@@ -36,7 +38,7 @@
         </Reference>
     </ItemGroup>
 
-    <Target Name="ExtractSpeedrunToolDll" BeforeTargets="ResolveAssemblyReferences">
+    <Target Name="ExtractSpeedrunToolDll" BeforeTargets="ResolveAssemblyReferences" Condition="Exists('$(SpeedrunToolZip)') Or !Exists('$(CelestePrefix)/SpeedrunTool.dll')">
         <Error Condition="!Exists('$(SpeedrunToolZip)')"
                Text="SpeedrunTool.zip introuvable ($(SpeedrunToolZip)) — passer -p:CelestePrefix=&lt;dossier Celeste&gt;" />
         <Unzip SourceFiles="$(SpeedrunToolZip)" DestinationFolder="$(SpeedrunToolRefDir)" OverwriteReadOnlyFiles="true" />
@@ -47,8 +49,11 @@
         <DialogResources Include="$(MSBuildProjectDirectory)/Dialog/**/*" />
     </ItemGroup>
     <Target Name="OutputAsModStructure" AfterTargets="Build">
-        <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="build" />
-        <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="build" />
+        <!-- bin/ and not the mod root: that is where everest.yaml points, and where the deploy expects the DLL -->
+        <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="build/bin" />
+        <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="build/bin" />
+        <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="bin" />
+        <Copy SourceFiles="$(OutputPath)$(AssemblyName).pdb" DestinationFolder="bin" />
         <Copy SourceFiles="everest.yaml" DestinationFolder="build" />
         <Copy SourceFiles="@(DialogResources)" DestinationFolder="build/Dialog/%(RecursiveDir)" SkipUnchangedFiles="true" />
     </Target>

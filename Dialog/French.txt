@@ -2,6 +2,7 @@
 
 # Mod Options
 MODOPTIONS_SRS_TITLE=     Speedrun Sheet
+MODOPTIONS_SRS_ENABLED=   Activé
 MODOPTIONS_SRS_SHOWTIER=  Afficher le palier
 MODOPTIONS_SRS_TOGGLESHOWTIER= Afficher/masquer le palier
 MODOPTIONS_SRS_SHOWSELECTION= Afficher la sélection
@@ -17,3 +18,15 @@ SRS_UPDATE_OK=            Sheet mise à jour
 SRS_UPDATE_FAIL=          Échec de la mise à jour (voir log.txt)
 SRS_STATUS_NONE=          Aucune donnée — lancer une mise à jour pour les télécharger
 SRS_STATUS_LOADED=        Segments chargés
+
+# Keybinds
+SRS_KEYBINDS=             Raccourcis
+SRS_KEYBIND_COMBO_SUB=    Lier plusieurs touches crée une combinaison : toutes doivent être tenues
+SRS_KEYBIND_CLEAR_HINT=   Suppr pour effacer un raccourci
+SRS_KEYBIND_KEYBOARD=     Clavier
+SRS_KEYBIND_CONTROLLER=   Manette
+SRS_KEYBIND_RESET=        Effacer tous les raccourcis
+SRS_KEYBIND_COMBO_HINT=   Maintenir plusieurs touches pour une combinaison
+SRS_KEYBIND_PRESS_KEY=    APPUYER SUR UNE TOUCHE POUR
+SRS_KEYBIND_PRESS_BUTTON= APPUYER SUR UN BOUTON POUR
+SRS_KEYBIND_NO_CONTROLLER= Aucune manette connectée

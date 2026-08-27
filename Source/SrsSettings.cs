@@ -1,8 +1,13 @@
-using Microsoft.Xna.Framework.Input;
-
 namespace Celeste.Mod.SpeedrunSheet;
 
 public class SrsSettings : EverestModuleSettings {
+    // master switch. Off, the mod is inert — no HUD row, no auto-detection, no
+    // hotkey, no startup refresh — and Mod Options shows nothing but this
+    // toggle. Built by hand in ModMenu, which needs the Change handler to hide
+    // the rest of the section
+    [SettingIgnore]
+    public bool Enabled { get; set; } = true;
+
     // the imported tabs of the practice sheet: "A Sides Standards" (all the
     // A-side checkpoints) and "B Sides Standards" (the any% route's 5B/6B
     // checkpoints) since v2.0.0, plus "Farewell Standards" since v3.4.0
@@ -42,28 +47,33 @@ public class SrsSettings : EverestModuleSettings {
 
     // rebindable hotkey cycling Category without opening Mod Options (v3.1.0),
     // handled in SegmentAutoDetect — switching category is a mid-practice
-    // gesture (any% run, then the cassette variant of the same checkpoint)
-    [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding CycleCategory { get; set; }
+    // gesture (any% run, then the cassette variant of the same checkpoint).
+    // [SettingIgnore] keeps it out of Everest's key config screen: the three
+    // hotkeys are read as combos (Hotkeys/ComboHotkey), which that screen has
+    // no way to express, and KeybindConfigUi binds them instead
+    [SettingIgnore]
+    public ButtonBinding CycleCategory { get; set; } = new();
 
     [SettingIgnore]
     public string SelectedCheckpoint { get; set; } = "";
 
-    // tier row drawn under the room timer once it completes; auto-generated
-    // menu toggle + rebindable hotkey (handled in TierComparison)
+    // tier row drawn under the room timer once it completes; menu toggle +
+    // rebindable hotkey, both handled in TierComparison
+    [SettingIgnore]
     public bool ShowTier { get; set; } = true;
 
-    [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ToggleShowTier { get; set; }
+    [SettingIgnore]
+    public ButtonBinding ToggleShowTier { get; set; } = new();
 
     // discreet "category - checkpoint" row under the tier row (v3.3.0): what
     // the next run will be compared against, readable at a glance without
-    // opening Mod Options. Same shape as ShowTier — auto-generated menu toggle
-    // + rebindable hotkey, both handled in TierComparison
+    // opening Mod Options. Same shape as ShowTier — menu toggle + rebindable
+    // hotkey, both handled in TierComparison
+    [SettingIgnore]
     public bool ShowSelection { get; set; } = true;
 
-    [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ToggleShowSelection { get; set; }
+    [SettingIgnore]
+    public ButtonBinding ToggleShowSelection { get; set; } = new();
 
     // the played checkpoint drives the selection (SegmentAutoDetect); the two
     // sliders become a manual override when turned off. Not auto-generated:

@@ -80,6 +80,14 @@ public static class RunWatcher {
     }
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
+        // switched off: no capture, and the run in progress is simply left
+        // where it is — turning the mod back on resumes from the timer's own
+        // state, which is SpeedrunTool's, not ours
+        if (!SrsModule.Settings.Enabled) {
+            orig(self);
+            return;
+        }
+
         // the room timer as it stands *before* this frame is added to it
         // (v3.2.0). SpeedrunTool runs inside orig — srs loads after it, so its
         // hook is the inner one — and on the frame a room condition fires it
@@ -160,7 +168,10 @@ public static class RunWatcher {
     // collect events land between updates; the capture happens right here so
     // the time is the collect frame's, not the next update's
     private static void OnCollect(EndCondition condition) {
-        if (completed || Engine.Scene is not Level level) {
+        // gated here as well: this runs from the collect hooks, not from the
+        // update one, so a switched-off mod would still freeze a capture that
+        // nothing cleared before the switch came back on
+        if (!SrsModule.Settings.Enabled || completed || Engine.Scene is not Level level) {
             return;
         }
 

@@ -6,6 +6,12 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ## Changelog
 
+### Unreleased
+
+- **Master switch**: a new **Enabled** toggle at the top of Mod Options turns the whole mod off — no tier row, no selection row, no auto-detection, no hotkey and no sheet download on launch. While it is off the section shows nothing but that toggle. Nothing is discarded: switching back on resumes on the same checkpoint and category, and refreshes the sheet on the spot in case it was retimed meanwhile.
+- **Hotkeys are combos, and have their own screen**: the three rebindable hotkeys (Switch Category, Toggle Tier Display, Toggle Selection Display) now fire only when *all* the keys bound to them are held together — `Ctrl + C` rather than "Ctrl or C" — and they are bound from **Keybinds**, a new screen inside the mod's own section, with a keyboard list and a controller list. Press a key to add it to a combo, press it again to remove it, **Delete** clears a row and the button at the bottom clears everything. They no longer show up in Everest's key config screen, which has no way to express a combo. Bindings already set there are kept, and a single-key one behaves exactly as before; a binding holding two keys, however, used to mean either of them and is now read as both at once, so rebind those from the new screen.
+- **`Keys.None` is cleaned out of the bindings on launch**: pressing an unmappable key while rebinding — AZERTY's `)` is one — used to bind an FNA placeholder that the game reports as held for *every* such key, so the hotkey fired on keys you never bound. Any binding still carrying it is stripped at startup, and the new screen refuses it. F1, F2, F3 and F5 are refused too: they are Everest's debug keys, and a mod misbehaving is exactly when you need them.
+
 ### v3.6.0 — 2026-08-18
 
 - **The rest of 5A**: `Unraveling`, `Search` and `Rescue` — everything past the mirror — are imported and auto-detected, so chapter 5 is now covered end to end on both sides. `Rescue` has no checkpoint after it, so a run of it ends with the chapter, like the other chapter finales. The sheet spells the first one with one `l` where the game uses two; the name table absorbs that, as it already did for Farewell's `Stubborness`.
