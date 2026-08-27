@@ -6,6 +6,10 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ## Changelog
 
+### Unreleased
+
+- **Master switch**: a new **Enabled** toggle at the top of Mod Options turns the whole mod off — no tier row, no selection row, no auto-detection, no hotkey and no sheet download on launch. While it is off the section shows nothing but that toggle. Nothing is discarded: switching back on resumes on the same checkpoint and category, and refreshes the sheet on the spot in case it was retimed meanwhile.
+
 ### v3.6.0 — 2026-08-18
 
 - **The rest of 5A**: `Unraveling`, `Search` and `Rescue` — everything past the mirror — are imported and auto-detected, so chapter 5 is now covered end to end on both sides. `Rescue` has no checkpoint after it, so a run of it ends with the chapter, like the other chapter finales. The sheet spells the first one with one `l` where the game uses two; the name table absorbs that, as it already did for Farewell's `Stubborness`.

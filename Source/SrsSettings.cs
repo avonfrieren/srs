@@ -3,6 +3,13 @@ using Microsoft.Xna.Framework.Input;
 namespace Celeste.Mod.SpeedrunSheet;
 
 public class SrsSettings : EverestModuleSettings {
+    // master switch. Off, the mod is inert — no HUD row, no auto-detection, no
+    // hotkey, no startup refresh — and Mod Options shows nothing but this
+    // toggle. Built by hand in ModMenu, which needs the Change handler to hide
+    // the rest of the section
+    [SettingIgnore]
+    public bool Enabled { get; set; } = true;
+
     // the imported tabs of the practice sheet: "A Sides Standards" (all the
     // A-side checkpoints) and "B Sides Standards" (the any% route's 5B/6B
     // checkpoints) since v2.0.0, plus "Farewell Standards" since v3.4.0
@@ -49,8 +56,9 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public string SelectedCheckpoint { get; set; } = "";
 
-    // tier row drawn under the room timer once it completes; auto-generated
-    // menu toggle + rebindable hotkey (handled in TierComparison)
+    // tier row drawn under the room timer once it completes; menu toggle +
+    // rebindable hotkey, both handled in TierComparison
+    [SettingIgnore]
     public bool ShowTier { get; set; } = true;
 
     [DefaultButtonBinding(0, Keys.None)]
@@ -58,8 +66,9 @@ public class SrsSettings : EverestModuleSettings {
 
     // discreet "category - checkpoint" row under the tier row (v3.3.0): what
     // the next run will be compared against, readable at a glance without
-    // opening Mod Options. Same shape as ShowTier — auto-generated menu toggle
-    // + rebindable hotkey, both handled in TierComparison
+    // opening Mod Options. Same shape as ShowTier — menu toggle + rebindable
+    // hotkey, both handled in TierComparison
+    [SettingIgnore]
     public bool ShowSelection { get; set; } = true;
 
     [DefaultButtonBinding(0, Keys.None)]

@@ -54,6 +54,10 @@ public static class TierComparison {
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         orig(self);
 
+        if (!Settings.Enabled) {
+            return;
+        }
+
         // srta-style hotkey: flip the toggle and confirm with SpeedrunTool's
         // popup, so the row can be hidden without leaving the game
         if (!self.Paused && Settings.ToggleShowTier.Pressed) {
@@ -178,8 +182,9 @@ public static class TierComparison {
     private static void SpeedrunTimerDisplayOnRender(On.Celeste.SpeedrunTimerDisplay.orig_Render orig, SpeedrunTimerDisplay self) {
         orig(self);
 
-        // hidden along with the room timer itself
-        if (SpeedrunToolSettings.Instance is not { Enabled: true } settings
+        // hidden along with the room timer itself, and with the whole mod
+        if (!Settings.Enabled
+            || SpeedrunToolSettings.Instance is not { Enabled: true } settings
             || settings.RoomTimerType == RoomTimerType.Off || self.DrawLerp <= 0f) {
             return;
         }

@@ -2,6 +2,7 @@
 
 # Mod Options
 MODOPTIONS_SRS_TITLE=     Speedrun Sheet
+MODOPTIONS_SRS_ENABLED=   Activé
 MODOPTIONS_SRS_SHOWTIER=  Afficher le palier
 MODOPTIONS_SRS_TOGGLESHOWTIER= Afficher/masquer le palier
 MODOPTIONS_SRS_SHOWSELECTION= Afficher la sélection
