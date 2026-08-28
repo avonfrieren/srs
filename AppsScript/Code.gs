@@ -19,6 +19,9 @@ var SRS_TABS = {
 };
 var SRS_TAB_ORDER = ['a sides', 'b+c sides', 'farewell'];
 
+// Where the player records the route they run, one column per category.
+var SRS_HOME_TAB = 'Home Page';
+
 function doGet() {
   try {
     var cache = {};
@@ -38,7 +41,16 @@ function doGet() {
         });
       });
     });
-    return srsJson({ rows: rows });
+    // never fatal: the export is what this endpoint is for, and a sheet whose
+    // Home Page has moved must still be writable
+    var routes = [];
+    try {
+      routes = srsReadRoutes();
+    } catch (err) {
+      routes = [];
+    }
+
+    return srsJson({ rows: rows, routes: routes });
   } catch (err) {
     return srsJson({ error: String(err) });
   }
@@ -78,6 +90,52 @@ function doPost(e) {
  * NFC, collapsed whitespace, U+FE0F stripped, lowercased. Emoji are NOT stripped:
  * "Depths 📼 RTM" and "Depths 💙+📼 RTM" are distinct rows.
  */
+/**
+ * The route the player runs, per category, from the Home Page tab: a row
+ * labelled "Category" and one labelled "Route", read as columns.
+ *
+ * The rows are searched for rather than addressed by number, the same lesson
+ * srsFindHeader learned: a tab gains a row and everything below it moves.
+ * A category with no route in it is left out rather than reported empty.
+ */
+function srsReadRoutes() {
+  var sheet = SpreadsheetApp.getActive().getSheetByName(SRS_HOME_TAB);
+  if (!sheet) {
+    return [];
+  }
+
+  // display values, not raw ones: "100%" is the number 1 with a percent format,
+  // and getValues hands back 1, which names no category
+  var values = sheet.getDataRange().getDisplayValues();
+  var categoryRow = -1;
+  var routeRow = -1;
+  for (var i = 0; i < values.length; i++) {
+    var label = srsNorm(values[i][0]);
+    if (label === 'category' && categoryRow < 0) {
+      categoryRow = i;
+    } else if (label === 'route' && routeRow < 0) {
+      routeRow = i;
+    }
+  }
+
+  if (categoryRow < 0 || routeRow < 0) {
+    return [];
+  }
+
+  var out = [];
+  for (var c = 1; c < values[categoryRow].length; c++) {
+    var category = String(values[categoryRow][c] == null ? '' : values[categoryRow][c]).trim();
+    var route = c < values[routeRow].length
+      ? String(values[routeRow][c] == null ? '' : values[routeRow][c]).trim()
+      : '';
+    if (category && route) {
+      out.push({ category: category, route: route });
+    }
+  }
+
+  return out;
+}
+
 function srsNorm(value) {
   return String(value == null ? '' : value)
     .normalize('NFC')

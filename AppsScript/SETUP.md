@@ -20,6 +20,16 @@ It also reads the `Route` row of your `Home Page` tab, so the export screen open
 you actually run rather than the first one in its list. Nothing depends on it: a sheet whose
 Home Page has moved, or has no route in a column, simply gets the first route instead.
 
+## What it reads and writes
+
+It writes times to `A Sides`, `B+C Sides` and `Farewell`, the three tabs the sheet expects you
+to fill. It never touches a category tab: those read from the three above, and writing into one
+would turn the cell manual and break its auto-fill.
+
+It also reads the `Route` row of your `Home Page` tab, so the export screen opens on the route
+you actually run rather than the first one in its list. Nothing depends on it: a sheet whose
+Home Page has moved, or has no route in a column, simply gets the first route instead.
+
 ## Deploy
 
 1. Open your copy of the sheet, then **Extensions > Apps Script**.
