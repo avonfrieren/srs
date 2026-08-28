@@ -47,6 +47,50 @@ public class SrsModule : EverestModule {
         }
 
         base.LoadSettings();
+
+        // the tab URLs are stored settings, so the defaults above reach nobody
+        // who has ever saved: without this, every existing player stays on the
+        // workbook frozen on 2026-08-28, which still answers and silently stops
+        // receiving retimings
+        MigrateSheetUrls();
+    }
+
+    // substitutes the frozen spreadsheet id in the three stored URLs and saves
+    // if any of them carried it. Idempotent: a save that fails changes nothing
+    // but the file on disk, and the next launch migrates again
+    private void MigrateSheetUrls() {
+        SrsSettings settings = Settings;
+        bool changed = false;
+
+        if (SheetUrls.Migrate(settings.ASidesUrl) is string aSides) {
+            settings.ASidesUrl = aSides;
+            changed = true;
+        }
+
+        if (SheetUrls.Migrate(settings.BSidesUrl) is string bSides) {
+            settings.BSidesUrl = bSides;
+            changed = true;
+        }
+
+        if (SheetUrls.Migrate(settings.FarewellUrl) is string farewell) {
+            settings.FarewellUrl = farewell;
+            changed = true;
+        }
+
+        if (!changed) {
+            return;
+        }
+
+        Logger.Log(LogLevel.Info, "srs", "Repointed the stored sheet urls at the current reference workbook");
+        try {
+            SaveSettings();
+        } catch (Exception e) {
+            // Everest catches the write itself, but not the File.Delete and
+            // CreateDirectory it does first: those throw out of LoadSettings,
+            // which would take the whole mod down over a settings file. The
+            // migration already holds in memory, and runs again next launch
+            Logger.Log(LogLevel.Warn, "srs", $"Could not persist the migrated sheet urls: {e}");
+        }
     }
 
     // only the header comes from base: every entry of the section is built by

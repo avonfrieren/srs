@@ -75,11 +75,16 @@ public class SheetConsistencyTests {
         Assert.Equal("Huge Mess", SegmentAutoDetect.GameNameOf("3a", "Huge Mess Heart"));
         Assert.Equal("Start", SegmentAutoDetect.GameNameOf("Farewell", "Start DTS"));
         Assert.Equal("Start", SegmentAutoDetect.GameNameOf("7a", "0m"));
-        // and the sheet's spelling of Farewell's seventh checkpoint is not the
-        // game's, which is exactly what the table is for — same for 5A's first
-        // checkpoint past the mirror, one l on the sheet and two in the game
-        Assert.Equal("Stubbornness", SegmentAutoDetect.GameNameOf("Farewell", "Stubborness"));
-        Assert.Equal("Unravelling", SegmentAutoDetect.GameNameOf("5a", "Unraveling"));
+        // where the sheet's name is genuinely not the game's, which is what the
+        // table is for: 6B's Reflection is the sheet's "Falling"
+        Assert.Equal("Reflection", SegmentAutoDetect.GameNameOf("6b", "Falling"));
+        // and the three that used to diverge only by a typo. The sheet was
+        // corrected on 2026-08-28 and srs follows it: these entries are
+        // identities now, and putting a misspelling back would drop the row at
+        // import, silently, because Import is an allowlist
+        Assert.Equal("Unravelling", SegmentAutoDetect.GameNameOf("5a", "Unravelling"));
+        Assert.Equal("Through the Mirror", SegmentAutoDetect.GameNameOf("5b", "Through the Mirror"));
+        Assert.Equal("Stubbornness", SegmentAutoDetect.GameNameOf("Farewell", "Stubbornness"));
     }
 
     // 2ter. every start-room override names a (scope, game checkpoint) pair
@@ -266,8 +271,8 @@ public class SheetConsistencyTests {
     [InlineData(SegmentCategory.TrueEndingDts, "3a", "Huge Mess", "Huge Mess Heart")]
     [InlineData(SegmentCategory.TrueEnding, "Farewell", "Start", "Start")]
     [InlineData(SegmentCategory.TrueEndingDts, "Farewell", "Start", "Start DTS")]
-    // the skip is over by Stubborness: both True Ending categories run it
-    [InlineData(SegmentCategory.TrueEndingDts, "Farewell", "Stubborness", "Stubborness")]
+    // the skip is over by Stubbornness: both True Ending categories run it
+    [InlineData(SegmentCategory.TrueEndingDts, "Farewell", "Stubbornness", "Stubbornness")]
     public void TheCategoryResolvesTheVariantOfTheCheckpoint(
         SegmentCategory category, string chapter, string plain, string expected) {
         string resolved = SegmentAutoDetect.CategoryVariants

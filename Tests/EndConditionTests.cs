@@ -36,7 +36,7 @@ public class EndConditionTests {
     [InlineData("Intervention")]
     [InlineData("Awake")]
     [InlineData("3000m")]
-    [InlineData("Stubborness")]
+    [InlineData("Stubbornness")]
     [InlineData("Start DTS")]
     [InlineData("Crossing 💙")]
     [InlineData("Shrine 💙 Clear")]
@@ -65,7 +65,7 @@ public class EndConditionTests {
     [InlineData("Determination DTS", SegmentCategory.TrueEndingDts)]
     [InlineData("DTS SoB", SegmentCategory.AnyPercent)]
     [InlineData("DTS IL", SegmentCategory.AnyPercent)]
-    [InlineData("Stubborness", SegmentCategory.AnyPercent)]
+    [InlineData("Stubbornness", SegmentCategory.AnyPercent)]
     public void TheDtsSuffixIsTheSkipsMarker(string rawName, SegmentCategory expected) {
         Assert.Equal(expected, SheetData.CategoryOf(rawName));
     }

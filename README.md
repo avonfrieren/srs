@@ -6,6 +6,11 @@ Options under **Mod Options → Speedrun Sheet**.
 
 ## Changelog
 
+### Unreleased by Axiome
+
+- **The reference sheet moved, and srs follows it.** The practice sheet was copied to a new document on 2026-08-28 and the previous one has stopped changing. srs reads the new one, and repoints itself on launch if your settings file still names the old one. The old document still answers, so nothing ever looked broken: it simply stopped receiving every retiming, silently. Only the document id is substituted, so a tab you pointed somewhere else on purpose is left alone.
+- **Three checkpoints were never being imported.** `Unravelling` (5A), `Through the Mirror` (5B) and `Stubbornness` (Farewell) are spelled that way on the sheet, and srs spelled all three differently. The import list matches names exactly, so those rows were dropped without a warning: no slider entry, no tier, no auto-detection. 5A's had been in that state since 2026-08-08. If you had picked one of the three by hand, pick it again once; auto-detection finds them on its own.
+
 ### v3.7.0 — 2026-08-27 by Axiome
 
 - **Master switch**: a new **Enabled** toggle at the top of Mod Options turns the whole mod off — no tier row, no selection row, no auto-detection, no hotkey and no sheet download on launch. While it is off the section shows nothing but that toggle. Nothing is discarded: switching back on resumes on the same checkpoint and category, and refreshes the sheet on the spot in case it was retimed meanwhile.

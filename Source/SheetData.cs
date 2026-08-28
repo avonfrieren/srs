@@ -129,9 +129,9 @@ public class SheetData {
         [("5a CP", "Depths")] = ("5a/b", "Depths"),
         [("5a CP", "Depths 📼 RTM")] = ("5a/b", "Depths Tape"),
         // 5A past the mirror (v3.6.0). The sheet's "Wake Up" row between Depths
-        // and Unraveling stays out on purpose: it times the wake-up animation,
+        // and Unravelling stays out on purpose: it times the wake-up animation,
         // which is always the same 2.533s — there is nothing to compare
-        [("5a CP", "Unraveling")] = ("5a/b", "Unraveling"),
+        [("5a CP", "Unravelling")] = ("5a/b", "Unravelling"),
         [("5a CP", "Search")] = ("5a/b", "Search"),
         [("5a CP", "Rescue")] = ("5a/b", "Rescue"),
         [("6a CP", "6a Start")] = ("6a/b", "6a Start"),
@@ -159,7 +159,7 @@ public class SheetData {
         // B Sides Standards: only the any% route's two B-sides
         [("5b", "5b Start")] = ("5a/b", "5b Start"),
         [("5b", "Central Chamber")] = ("5a/b", "Central Chamber"),
-        [("5b", "Through The Mirror")] = ("5a/b", "Through The Mirror"),
+        [("5b", "Through the Mirror")] = ("5a/b", "Through the Mirror"),
         [("5b", "Mix Master")] = ("5a/b", "Mix Master"),
         [("6b", "6b Start")] = ("6a/b", "6b Start"),
         [("6b", "Falling")] = ("6a/b", "Falling"),
@@ -169,9 +169,7 @@ public class SheetData {
         // are read under the implicit "Farewell" chapter (see Parse). Every
         // row is kept except the four SoB/IL totals at the bottom. "DTS" rows
         // are the double-dash skip's version of the first six segments — same
-        // in-game checkpoints, so they are a category of their own. The
-        // sheet's "Stubborness" spelling is kept as-is: the sheet is the
-        // authority on names, the game writes "Stubbornness"
+        // in-game checkpoints, so they are a category of their own
         [("Farewell", "Start")] = ("Farewell", "Start"),
         [("Farewell", "Singular")] = ("Farewell", "Singular"),
         [("Farewell", "Power Source")] = ("Farewell", "Power Source"),
@@ -184,7 +182,7 @@ public class SheetData {
         [("Farewell", "Remembered DTS")] = ("Farewell", "Remembered DTS"),
         [("Farewell", "Event Horizon DTS")] = ("Farewell", "Event Horizon DTS"),
         [("Farewell", "Determination DTS")] = ("Farewell", "Determination DTS"),
-        [("Farewell", "Stubborness")] = ("Farewell", "Stubborness"),
+        [("Farewell", "Stubbornness")] = ("Farewell", "Stubbornness"),
         [("Farewell", "Reconciliation")] = ("Farewell", "Reconciliation"),
         [("Farewell", "Farewell")] = ("Farewell", "Farewell"),
     };
