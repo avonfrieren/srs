@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using Xunit;
 
@@ -102,5 +103,55 @@ public class ExportProtocolTests {
 
         Assert.False(ExportProtocol.TryParseRows(json, out _, out string error));
         Assert.Equal("Error: Tab \"Any%\" not found", error);
+    }
+}
+
+public class EndpointUrlTests {
+    [Theory]
+    [InlineData("https://script.google.com/macros/s/AKfycbx123/exec")]
+    [InlineData("  https://script.google.com/macros/s/AKfycbx123/exec  ")]
+    public void AcceptsADeployedWebApp(string url) {
+        Assert.True(ExportProtocol.IsEndpointUrl(url));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    // the /dev URL needs a Google login and would answer the mod a sign-in page
+    [InlineData("https://script.google.com/macros/s/AKfycbx123/dev")]
+    // the sheet itself, which is the paste a player is most likely to make
+    [InlineData("https://docs.google.com/spreadsheets/d/1Gjr0t5N/edit#gid=0")]
+    [InlineData("http://script.google.com/macros/s/AKfycbx123/exec")]
+    [InlineData("script.google.com/macros/s/AKfycbx123/exec")]
+    [InlineData("not a url at all")]
+    public void RefusesEverythingElse(string url) {
+        Assert.False(ExportProtocol.IsEndpointUrl(url));
+    }
+}
+
+public class RemoteRouteTests {
+    // the endpoint hands back the route the player records on their own sheet
+    [Fact]
+    public void ReadsTheRoutesTheSheetRecords() {
+        string body = """
+            {"rows":[],"routes":[{"category":"Any%","route":"5b6b"},
+                                 {"category":"True Ending","route":"6b DTS"}]}
+            """;
+
+        Assert.True(ExportProtocol.TryParseRows(body, out _, out List<RemoteRoute> routes, out string error));
+        Assert.Null(error);
+        Assert.Equal(["Any%", "True Ending"], routes.Select(r => r.Category));
+        Assert.Equal(["5b6b", "6b DTS"], routes.Select(r => r.Route));
+    }
+
+    // a script older than the field sends no routes at all, and that is not an
+    // error: the screen falls back to the first route of the category
+    [Fact]
+    public void TreatsAMissingRoutesFieldAsNone() {
+        Assert.True(ExportProtocol.TryParseRows("""{"rows":[]}""", out _,
+            out List<RemoteRoute> routes, out string error));
+        Assert.Null(error);
+        Assert.Empty(routes);
     }
 }

@@ -33,7 +33,10 @@ SRS_KEYBIND_PRESS_BUTTON= PRESS A BUTTON FOR
 SRS_KEYBIND_NO_CONTROLLER= No controller connected
 # Sheet export
 SRS_EXPORT_TITLE=Export To Practice Sheet
-SRS_EXPORT_NOTHING=No time on the checkpoint you are practising
+SRS_EXPORT_CATEGORY=Category
+SRS_EXPORT_CATEGORY_ALL=All
+SRS_EXPORT_ROUTE=Route
+SRS_EXPORT_NOTHING=No sheet rows for the chapter you are in
 SRS_EXPORT_LOADING=Loading sheet data...
 SRS_EXPORT_WRITING=Writing to the sheet...
 SRS_EXPORT_UNREAD=Could not read the sheet.
@@ -41,11 +44,15 @@ SRS_EXPORT_CONFIRM=Export Selected
 SRS_EXPORT_CANCEL=Cancel
 SRS_EXPORT_CLOSE=          Close
 SRS_EXPORT_DONE=Export finished
-SRS_EXPORT_URL=Sheet Export URL
-SRS_EXPORT_URL_SET=Configured
-SRS_EXPORT_URL_UNSET=Not configured
 SRS_EXPORT_URL_FORGET=Forget Sheet URL
-SRS_EXPORT_URL_TITLE_ONLY=Set it from the title screen's Mod Options
+SRS_EXPORT_URL_FROM_CLIPBOARD=Set Sheet URL from clipboard
+SRS_EXPORT_URL_REPLACE_FROM_CLIPBOARD=Replace Sheet URL from clipboard
+SRS_EXPORT_URL_CLIPBOARD_EMPTY=      Clipboard is empty. Copy the /exec URL first.
+SRS_EXPORT_URL_CLIPBOARD_INVALID=      That is not a web app URL. It must start with https and end in /exec.
+SRS_EXPORT_URL_CHECKING=      Asking the sheet...
+SRS_EXPORT_URL_CHECK_OK=      The sheet answered. Rows it can write:
+SRS_EXPORT_URL_CHECK_FAILED=      The sheet did not answer:
+SRS_EXPORT_URL_CHECK_NOT_SHEET=      Something answered, but not the export script. Check the deployment.
 
 # Sheet export — errors. No {0} placeholders: Celeste may eat the braces, so
 # anything carrying a value is composed in code from these prefixes.

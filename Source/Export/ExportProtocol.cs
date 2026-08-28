@@ -34,6 +34,14 @@ public sealed class ExportResponse {
     [JsonPropertyName("error")] public string Error { get; set; }
 }
 
+/// The route the player records on their own sheet for a category. Absent
+/// from a script older than the field, which is why nothing depends on it: it
+/// picks a better default, and its absence picks the first route instead.
+public sealed class RemoteRoute {
+    [JsonPropertyName("category")] public string Category { get; set; }
+    [JsonPropertyName("route")] public string Route { get; set; }
+}
+
 public sealed class RemoteRow {
     [JsonPropertyName("tab")] public string Tab { get; set; } = "";
     [JsonPropertyName("chapter")] public string Chapter { get; set; } = "";
@@ -46,6 +54,7 @@ public sealed class RemoteRow {
 
 internal sealed class RowsResponse {
     [JsonPropertyName("rows")] public List<RemoteRow> Rows { get; set; }
+    [JsonPropertyName("routes")] public List<RemoteRoute> Routes { get; set; }
     [JsonPropertyName("error")] public string Error { get; set; }
 }
 
@@ -70,6 +79,19 @@ public static class ExportProtocol {
     // to keep emoji literal on the wire, matching what the Apps Script side expects to log/compare.
     private static readonly Regex SurrogatePairEscape =
         new(@"\\u(d[89ab][0-9a-f]{2})\\u(d[c-f][0-9a-f]{2})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    /// A deployed Apps Script Web App endpoint. The /dev URL of the same
+    /// script answers a signed-out client with a login page, so it is refused
+    /// here rather than accepted and left to fail at export time.
+    public static bool IsEndpointUrl(string url) {
+        if (string.IsNullOrWhiteSpace(url)) {
+            return false;
+        }
+
+        return Uri.TryCreate(url.Trim(), UriKind.Absolute, out Uri uri)
+            && uri.Scheme == Uri.UriSchemeHttps
+            && uri.AbsolutePath.EndsWith("/exec", StringComparison.Ordinal);
+    }
 
     public static string SerializeRequest(ExportRequest request) {
         string json = JsonSerializer.Serialize(request, Options);
@@ -107,8 +129,13 @@ public static class ExportProtocol {
         return true;
     }
 
-    public static bool TryParseRows(string body, out List<RemoteRow> rows, out string error) {
+    public static bool TryParseRows(string body, out List<RemoteRow> rows, out string error) =>
+        TryParseRows(body, out rows, out List<RemoteRoute> _, out error);
+
+    public static bool TryParseRows(string body, out List<RemoteRow> rows,
+        out List<RemoteRoute> routes, out string error) {
         rows = null;
+        routes = [];
         if (!Guard(body, out error)) {
             return false;
         }
@@ -132,6 +159,7 @@ public static class ExportProtocol {
             return false;
         }
         rows = wrapper.Rows;
+        routes = wrapper.Routes ?? [];
         error = null;
         return true;
     }

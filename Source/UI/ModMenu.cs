@@ -30,7 +30,7 @@ internal static class ModMenu {
         SheetImporter.CreateMenuEntries(menu);
 
         // ExportUrlMenu keeps these two hidden until an export URL is set
-        List<TextMenu.Item> urlDependent = ExportUrlMenu.CreateMenuEntries(menu, inGame);
+        List<TextMenu.Item> urlDependent = ExportUrlMenu.CreateMenuEntries(menu);
 
         // in game only: the export screen needs a level, and it saves binding a
         // hotkey just to reach it
