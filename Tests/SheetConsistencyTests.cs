@@ -36,21 +36,25 @@ public class SheetConsistencyTests {
     }
 
     // 2. every imported segment carries the end condition its raw sheet name
-    // declares: the two 📼 RTM rows end at the cassette collect, everything
-    // else — the two hearts included, their rows are not RTM ones — ends at
-    // the next in-game checkpoint (or the chapter's completion when there is
-    // none, resolved at runtime, no table for it). A marker slipping through
-    // Import unnoticed would silently mistime the segment
+    // declares. Only a row that ends in RTM or RC stops at what it collects:
+    // the two 📼 RTM rows at the cassette, "2a Start 💙 RC" at the heart. The
+    // other two hearts are Clear rows — collect and keep going — so they end
+    // at the next in-game checkpoint, like everything else (or at the
+    // chapter's completion when there is none, resolved at runtime). A marker
+    // slipping through Import unnoticed would silently mistime the segment
     [Fact]
     public void EveryImportedSegmentEndsTheWayItsRawNameDeclares() {
-        HashSet<(string, string)> cassette = [
+        static HashSet<(string, string)> EndingAt(EndCondition condition) => [
             .. Fixtures.Imported
-                .Where(segment => segment.End == EndCondition.Cassette)
+                .Where(segment => segment.End == condition)
                 .Select(segment => (segment.Chapter, segment.Name))
         ];
 
-        Assert.Equal([("5a/b", "Depths Tape"), ("6a/b", "Hollows Tape")], cassette);
-        Assert.All(Fixtures.Imported.Where(segment => segment.End != EndCondition.Cassette),
+        Assert.Equal([("5a/b", "Depths Tape"), ("6a/b", "Hollows Tape")], EndingAt(EndCondition.Cassette));
+        Assert.Equal([("2a", "Start Heart")], EndingAt(EndCondition.Heart));
+        Assert.All(
+            Fixtures.Imported.Where(segment =>
+                segment.End != EndCondition.Cassette && segment.End != EndCondition.Heart),
             segment => Assert.Equal(EndCondition.Checkpoint, segment.End));
     }
 

@@ -91,6 +91,8 @@ public static partial class SegmentAutoDetect {
             [(SegmentCategory.Cassette, "6a/b", "Hollows")] = "Hollows Tape",
             // the 3A and 4A hearts are collected by both True Ending variants:
             // DTS is a Farewell skip, it changes nothing before it
+            [(SegmentCategory.TrueEnding, "2a", "Start")] = "Start Heart",
+            [(SegmentCategory.TrueEndingDts, "2a", "Start")] = "Start Heart",
             [(SegmentCategory.TrueEnding, "3a", "Huge Mess")] = "Huge Mess Heart",
             [(SegmentCategory.TrueEnding, "4a", "Shrine")] = "Shrine Heart",
             [(SegmentCategory.TrueEndingDts, "3a", "Huge Mess")] = "Huge Mess Heart",

@@ -113,6 +113,7 @@ public class SheetData {
         [("1a CP", "Crossing")] = ("1a", "Crossing"),
         [("1a CP", "Chasm")] = ("1a", "Chasm"),
         [("2a CP", "2a Start")] = ("2a", "Start"),
+        [("2a CP", "2a Start 💙 RC")] = ("2a", "Start Heart"),
         [("2a CP", "Intervention")] = ("2a", "Intervention"),
         [("2a CP", "Awake")] = ("2a", "Awake"),
         [("3a CP", "3a Start")] = ("3a", "Start"),
@@ -285,7 +286,12 @@ public class SheetData {
     // imported and their route settles which comes last
     internal static EndCondition EndConditionOf(string rawName) {
         string name = rawName.TrimEnd();
-        if (!name.EndsWith("RTM", StringComparison.Ordinal)) {
+        // RTM (return to map) and RC (restart chapter) both end the run at the
+        // collection: what follows either one is menuing, which the room timer
+        // never counts. RC is on exactly one row of the whole sheet,
+        // "2a Start 💙 RC", so reading it changes no segment that already works
+        if (!name.EndsWith("RTM", StringComparison.Ordinal)
+            && !name.EndsWith("RC", StringComparison.Ordinal)) {
             return EndCondition.Checkpoint;
         }
 
