@@ -26,9 +26,12 @@ public class SrsModule : EverestModule {
         RunWatcher.Load();
         TierComparison.Load();
         SegmentAutoDetect.Load();
+        // last: only reads what the others produce, no ordering constraint
+        ExportMenu.Load();
     }
 
     public override void Unload() {
+        ExportMenu.Unload();
         SegmentAutoDetect.Unload();
         TierComparison.Unload();
         RunWatcher.Unload();
@@ -99,6 +102,6 @@ public class SrsModule : EverestModule {
     // the previous mod's section
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot) {
         CreateModMenuSectionHeader(menu, inGame, snapshot);
-        ModMenu.CreateMenu(menu);
+        ModMenu.CreateMenu(menu, inGame);
     }
 }

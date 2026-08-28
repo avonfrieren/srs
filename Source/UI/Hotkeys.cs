@@ -4,7 +4,7 @@ using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// the three rebindable hotkeys, updated once per frame from a single input
+// the four rebindable hotkeys, updated once per frame from a single input
 // snapshot. Bound through KeybindConfigUi rather than Everest's key config
 // screen: the bindings are combos here, and Everest's screen has no way to
 // say so
@@ -12,6 +12,7 @@ public static class Hotkeys {
     internal static ComboHotkey CycleCategory { get; private set; }
     internal static ComboHotkey ToggleShowTier { get; private set; }
     internal static ComboHotkey ToggleShowSelection { get; private set; }
+    internal static ComboHotkey OpenExportMenu { get; private set; }
 
     private static ComboHotkey[] all = [];
 
@@ -32,11 +33,12 @@ public static class Hotkeys {
         CycleCategory = new ComboHotkey(settings.CycleCategory);
         ToggleShowTier = new ComboHotkey(settings.ToggleShowTier);
         ToggleShowSelection = new ComboHotkey(settings.ToggleShowSelection);
-        all = [CycleCategory, ToggleShowTier, ToggleShowSelection];
+        OpenExportMenu = new ComboHotkey(settings.OpenExportMenu);
+        all = [CycleCategory, ToggleShowTier, ToggleShowSelection, OpenExportMenu];
 
         // loaded first, so this hook is the innermost one: after orig the
-        // hotkeys are updated before RunWatcher, TierComparison and
-        // SegmentAutoDetect read them on the same frame
+        // hotkeys are updated before RunWatcher, TierComparison,
+        // SegmentAutoDetect and ExportMenu read them on the same frame
         On.Celeste.Level.Update += LevelOnUpdate;
     }
 
@@ -49,6 +51,7 @@ public static class Hotkeys {
         yield return settings.CycleCategory;
         yield return settings.ToggleShowTier;
         yield return settings.ToggleShowSelection;
+        yield return settings.OpenExportMenu;
     }
 
     // marks whatever is held right now as already consumed. Called when the mod

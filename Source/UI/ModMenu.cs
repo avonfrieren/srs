@@ -9,7 +9,7 @@ namespace Celeste.Mod.SpeedrunSheet;
 // the key bindings Everest would append are gone too — they are combos now,
 // and KeybindConfigUi owns them
 internal static class ModMenu {
-    internal static void CreateMenu(TextMenu menu) {
+    internal static void CreateMenu(TextMenu menu, bool inGame) {
         SrsSettings settings = SrsModule.Settings;
 
         TextMenu.OnOff enabled = new(Dialog.Clean("MODOPTIONS_SRS_ENABLED"), settings.Enabled);
@@ -29,6 +29,29 @@ internal static class ModMenu {
         SegmentSelector.CreateMenuEntries(menu);
         SheetImporter.CreateMenuEntries(menu);
 
+        // ExportUrlMenu keeps these two hidden until an export URL is set
+        List<TextMenu.Item> urlDependent = ExportUrlMenu.CreateMenuEntries(menu, inGame);
+
+        // in game only: the export screen needs a level, and it saves binding a
+        // hotkey just to reach it
+        if (inGame) {
+            TextMenu.Button openExport = new(Dialog.Clean("MODOPTIONS_SRS_OPENEXPORTMENU"));
+            openExport.Pressed(() => {
+                if (Engine.Scene is not Level level) {
+                    return;
+                }
+
+                // Unpause tears the pause menu down properly — closing coroutine,
+                // settings save, unpause sound. Opening on the next frame lets it
+                // finish, and leaves ExportMenu recording an unpaused level, so
+                // closing the export screen returns to the game rather than to a
+                // pause with no menu in it
+                level.Unpause();
+                Engine.Scene.OnEndOfFrame += () => ExportMenu.Open(level);
+            });
+            menu.Add(openExport);
+        }
+
         TextMenu.Button keybinds = new(Dialog.Clean("SRS_KEYBINDS"));
         keybinds.Pressed(() => {
             menu.Focused = false;
@@ -45,7 +68,7 @@ internal static class ModMenu {
 
         enabled.Change(on => {
             settings.Enabled = on;
-            SetVisible(subOptions, on);
+            ShowSubOptions(subOptions, urlDependent, on);
             if (on) {
                 // the startup refresh is skipped while the mod is off, so this
                 // is the first chance to pick up a sheet retimed in the meantime
@@ -53,7 +76,14 @@ internal static class ModMenu {
             }
         });
 
-        SetVisible(subOptions, settings.Enabled);
+        ShowSubOptions(subOptions, urlDependent, settings.Enabled);
+    }
+
+    // the master switch hides everything, but turning the mod back on must not
+    // reveal entries their own owner decided to keep hidden
+    private static void ShowSubOptions(List<TextMenu.Item> subOptions, List<TextMenu.Item> urlDependent, bool on) {
+        SetVisible(subOptions, on);
+        SetVisible(urlDependent, on && ExportUrlMenu.HasUrl);
     }
 
     private static void SetVisible(List<TextMenu.Item> items, bool visible) {

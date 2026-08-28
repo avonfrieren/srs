@@ -62,12 +62,13 @@ internal sealed class KeybindConfigUi : TextMenu {
         Alpha = 0f;
     }
 
-    // the three hotkeys, in the order they are listed in both sections
+    // the four hotkeys, in the order they are listed in both sections
     private static IEnumerable<(string LabelId, ButtonBinding Binding)> Slots() {
         SrsSettings settings = SrsModule.Settings;
         yield return ("MODOPTIONS_SRS_CYCLECATEGORY", settings.CycleCategory);
         yield return ("MODOPTIONS_SRS_TOGGLESHOWTIER", settings.ToggleShowTier);
         yield return ("MODOPTIONS_SRS_TOGGLESHOWSELECTION", settings.ToggleShowSelection);
+        yield return ("MODOPTIONS_SRS_OPENEXPORTMENU", settings.OpenExportMenu);
     }
 
     private void Reload(int index = -1) {

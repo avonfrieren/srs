@@ -12,11 +12,11 @@ SRS_CATEGORY=             Catégorie
 SRS_AUTO_DETECT=          Détection auto du checkpoint
 SRS_CHAPTER=              Chapitre
 SRS_CHECKPOINT=           Checkpoint
-SRS_UPDATE_SHEET=         Mettre à jour les données de la sheet
+SRS_UPDATE_STANDARDS=     Mettre à jour les standards
 SRS_UPDATING=             Mise à jour...
-SRS_UPDATE_OK=            Sheet mise à jour
+SRS_UPDATE_OK=            Standards mis à jour
 SRS_UPDATE_FAIL=          Échec de la mise à jour (voir log.txt)
-SRS_STATUS_NONE=          Aucune donnée — lancer une mise à jour pour les télécharger
+SRS_STATUS_NONE=          Aucun standard, lancer une mise à jour pour les télécharger
 SRS_STATUS_LOADED=        Segments chargés
 
 # Keybinds
@@ -30,3 +30,42 @@ SRS_KEYBIND_COMBO_HINT=   Maintenir plusieurs touches pour une combinaison
 SRS_KEYBIND_PRESS_KEY=    APPUYER SUR UNE TOUCHE POUR
 SRS_KEYBIND_PRESS_BUTTON= APPUYER SUR UN BOUTON POUR
 SRS_KEYBIND_NO_CONTROLLER= Aucune manette connectée
+
+# Export vers la sheet
+MODOPTIONS_SRS_OPENEXPORTMENU= Ouvrir l'export vers la sheet
+SRS_EXPORT_TITLE=           Export vers la practice sheet
+SRS_EXPORT_NOTHING=         Aucun temps sur le checkpoint en cours
+SRS_EXPORT_LOADING=         Chargement des données de la sheet...
+SRS_EXPORT_WRITING=       Écriture dans la sheet...
+SRS_EXPORT_UNREAD=        Lecture de la sheet impossible.
+SRS_EXPORT_CONFIRM=         Exporter la sélection
+SRS_EXPORT_CANCEL=          Annuler
+SRS_EXPORT_CLOSE=           Fermer
+SRS_EXPORT_DONE=            Export terminé
+SRS_EXPORT_URL=             URL d'export de la sheet
+SRS_EXPORT_URL_SET=         Configurée
+SRS_EXPORT_URL_UNSET=       Non configurée
+SRS_EXPORT_URL_FORGET=      Oublier l'URL de la sheet
+SRS_EXPORT_URL_TITLE_ONLY=  À renseigner depuis les options du mod de l'écran-titre
+SRS_EXPORT_URL_DETAIL=      se termine par .../exec · définie le
+
+# Erreurs. Pas de placeholders {0} : ce qui porte une valeur est composé en code.
+SRS_EXPORT_ERR_NO_URL=      Aucune URL de sheet configurée. Voir les options du mod.
+SRS_EXPORT_ERR_STATUS=      La sheet a répondu par l'erreur
+SRS_EXPORT_ERR_TIMEOUT=     Aucune réponse après 60 secondes. La sheet a peut-être quand même été écrite, vérifie-la avant de réessayer.
+SRS_EXPORT_ERR_UNREACHABLE= Sheet injoignable :
+SRS_EXPORT_ERR_UNREADABLE=  Réponse illisible de la sheet :
+SRS_EXPORT_ERR_EMPTY=       Réponse vide de la sheet.
+SRS_EXPORT_ERR_NO_ROWS=     La sheet n'a renvoyé aucune ligne.
+SRS_EXPORT_ERR_LOGIN_PAGE=  Page web reçue au lieu de données. Vérifie le niveau d'accès du déploiement : il doit être « Anyone ».
+
+# SESSION et DELTA sont les mots employés en français aussi ; traduits à
+# l'identique, mais passés par une clé comme le reste.
+SRS_EXPORT_COL_SHEET=       SHEET
+SRS_EXPORT_COL_LOCAL=       SESSION
+SRS_EXPORT_COL_DELTA=       DELTA
+
+SRS_EXPORT_STATUS_WRITTEN=  écrit
+SRS_EXPORT_STATUS_NOTFOUND= ligne introuvable
+SRS_EXPORT_STATUS_AMBIGUOUS= plusieurs lignes correspondent
+SRS_EXPORT_STATUS_REFUSED=  refusé

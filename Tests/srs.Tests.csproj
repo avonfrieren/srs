@@ -16,6 +16,11 @@
         <Compile Include="../Source/SheetData.cs" Link="Source/SheetData.cs" />
         <Compile Include="../Source/SheetUrls.cs" Link="Source/SheetUrls.cs" />
         <Compile Include="../Source/SegmentAutoDetect.Names.cs" Link="Source/SegmentAutoDetect.Names.cs" />
+        <Compile Include="../Source/Export/SheetLabels.cs" Link="Source/Export/SheetLabels.cs" />
+        <Compile Include="../Source/Export/ExportProtocol.cs" Link="Source/Export/ExportProtocol.cs" />
+        <Compile Include="../Source/Export/TimeFormat.cs" Link="Source/Export/TimeFormat.cs" />
+        <Compile Include="../Source/Export/PendingUpdate.cs" Link="Source/Export/PendingUpdate.cs" />
+        <Compile Include="../Source/Export/RemoteBests.cs" Link="Source/Export/RemoteBests.cs" />
     </ItemGroup>
 
     <!-- snapshots of the two imported tabs; refreshing them is how a change in

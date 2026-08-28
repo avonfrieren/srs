@@ -201,6 +201,12 @@ public static class RunWatcher {
         // earns no tier is not a segment time, and padding it would only
         // make the greyed row lie about what the timer showed
         capturedTicks = time + (hasCapture ? UntimedHeadOf(segment, session).Ticks : 0L);
+
+        // only a run that started at the segment's first room is a segment
+        // time, so only that one is worth exporting
+        if (hasCapture) {
+            SessionBests.Record(segment, capturedTicks);
+        }
     }
 
     private static TimeSpan UntimedHeadOf(SheetSegment segment, Session session) {

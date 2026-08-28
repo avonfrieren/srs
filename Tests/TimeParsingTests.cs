@@ -23,6 +23,16 @@ public class TimeParsingTests {
         Assert.Equal(expectedSeconds, parsed.Value.TotalSeconds, precision: 6);
     }
 
+    // the export asks about a cell the sheet may not hold at all, so null
+    // reaches the parser as an ordinary case rather than as a CSV impossibility
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void AnAbsentCellParsesAsNoTimeRatherThanThrowing(string cell) {
+        Assert.Null(SheetData.TryParseTime(cell));
+    }
+
     // regression: TimeSpan.FromSeconds rounds through a double and turns
     // 90.576 s into 1:30.575, which is why the parser goes through ticks
     [Fact]
