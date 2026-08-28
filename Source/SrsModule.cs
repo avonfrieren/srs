@@ -26,7 +26,9 @@ public class SrsModule : EverestModule {
         RunWatcher.Load();
         TierComparison.Load();
         SegmentAutoDetect.Load();
-        // last: only reads what the others produce, no ordering constraint
+        // last: like every hook above it, this one reads Hotkeys on the frame
+        // Hotkeys updated it, so it must stay outside Hotkeys' hook. Nothing
+        // else constrains it, it only reads what the others produced
         ExportMenu.Load();
     }
 

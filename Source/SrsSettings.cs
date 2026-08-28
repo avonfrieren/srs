@@ -50,7 +50,7 @@ public class SrsSettings : EverestModuleSettings {
     // rebindable hotkey cycling Category without opening Mod Options (v3.1.0),
     // handled in SegmentAutoDetect — switching category is a mid-practice
     // gesture (any% run, then the cassette variant of the same checkpoint).
-    // [SettingIgnore] keeps it out of Everest's key config screen: the three
+    // [SettingIgnore] keeps it out of Everest's key config screen: srs's
     // hotkeys are read as combos (Hotkeys/ComboHotkey), which that screen has
     // no way to express, and KeybindConfigUi binds them instead
     [SettingIgnore]
