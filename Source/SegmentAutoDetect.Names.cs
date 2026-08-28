@@ -38,13 +38,12 @@ public static partial class SegmentAutoDetect {
         [("4a", "Cliff Face")] = "Cliff Face",
         [("5a", "Start")] = "5a Start",
         [("5a", "Depths")] = "Depths",
-        // the game spells it with two l's, the sheet with one
-        [("5a", "Unravelling")] = "Unraveling",
+        [("5a", "Unravelling")] = "Unravelling",
         [("5a", "Search")] = "Search",
         [("5a", "Rescue")] = "Rescue",
         [("5b", "Start")] = "5b Start",
         [("5b", "Central Chamber")] = "Central Chamber",
-        [("5b", "Through the Mirror")] = "Through The Mirror",
+        [("5b", "Through the Mirror")] = "Through the Mirror",
         [("5b", "Mix Master")] = "Mix Master",
         [("6a", "Start")] = "6a Start",
         [("6a", "Lake")] = "Lake",
@@ -74,7 +73,7 @@ public static partial class SegmentAutoDetect {
         [("Farewell", "Remembered")] = "Remembered",
         [("Farewell", "Event Horizon")] = "Event Horizon",
         [("Farewell", "Determination")] = "Determination",
-        [("Farewell", "Stubbornness")] = "Stubborness", // the sheet drops an n
+        [("Farewell", "Stubbornness")] = "Stubbornness",
         [("Farewell", "Reconciliation")] = "Reconciliation",
         [("Farewell", "Farewell")] = "Farewell",
     };

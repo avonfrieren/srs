@@ -79,7 +79,7 @@ public class MalformedInputTests {
         SheetData data = SheetData.Parse(null, null, Fixtures.Farewell);
 
         Assert.All(data.CheckpointBlock.Segments, s => Assert.Equal("Farewell", s.Chapter));
-        Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "Stubborness");
+        Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "Stubbornness");
         // the four SoB/IL totals at the bottom of the tab are not checkpoints
         Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Name.Contains("SoB"));
         Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Name.Contains("IL"));

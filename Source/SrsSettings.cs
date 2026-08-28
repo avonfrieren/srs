@@ -12,18 +12,20 @@ public class SrsSettings : EverestModuleSettings {
     // A-side checkpoints) and "B Sides Standards" (the any% route's 5B/6B
     // checkpoints) since v2.0.0, plus "Farewell Standards" since v3.4.0
     public const string DefaultASidesUrl =
-        "https://docs.google.com/spreadsheets/d/18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y/edit?gid=1796170425";
+        SheetUrls.EditUrlPrefix + "1796170425";
 
     public const string DefaultBSidesUrl =
-        "https://docs.google.com/spreadsheets/d/18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y/edit?gid=1885706573";
+        SheetUrls.EditUrlPrefix + "1885706573";
 
     public const string DefaultFarewellUrl =
-        "https://docs.google.com/spreadsheets/d/18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y/edit?gid=1826331297";
+        SheetUrls.EditUrlPrefix + "1826331297";
 
     // full Google Sheets edit URLs (spreadsheet id + gid are extracted from
-    // them); not editable in-game — change them in the settings file if the
-    // sheet moves. The pre-2.0.0 single SheetUrl (old prototype sheet) is
-    // simply dropped by the settings deserializer
+    // them); not editable in-game — change them in the settings file to read
+    // another workbook. These are stored values: a player who has saved
+    // settings keeps theirs, which is why SrsModule migrates the id of the
+    // workbook srs read before 2026-08-28 (SheetUrls). The pre-2.0.0 single
+    // SheetUrl (old prototype sheet) is simply dropped by the deserializer
     [SettingIgnore]
     public string ASidesUrl { get; set; } = DefaultASidesUrl;
 
