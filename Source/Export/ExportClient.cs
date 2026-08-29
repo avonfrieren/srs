@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,6 +25,10 @@ internal static class ExportClient {
             if (string.IsNullOrWhiteSpace(url)) {
                 return (null, Dialog.Clean("SRS_EXPORT_ERR_NO_URL"));
             }
+            // the round trip is the whole of the wait the player sees, and
+            // nothing measured it: an Apps Script cold start and an oversized
+            // payload look the same from the game
+            Stopwatch clock = Stopwatch.StartNew();
             try {
                 HttpResponseMessage response = json == null
                     ? await Http.GetAsync(url)
@@ -31,6 +36,9 @@ internal static class ExportClient {
                         new StringContent(json, Encoding.UTF8, "application/json"));
 
                 string body = await response.Content.ReadAsStringAsync();
+                Logger.Log(LogLevel.Info, LogTag,
+                    $"{(json == null ? "read" : "write")} took {clock.ElapsedMilliseconds} ms,"
+                    + $" {body?.Length ?? 0} chars back");
                 if (!response.IsSuccessStatusCode) {
                     // never log the URL: it is a secret
                     Logger.Log(LogLevel.Warn, LogTag, $"export request failed: {(int) response.StatusCode}");
@@ -38,12 +46,14 @@ internal static class ExportClient {
                 }
                 return (body, (string) null);
             } catch (TaskCanceledException) {
-                Logger.Log(LogLevel.Warn, LogTag, "export request timed out after 60s");
+                Logger.Log(LogLevel.Warn, LogTag,
+                    $"export request timed out after {clock.ElapsedMilliseconds} ms");
                 // the script may have run to completion server-side: a timeout
                 // says nothing about whether the sheet was written
                 return (null, Dialog.Clean("SRS_EXPORT_ERR_TIMEOUT"));
             } catch (Exception e) {
-                Logger.Log(LogLevel.Warn, LogTag, "export request failed: " + e.Message);
+                Logger.Log(LogLevel.Warn, LogTag,
+                    $"export request failed after {clock.ElapsedMilliseconds} ms: " + e.Message);
                 return (null, Dialog.Clean("SRS_EXPORT_ERR_UNREACHABLE") + " " + e.Message);
             }
         });

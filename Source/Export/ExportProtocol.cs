@@ -70,6 +70,10 @@ internal sealed class RowsResponse {
     [JsonPropertyName("rows")] public List<RemoteRow> Rows { get; set; }
     [JsonPropertyName("routes")] public List<RemoteRoute> Routes { get; set; }
     [JsonPropertyName("sobs")] public List<RemoteSob> Sobs { get; set; }
+    // how long the script itself took, so the wait can be split between its
+    // work and Google's dispatch. Absent from an older script
+    [JsonPropertyName("ms")] public int? Ms { get; set; }
+    [JsonPropertyName("cached")] public bool Cached { get; set; }
     [JsonPropertyName("error")] public string Error { get; set; }
 }
 
@@ -151,7 +155,13 @@ public static class ExportProtocol {
     /// field simply does not send it, and the screen falls back rather than
     /// failing. Only rows are required, since they are what the screen is for.
     public static bool TryParseRows(string body, out List<RemoteRow> rows,
-        out List<RemoteRoute> routes, out List<RemoteSob> sobs, out string error) {
+        out List<RemoteRoute> routes, out List<RemoteSob> sobs, out string error) =>
+        TryParseRows(body, out rows, out routes, out sobs, out string _, out error);
+
+    public static bool TryParseRows(string body, out List<RemoteRow> rows,
+        out List<RemoteRoute> routes, out List<RemoteSob> sobs, out string scriptTiming,
+        out string error) {
+        scriptTiming = null;
         rows = null;
         routes = [];
         sobs = [];
@@ -180,6 +190,9 @@ public static class ExportProtocol {
         rows = wrapper.Rows;
         routes = wrapper.Routes ?? [];
         sobs = wrapper.Sobs ?? [];
+        scriptTiming = wrapper.Ms is { } ms
+            ? $"{ms} ms in the script{(wrapper.Cached ? ", cached" : "")}"
+            : "script timing unknown";
         error = null;
         return true;
     }

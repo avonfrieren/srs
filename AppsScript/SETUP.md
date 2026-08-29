@@ -114,6 +114,10 @@ because the sheet's own auto-fill only reacts to edits made by hand.
 The summary block it reads for the *Sum of Best* line is found the same way, by its `Segment`
 and `Chapter Time` headers, so the rows moving with your route costs nothing.
 
+The script keeps its last answer for five minutes rather than reading your sheet again on every
+open, and throws that answer away the moment srs writes a row. So an export is never read back
+stale; an edit you make by hand in the browser can take up to five minutes to appear.
+
 Rows are found by their labels, not by position: inserting rows above a table is fine, and
 so is inserting rows inside it. Renaming a tab, renaming a checkpoint, or renaming the
 headers is not: srs then reports the affected rows as not found and leaves them alone.

@@ -22,6 +22,13 @@ var SRS_TAB_ORDER = ['a sides', 'b+c sides', 'farewell'];
 // Where the player records the route they run, one column per category.
 var SRS_HOME_TAB = 'Home Page';
 
+// The whole GET answer, kept script-side. Six getDisplayValues calls are ~1.9 s
+// of a ~3.2 s round trip and none of it changes between two opens of the export
+// screen. Dropped by doPost, so a time srs writes is never served back stale;
+// a correction made by hand in the browser waits the TTL out.
+var SRS_CACHE_KEY = 'srsGet';
+var SRS_CACHE_SECONDS = 300;
+
 // The category tabs whose summary block carries a chapter total. Only these two
 // are stable on the sheet; the others lay their summary out differently and
 // carry #REF! where a category is not filled in.
@@ -29,6 +36,19 @@ var SRS_CATEGORY_TABS = ['Any%', 'True Ending'];
 
 function doGet() {
   try {
+    // the game measures the round trip; this measures the half of it that is
+    // ours. Their difference is Google's dispatch, which no change here moves
+    var started = new Date().getTime();
+
+    var scriptCache = CacheService.getScriptCache();
+    var hit = scriptCache.get(SRS_CACHE_KEY);
+    if (hit) {
+      // re-stamped rather than returned as it stands: ms has to say how long
+      // this answer took, and a cached one that reports the uncached figure
+      // would make the cache look like it did nothing
+      return srsStamp(JSON.parse(hit), started, true);
+    }
+
     var cache = {};
     var rows = [];
     SRS_TAB_ORDER.forEach(function (key) {
@@ -64,7 +84,15 @@ function doGet() {
       sobs = [];
     }
 
-    return srsJson({ rows: rows, routes: routes, sobs: sobs });
+    var payload = { rows: rows, routes: routes, sobs: sobs };
+    try {
+      scriptCache.put(SRS_CACHE_KEY, JSON.stringify(payload), SRS_CACHE_SECONDS);
+    } catch (err) {
+      // a payload past the 100 KB cache limit, or a cache that is unavailable:
+      // the answer is still good, it just costs full price next time
+    }
+
+    return srsStamp(payload, started, false);
   } catch (err) {
     return srsJson({ error: String(err) });
   }
@@ -88,6 +116,16 @@ function doPost(e) {
       return srsWriteOne(cache, u || {});
     });
     SpreadsheetApp.flush();
+
+    // the rows just written are what the next read is for: drop the cached
+    // answer whatever the outcome, since a refused row still leaves the sheet
+    // as it was and a written one does not
+    try {
+      CacheService.getScriptCache().remove(SRS_CACHE_KEY);
+    } catch (err) {
+      // nothing to do about it: at worst the next read is up to the TTL stale
+    }
+
     return srsJson({ results: results });
   } catch (err) {
     return srsJson({ error: String(err) });
@@ -395,6 +433,13 @@ function srsLabel(chapter, cp) {
 function srsToday() {
   var now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+/// The answer, with how long it took and whether it came from the cache.
+function srsStamp(payload, started, cached) {
+  payload.ms = new Date().getTime() - started;
+  payload.cached = cached;
+  return srsJson(payload);
 }
 
 function srsJson(payload) {

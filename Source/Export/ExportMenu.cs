@@ -361,9 +361,9 @@ internal static class ExportMenu {
     private static Level openLevel;
     private static bool pausedBeforeOpen;
 
-    // the data currently backing the open menu; rebuilt wholesale (never
-    // mutated in place) so Build() stays the single place that constructs rows
-    private static List<PendingUpdate> currentUpdates;
+    // the screen is up but showing "loading": the table is not built until the
+    // sheet has answered, and the fetch landing is what builds it
+    private static bool awaitingRows;
 
     // both flags are set from ContinueWith callbacks (thread-pool threads) and
     // consumed on the game thread by the Level.Update hook — TextMenu must
@@ -463,20 +463,15 @@ internal static class ExportMenu {
 
         if (queuedRebuild) {
             queuedRebuild = false;
-            // the fetch is what carries the player's own route, so this is the
-            // first moment the default can be right. Moving the view means the
-            // rows are the wrong ones, not merely stale
-            bool moved = AdoptTheSheetsRoute();
-            if (moved) {
+            // the fetch carries the player's own route, and it lands before the
+            // first table is built: the rows are collected once, for the right
+            // route, against sheet values that are already there
+            if (AdoptTheSheetsRoute()) {
                 Logger.Log(LogLevel.Info, LogTag, $"view moved to the route the sheet records: {CurrentRoute?.Name}");
             }
 
-            if (menu != null && currentUpdates != null) {
-                // a moved view is a different table and opens on its own run
-                // row; a refresh is the same table, so the cursor stays put
-                Build(self, moved
-                    ? ExportSource.Collect(self.Session, CurrentRoute)
-                    : RefreshRemote(currentUpdates), moved ? null : menu.Selection);
+            if (menu != null && awaitingRows) {
+                Build(self, ExportSource.Collect(self.Session, CurrentRoute));
             }
         }
 
@@ -526,11 +521,12 @@ internal static class ExportMenu {
                 RemoteBests.Fail(error);
             } else if (ExportProtocol.TryParseRows(body, out List<RemoteRow> rows,
                            out List<RemoteRoute> known, out List<RemoteSob> totals,
-                           out string parseError)) {
+                           out string scriptTiming, out string parseError)) {
                 RemoteBests.Accept(rows, known, totals);
                 Logger.Log(LogLevel.Info, LogTag,
-                    $"sheet answered: {rows.Count} rows, routes ["
-                    + string.Join(", ", known.Select(r => $"{r.Category}={r.Route}")) + "]");
+                    $"sheet answered: {rows.Count} rows, {scriptTiming},"
+                    + $" routes [{string.Join(", ", known.Select(r => $"{r.Category}={r.Route}"))}],"
+                    + $" totals [{string.Join(", ", totals.Select(t => $"{t.Category}/{t.Route}={t.Chapters?.Count ?? 0}"))}]");
             } else {
                 RemoteBests.Fail(parseError);
             }
@@ -541,13 +537,14 @@ internal static class ExportMenu {
         pausedBeforeOpen = level.Paused;
         openLevel = level;
         level.Paused = true;
-        Build(level, updates);
+        awaitingRows = true;
+        ShowLoading(level);
     }
 
     public static void Close() {
         menu?.RemoveSelf();
         menu = null;
-        currentUpdates = null;
+        awaitingRows = false;
 
         // stale flags from this session must never bleed into a later one:
         // if a background fetch/submit resolves after Close(), its queued
@@ -566,32 +563,11 @@ internal static class ExportMenu {
         }
     }
 
-    // picks up remote bests that arrived after the rows were first built. Does
-    // not preserve a player's checkbox choice on a row that gains a remote
-    // value: WillImprove is recomputed, which is what should drive the default
-    // selection once the real comparison becomes possible. Rows that already
-    // resolved are untouched, so a mid-review toggle on those is never
-    // clobbered by a later rebuild. "Resolved" includes a cell we could not
-    // read: that is an answer about the sheet, not a missing one
-    private static List<PendingUpdate> RefreshRemote(List<PendingUpdate> updates) {
-        List<PendingUpdate> refreshed = new(updates.Count);
-        foreach (PendingUpdate u in updates) {
-            if (u.RemoteTicks == null && !u.RemoteUnreadable && RemoteBests.TryGet(u.Row, out RemoteRow row)) {
-                refreshed.Add(PendingUpdate.Create(u.Row, u.Label, u.LocalTicks, row.Time, u.Segment));
-            } else {
-                refreshed.Add(u);
-            }
-        }
-        return refreshed;
-    }
-
     /// Puts a screen up in place of whatever is there. Every screen this class
     /// shows goes through here: the three ways out of a menu are wired in one
     /// place rather than repeated, which is what stops a new screen from
     /// forgetting one and trapping the player in a paused level.
-    ///
-    /// backing is the row list Submit reads, and null for a screen with none.
-    private static void Show(Level level, TextMenu newMenu, List<PendingUpdate> backing) {
+    private static void Show(Level level, TextMenu newMenu) {
         newMenu.OnCancel = Close;
         newMenu.OnESC = Close;
         newMenu.OnPause = Close;
@@ -599,12 +575,12 @@ internal static class ExportMenu {
         menu?.RemoveSelf();
         level.Add(newMenu);
         menu = newMenu;
-        currentUpdates = backing;
     }
 
     /// keepSelection is the row the cursor was on, for a rebuild that leaves
     /// the table's shape alone. Without one the screen opens on the run itself.
     private static void Build(Level level, List<PendingUpdate> updates, int? keepSelection = null) {
+        awaitingRows = false;
         bool withSum = ShowsSum;
         ExportColumns columns = ExportColumns.Measure(updates, withSum);
         TextMenu newMenu = new();
@@ -653,7 +629,7 @@ internal static class ExportMenu {
         cancelButton.Pressed(Close);
         newMenu.Add(cancelButton);
 
-        Show(level, newMenu, updates);
+        Show(level, newMenu);
         newMenu.Selection = keepSelection is { } kept
             ? Math.Clamp(kept, 0, newMenu.Items.Count - 1)
             : RowCarryingTheRun(newMenu);
@@ -885,6 +861,25 @@ internal static class ExportMenu {
         queuedSummary = true;
     }
 
+    /// Up while the first fetch is in flight, in place of the table. Rows built
+    /// before the sheet has answered compare against values that have not
+    /// arrived: every one of them pre-ticks as an improvement, which reads as a
+    /// finished table and is not one. Waiting is what makes the table mean
+    /// something, and it is why nothing has to be patched up afterwards.
+    private static void ShowLoading(Level level) {
+        TextMenu newMenu = new();
+        newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
+        newMenu.Add(new TextMenu.SubHeader(Dialog.Clean("SRS_EXPORT_LOADING")));
+
+        // a way out that does not require knowing that Back closes it: this is
+        // the one screen the player may want to leave before it has done anything
+        TextMenu.Button cancelButton = new(Dialog.Clean("SRS_EXPORT_CANCEL"));
+        cancelButton.Pressed(Close);
+        newMenu.Add(cancelButton);
+
+        Show(level, newMenu);
+    }
+
     private static void ShowWorking(Level level) {
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
@@ -892,7 +887,7 @@ internal static class ExportMenu {
         // a read while the sheet is being written to is the wrong promise
         newMenu.Add(new TextMenu.SubHeader(Dialog.Clean("SRS_EXPORT_WRITING")));
 
-        Show(level, newMenu, null);
+        Show(level, newMenu);
     }
 
     // replaces the menu contents with a plain-text, line-per-row summary of
@@ -911,6 +906,6 @@ internal static class ExportMenu {
         closeButton.Pressed(Close);
         newMenu.Add(closeButton);
 
-        Show(level, newMenu, null);
+        Show(level, newMenu);
     }
 }

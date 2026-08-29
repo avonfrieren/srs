@@ -44,9 +44,10 @@ public static class RemoteBests {
     }
 
     /// Drops the times held: a fetch is starting because the sheet may have moved,
-    /// and it moved at least once already if this screen wrote to it. Keeping
-    /// the old rows would be worse than holding none, since a row built against
-    /// them keeps them for the whole session (see ExportMenu.RefreshRemote).
+    /// and it moved at least once already if this screen wrote to it. Nothing is
+    /// shown against the emptied index -- the screen waits for the answer before
+    /// building its table -- so this leaves no window in which stale values are
+    /// on display.
     public static void BeginFetch() {
         index = new();
         // the routes are deliberately kept: which route a player runs is not a
