@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using Xunit;
 
@@ -95,5 +96,54 @@ public class PendingUpdateTests {
             Ticks(14.722), null);
 
         Assert.Equal("14.722", update.LocalText);
+    }
+}
+
+public class SharedCheckpointTests {
+    private static PendingUpdate Row(string label, long localTicks, string remoteCell) =>
+        PendingUpdate.Create(new SheetRowRef("A Sides", "6a", label), label, localTicks, remoteCell);
+
+    // the plain row and its cassette variant sit on the same game checkpoint, so
+    // the held run answers to both. The variant's cell is usually empty, which
+    // makes "it improves on the sheet" trivially true for a row never run
+    [Fact]
+    public void NothingIsTickedWhenTwoRowsShareACheckpoint() {
+        List<PendingUpdate> updates = [
+            Row("Hollows", 28_0000000L, "0:30.000"),
+            Row("Hollows Tape", 28_0000000L, ""),
+        ];
+        Assert.All(updates, u => Assert.True(u.Selected));
+
+        PendingUpdate.UntickSharedCheckpoints(updates, ["Hollows", "Hollows"]);
+
+        Assert.All(updates, u => Assert.False(u.Selected));
+    }
+
+    // one row per checkpoint is the normal case, and it keeps its default
+    [Fact]
+    public void ARowAloneOnItsCheckpointKeepsItsTick() {
+        List<PendingUpdate> updates = [
+            Row("Hollows", 28_0000000L, "0:30.000"),
+            Row("Lake", 12_0000000L, "0:13.000"),
+        ];
+
+        PendingUpdate.UntickSharedCheckpoints(updates, ["Hollows", "Lake"]);
+
+        Assert.All(updates, u => Assert.True(u.Selected));
+    }
+
+    // rows carrying no run of their own are not what the rule is about, and a
+    // checkpoint they share must not disarm the one row that does carry it
+    [Fact]
+    public void RowsWithoutARunDoNotCount() {
+        List<PendingUpdate> updates = [
+            Row("Hollows", 28_0000000L, "0:30.000"),
+            Row("Hollows Tape", 0L, ""),
+        ];
+
+        PendingUpdate.UntickSharedCheckpoints(updates, ["Hollows", "Hollows"]);
+
+        Assert.True(updates[0].Selected);
+        Assert.False(updates[1].Selected);
     }
 }

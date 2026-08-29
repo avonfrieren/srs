@@ -30,9 +30,13 @@ public class SrsModule : EverestModule {
         // Hotkeys updated it, so it must stay outside Hotkeys' hook. Nothing
         // else constrains it, it only reads what the others produced
         ExportMenu.Load();
+        // no Level.Update hook of its own: an Everest exit event, so it is
+        // outside the ordering the comment above describes
+        SessionBests.Load();
     }
 
     public override void Unload() {
+        SessionBests.Unload();
         ExportMenu.Unload();
         SegmentAutoDetect.Unload();
         TierComparison.Unload();

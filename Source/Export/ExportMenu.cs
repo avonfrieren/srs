@@ -15,64 +15,29 @@ internal sealed class UpdateRow : TextMenu.Item {
 
     private readonly ExportColumns columns;
     private readonly bool odd;
-    // the list Submit reads: retargeting replaces this row's entry in it, so
-    // reading through the list is what keeps the two in step
+    // the list Submit reads. Rows read through it rather than holding their own
+    // copy, so what is shown and what is written cannot drift apart
     private readonly List<PendingUpdate> slot;
     private readonly int index;
 
-    private readonly List<SheetSegment> candidates;
-    private readonly Session session;
-    private int candidate;
-
     public PendingUpdate Update => slot[index];
 
-    public UpdateRow(List<PendingUpdate> slot, int index, ExportColumns columns, bool odd, Session session) {
+    public UpdateRow(List<PendingUpdate> slot, int index, ExportColumns columns, bool odd) {
         this.slot = slot;
         this.index = index;
         this.columns = columns;
         this.odd = odd;
-        this.session = session;
-        candidates = ExportSource.CandidatesFor(slot[index].Segment, session);
-        // by name, not by reference: SheetImporter.Data is reassigned from a
-        // worker and a refresh landing between Collect and here hands out fresh
-        // SheetSegment instances, which have no Equals. IndexOf would return -1
-        // and left/right would die without a word, in the first minute of a
-        // session since v3.5.0 refreshes on launch
-        candidate = candidates.FindIndex(other => other.Name == slot[index].Segment?.Name);
-        // base TextMenu.Item defaults this to false; without it the cursor
-        // can never land on the row and ConfirmPressed() is never dispatched
-        Selectable = true;
+        // base TextMenu.Item defaults this to false; without it the cursor can
+        // never land on the row and ConfirmPressed() is never dispatched. Rows
+        // the session holds no run for are the sheet shown back: there is
+        // nothing to tick, so the cursor skips them
+        Selectable = slot[index].HasLocal;
     }
 
     public override void ConfirmPressed() {
-        Update.Selected = !Update.Selected;
-    }
-
-    // auto-detect cannot tell two segments sharing a start room apart; left and
-    // right move the time onto another row of the same chapter
-    public override void LeftPressed() => Retarget(-1);
-    public override void RightPressed() => Retarget(1);
-
-    private bool CanRetarget => candidates.Count > 1 && candidate >= 0;
-
-    private void Retarget(int direction) {
-        if (!CanRetarget) {
-            return;
+        if (Update.HasLocal) {
+            Update.Selected = !Update.Selected;
         }
-
-        candidate = (candidate + direction + candidates.Count) % candidates.Count;
-        SheetSegment segment = candidates[candidate];
-        if (!SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)) {
-            return;
-        }
-
-        PendingUpdate next = ExportSource.Build(row, segment, Update.LocalTicks, session);
-        // carry the tick over, but never onto a row it would not improve: the
-        // screen promises to start unticked when it would not, and one arrow
-        // press must not be what takes that promise back
-        next.Selected = Update.Selected && next.WillImprove;
-        slot[index] = next;
-        Audio.Play(direction < 0 ? "event:/ui/main/rollover_up" : "event:/ui/main/rollover_down");
     }
 
     public override float LeftWidth() => columns.TotalWidth;
@@ -89,14 +54,12 @@ internal sealed class UpdateRow : TextMenu.Item {
             : Color.White * ((odd ? 0.09f : 0.04f) * alpha);
         ExportColumns.Band(position, Container.Width, band);
 
-        ExportColumns.Checkbox(position, update.Selected, Color.White * alpha);
-
-        Color text = Color.White * alpha;
-        ExportColumns.Text(update.Label, position, columns.LabelX, text, alpha, left: true);
-        if (CanRetarget && highlighted) {
-            ExportColumns.Arrows(position, columns, update.Label, text, alpha);
+        if (update.HasLocal) {
+            ExportColumns.Checkbox(position, update.Selected, Color.White * alpha);
         }
 
+        Color text = (update.HasLocal ? Color.White : Color.Gray) * alpha;
+        ExportColumns.Text(update.Label, position, columns.LabelX, text, alpha, left: true);
         ExportColumns.Text(update.RemoteText, position, columns.RemoteX, Color.Gray * alpha, alpha);
         ExportColumns.Text(update.LocalText, position, columns.LocalX, text, alpha);
         ExportColumns.Text(update.DeltaText, position, columns.DeltaX, DeltaColor(update) * alpha, alpha);
@@ -119,7 +82,47 @@ internal sealed class UpdateRow : TextMenu.Item {
 /// whole menu when it scrolls, so a single header at the top goes with it;
 /// repeating it is what a grouped spreadsheet does. No chapter label: the row
 /// labels below already carry it ("1a Start").
-internal sealed class GroupRow(ExportColumns columns) : TextMenu.Item {
+/// A line of the second header: what the table is a view of. Drawn at the
+/// table's scale rather than as a menu Option, which reads as a setting --
+/// this is the table's chrome, and nothing chosen here is written to
+/// SrsSettings.
+internal sealed class ViewControls : TextMenu.Item {
+    private readonly ExportColumns columns;
+    private readonly Func<string> label;
+    private readonly Action<int> cycle;
+
+    public ViewControls(ExportColumns columns, Func<string> label, Action<int> cycle) {
+        this.columns = columns;
+        this.label = label;
+        this.cycle = cycle;
+        Selectable = true;
+    }
+
+    public override void LeftPressed() => Cycle(-1);
+    public override void RightPressed() => Cycle(1);
+
+    private void Cycle(int direction) {
+        cycle(direction);
+        Audio.Play(direction < 0 ? "event:/ui/main/rollover_up" : "event:/ui/main/rollover_down");
+    }
+
+    public override float LeftWidth() => columns.TotalWidth;
+    public override float Height() => ExportColumns.RowHeight;
+
+    public override void Render(Vector2 position, bool highlighted) {
+        float alpha = Container.Alpha;
+        Color color = (highlighted ? Color.White : Color.Gray) * alpha;
+        string text = label();
+
+        float x = (Container.Width - ExportColumns.TextWidth(text)) / 2f;
+        ExportColumns.Text(text, position, x, color, alpha, left: true);
+        if (highlighted) {
+            ExportColumns.ArrowsAt(position, x, text, color, alpha);
+        }
+    }
+}
+
+internal sealed class GroupRow(ExportColumns columns, string label) : TextMenu.Item {
     public override float LeftWidth() => columns.TotalWidth;
     public override float Height() => ExportColumns.RowHeight;
 
@@ -130,6 +133,9 @@ internal sealed class GroupRow(ExportColumns columns) : TextMenu.Item {
         ExportColumns.Rule(position, Container.Width, -Height() / 2f, alpha);
         ExportColumns.Rule(position, Container.Width, Height() / 2f, alpha);
 
+        // the chapter the rows below belong to: with one row on screen it is
+        // the only place it appears, the row labels having dropped it
+        ExportColumns.Text(label, position, columns.LabelX, color, alpha, left: true);
         ExportColumns.Text(Dialog.Clean("SRS_EXPORT_COL_SHEET"), position, columns.RemoteX, color, alpha);
         ExportColumns.Text(Dialog.Clean("SRS_EXPORT_COL_LOCAL"), position, columns.LocalX, color, alpha);
         ExportColumns.Text(Dialog.Clean("SRS_EXPORT_COL_DELTA"), position, columns.DeltaX, color, alpha);
@@ -150,7 +156,7 @@ internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
 /// TextMenu hands an item the vertical CENTRE of its slot, so everything here
 /// is anchored on that: text justifies at y = 0.5, bands and rules are centred.
 /// Column geometry for a table of any height, backed by SessionBests, which
-/// holds exactly one segment: practising another checkpoint drops the previous
+/// holds exactly one segment: practicing another checkpoint drops the previous
 /// one. So the screen has one row today and this measures across a list.
 ///
 /// That is deliberate, decided 2026-08-28: the alternative was to key
@@ -213,20 +219,24 @@ internal sealed class ExportColumns {
     /// The "< label >" affordance vanilla's Option draws, on the label cell.
     /// Both are drawn from their left edge, so the left one is pulled back by
     /// its own width to leave a real gap rather than butt against the checkbox.
-    public static void Arrows(Vector2 position, ExportColumns columns, string label, Color color, float alpha) {
-        Text("<", position, columns.LabelX - Gap - ArrowWidth, color, alpha, left: true);
-        Text(">", position, columns.LabelX + Width(label) + Gap, color, alpha, left: true);
+    public static void ArrowsAt(Vector2 position, float x, string label, Color color, float alpha) {
+        Text("<", position, x - Gap - ArrowWidth, color, alpha, left: true);
+        Text(">", position, x + Width(label) + Gap, color, alpha, left: true);
     }
+
+    public static float TextWidth(string text) => Width(text);
+
+    /// Centred on the whole menu rather than aligned with the label column: the
+    /// view's own controls head the table, they are not a row of it.
+    public static void Centered(string text, Vector2 position, float width, Color color, float alpha) =>
+        Text(text, position, (width - Width(text)) / 2f, color, alpha, left: true);
 
     private static float Width(string text) => ActiveFont.Measure(text).X * Scale;
 
-    public static ExportColumns Measure(List<PendingUpdate> updates, Session session) {
+    public static ExportColumns Measure(List<PendingUpdate> updates) {
         List<string> labels = [];
         foreach (PendingUpdate u in updates) {
             labels.Add(u.Label);
-            foreach (SheetSegment other in ExportSource.CandidatesFor(u.Segment, session)) {
-                labels.Add(ExportSource.DisplayName(other, session));
-            }
         }
 
         // floors, so a column does not resize when the fetch lands and the
@@ -297,6 +307,34 @@ internal static class ExportMenu {
     // consumed on the game thread by the Level.Update hook — TextMenu must
     // never be touched off the game thread
     private static volatile bool queuedRebuild;
+    // set by the category control; consumed on the game thread like the rest,
+    // and a full rebuild rather than a refresh because "All" changes the row
+    // count and the menu items are built one per row
+    private static volatile bool queuedRecollect;
+
+    // what the table is a view of. Null is "All", which lists every variant
+    // instead of one route's. Neither this nor the route is ever written to
+    // SrsSettings: the screen is a way of looking at the sheet, not a way of
+    // setting the mod
+    private static string viewCategory;
+    private static int routeIndex;
+
+    // true once the player has picked a view for themselves. Until then the
+    // route their own sheet records is applied when the fetch brings it back,
+    // which lands after the screen is already up
+    private static bool viewChosenByPlayer;
+
+    private static SheetRoute[] Routes => viewCategory == null ? [] : SheetRoutes.Of(viewCategory);
+
+    private static SheetRoute CurrentRoute =>
+        Routes is { Length: > 0 } routes ? routes[Math.Clamp(routeIndex, 0, routes.Length - 1)] : null;
+
+    /// the route the table is filtered to. Null is "All", which lists every
+    /// row of the chapter instead of one route's.
+
+    // the row the cursor was on, kept across the rebuild a view change triggers
+    private static int RestoreSelection(int selection) =>
+        menu == null ? 0 : Math.Clamp(selection, 0, menu.Items.Count - 1);
     private static volatile bool queuedSummary;
     private static List<string> summaryLines;
 
@@ -356,10 +394,33 @@ internal static class ExportMenu {
 
         // the menu may have been closed by the player between a background
         // task finishing and this frame running; nothing to do then
+        if (queuedRecollect) {
+            queuedRecollect = false;
+            if (menu != null) {
+                // the cursor stays where the player left it: changing the view
+                // is not a reason to send them back to the top of the table
+                int selection = menu.Selection;
+                Build(self, ExportSource.Collect(self.Session, CurrentRoute));
+                if (menu != null) {
+                    menu.Selection = RestoreSelection(selection);
+                }
+            }
+        }
+
         if (queuedRebuild) {
             queuedRebuild = false;
+            // the fetch is what carries the player's own route, so this is the
+            // first moment the default can be right. Moving the view means the
+            // rows are the wrong ones, not merely stale
+            bool moved = AdoptTheSheetsRoute();
+            if (moved) {
+                Logger.Log(LogLevel.Info, LogTag, $"view moved to the route the sheet records: {CurrentRoute?.Name}");
+            }
+
             if (menu != null && currentUpdates != null) {
-                Build(self, RefreshRemote(currentUpdates));
+                Build(self, moved
+                    ? ExportSource.Collect(self.Session, CurrentRoute)
+                    : RefreshRemote(currentUpdates));
             }
         }
 
@@ -385,7 +446,12 @@ internal static class ExportMenu {
         // the player corrected a row by hand in the browser
         RemoteBests.BeginFetch();
 
-        List<PendingUpdate> updates = ExportSource.Collect(level.Session);
+        OpenOnTheModsOwnView();
+        List<PendingUpdate> updates = ExportSource.Collect(level.Session, CurrentRoute);
+        Logger.Log(LogLevel.Info, LogTag,
+            $"export view: {SegmentAutoDetect.ChapterOf(level.Session)} scope={SegmentAutoDetect.ScopeOf(level.Session)}"
+            + $" category={viewCategory ?? "All"} route={CurrentRoute?.Name ?? "-"}"
+            + $" rows={updates.Count} withRun={updates.Count(u => u.HasLocal)} held={SessionBests.Describe()}");
         if (updates.Count == 0) {
             RemoteBests.Reset();
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NOTHING"), null);
@@ -402,8 +468,12 @@ internal static class ExportMenu {
             (string body, string error) = task.Result;
             if (error != null) {
                 RemoteBests.Fail(error);
-            } else if (ExportProtocol.TryParseRows(body, out List<RemoteRow> rows, out string parseError)) {
-                RemoteBests.Accept(rows);
+            } else if (ExportProtocol.TryParseRows(body, out List<RemoteRow> rows,
+                           out List<RemoteRoute> known, out string parseError)) {
+                RemoteBests.Accept(rows, known);
+                Logger.Log(LogLevel.Info, LogTag,
+                    $"sheet answered: {rows.Count} rows, routes ["
+                    + string.Join(", ", known.Select(r => $"{r.Category}={r.Route}")) + "]");
             } else {
                 RemoteBests.Fail(parseError);
             }
@@ -426,6 +496,7 @@ internal static class ExportMenu {
         // if a background fetch/submit resolves after Close(), its queued
         // rebuild/summary would otherwise fire against a freshly reopened menu
         queuedRebuild = false;
+        queuedRecollect = false;
         queuedSummary = false;
         summaryLines = null;
         // a POST may still be in flight; the generation check in its
@@ -457,13 +528,35 @@ internal static class ExportMenu {
         return refreshed;
     }
 
-    private static void Build(Level level, List<PendingUpdate> updates) {
-        menu?.RemoveSelf();
+    /// Puts a screen up in place of whatever is there. Every screen this class
+    /// shows goes through here: the three ways out of a menu are wired in one
+    /// place rather than repeated, which is what stops a new screen from
+    /// forgetting one and trapping the player in a paused level.
+    ///
+    /// backing is the row list Submit reads, and null for a screen with none.
+    private static void Show(Level level, TextMenu newMenu, List<PendingUpdate> backing) {
+        newMenu.OnCancel = Close;
+        newMenu.OnESC = Close;
+        newMenu.OnPause = Close;
 
-        ExportColumns columns = ExportColumns.Measure(updates, level.Session);
+        menu?.RemoveSelf();
+        level.Add(newMenu);
+        menu = newMenu;
+        currentUpdates = backing;
+    }
+
+    private static void Build(Level level, List<PendingUpdate> updates) {
+
+        ExportColumns columns = ExportColumns.Measure(updates);
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
         newMenu.Add(new TextMenu.SubHeader(StatusLine()));
+
+        newMenu.Add(new ViewControls(columns, CategoryLabel, CycleCategory));
+        // its own line, and only where the category has more than one way through
+        if (Routes.Length > 1) {
+            newMenu.Add(new ViewControls(columns, RouteLabel, CycleRoute));
+        }
 
         string chapter = null;
         bool odd = false;
@@ -472,19 +565,21 @@ internal static class ExportMenu {
             string group = string.IsNullOrEmpty(update.Row.Chapter) ? update.Row.Tab : update.Row.Chapter;
             if (group != chapter) {
                 chapter = group;
-                newMenu.Add(new GroupRow(columns));
+                newMenu.Add(new GroupRow(columns, group));
             }
 
-            newMenu.Add(new UpdateRow(updates, i, columns, odd, level.Session));
+            newMenu.Add(new UpdateRow(updates, i, columns, odd));
             odd = !odd;
         }
 
         newMenu.Add(new TableFooter(columns));
 
-        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = !RemoteBests.IsResolved };
+        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = true };
         exportButton.OnUpdate = () => {
             exportButton.Label = ExportLabel(updates);
-            exportButton.Disabled = !RemoteBests.IsResolved;
+            // most rows are the sheet shown back, with nothing to write: the
+            // button stays dead until something is actually ticked
+            exportButton.Disabled = !RemoteBests.IsResolved || !updates.Any(u => u.Selected);
         };
         exportButton.Pressed(() => Submit(level, updates));
         newMenu.Add(exportButton);
@@ -493,13 +588,78 @@ internal static class ExportMenu {
         cancelButton.Pressed(Close);
         newMenu.Add(cancelButton);
 
-        newMenu.OnCancel = Close;
-        newMenu.OnESC = Close;
-        newMenu.OnPause = Close;
+        Show(level, newMenu, updates);
+    }
 
-        level.Add(newMenu);
-        menu = newMenu;
-        currentUpdates = updates;
+    // the sheet's categories, then All: the routes read as the list and All as
+    // the way of stepping outside it
+    private static string[] ViewModes => [..SheetRoutes.Categories, null];
+
+    /// opens on what the mod itself thinks the player is running, so the table
+    /// agrees with the tier row under the timer until the player says otherwise
+    private static void OpenOnTheModsOwnView() {
+        // DTS is a route now, not a category: both True Ending settings open
+        // on the same category, and the route below decides which of them
+        viewCategory = SrsModule.Settings.Category switch {
+            SegmentCategory.TrueEnding or SegmentCategory.TrueEndingDts => "True Ending",
+            _ => "Any%",
+        };
+
+        // the first route of the category until the player's own sheet says
+        // which one they run, which arrives with the fetch
+        routeIndex = 0;
+        viewChosenByPlayer = false;
+        AdoptTheSheetsRoute();
+    }
+
+    private static string CategoryLabel() =>
+        $"{Dialog.Clean("SRS_EXPORT_CATEGORY")}  " +
+        (viewCategory ?? Dialog.Clean("SRS_EXPORT_CATEGORY_ALL"));
+
+    private static string RouteLabel() =>
+        $"{Dialog.Clean("SRS_EXPORT_ROUTE")}  {CurrentRoute?.Name}";
+
+    /// The route the player records on their own sheet, once the fetch has
+    /// brought it back. Their own pick always wins: this only ever fills in a
+    /// default they have not overridden.
+    /// True when it actually moved the view, which means the rows have to be
+    /// collected again rather than merely refreshed.
+    private static bool AdoptTheSheetsRoute() {
+        if (viewChosenByPlayer) {
+            return false;
+        }
+
+        string recorded = RemoteBests.RouteFor(viewCategory);
+        int at = recorded == null
+            ? -1
+            : Array.FindIndex(Routes, route =>
+                string.Equals(route.Name, recorded, StringComparison.OrdinalIgnoreCase));
+        if (at < 0 || at == routeIndex) {
+            return false;
+        }
+
+        routeIndex = at;
+        return true;
+    }
+
+    private static void CycleCategory(int direction) {
+        string[] modes = ViewModes;
+        int at = Array.IndexOf(modes, viewCategory);
+        viewCategory = modes[(at + direction + modes.Length) % modes.Length];
+        routeIndex = 0;
+        // a category the player chose still takes its route from the sheet:
+        // only picking a route is a statement about the route
+        AdoptTheSheetsRoute();
+        queuedRecollect = true;
+    }
+
+    private static void CycleRoute(int direction) {
+        int count = Routes.Length;
+        if (count > 0) {
+            routeIndex = (routeIndex + direction + count) % count;
+            viewChosenByPlayer = true;
+            queuedRecollect = true;
+        }
     }
 
     // the sheet's own labels, never translated. Most checkpoint labels already
@@ -631,28 +791,19 @@ internal static class ExportMenu {
     }
 
     private static void ShowWorking(Level level) {
-        menu?.RemoveSelf();
-
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
         // not SRS_EXPORT_LOADING: that one belongs to the fetch, and announcing
         // a read while the sheet is being written to is the wrong promise
         newMenu.Add(new TextMenu.SubHeader(Dialog.Clean("SRS_EXPORT_WRITING")));
-        newMenu.OnCancel = Close;
-        newMenu.OnESC = Close;
-        newMenu.OnPause = Close;
 
-        level.Add(newMenu);
-        menu = newMenu;
-        currentUpdates = null;
+        Show(level, newMenu, null);
     }
 
     // replaces the menu contents with a plain-text, line-per-row summary of
     // the export result plus a single Close button; reached only from
     // OnLevelUpdate on the game thread
     private static void ShowSummary(Level level, List<string> lines) {
-        menu?.RemoveSelf();
-
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_DONE")));
         foreach (string line in lines) {
@@ -665,12 +816,6 @@ internal static class ExportMenu {
         closeButton.Pressed(Close);
         newMenu.Add(closeButton);
 
-        newMenu.OnCancel = Close;
-        newMenu.OnESC = Close;
-        newMenu.OnPause = Close;
-
-        level.Add(newMenu);
-        menu = newMenu;
-        currentUpdates = null;
+        Show(level, newMenu, null);
     }
 }

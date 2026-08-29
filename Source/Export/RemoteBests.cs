@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -17,6 +18,10 @@ public static class RemoteBests {
     // dictionary being cleared and refilled under it
     private static volatile Dictionary<(string, string, string), RemoteRow> index = new();
 
+    // the route the player records on their own sheet, per category. Published
+    // the same way and for the same reason as the index above
+    private static volatile Dictionary<string, string> routes = new();
+
     public static RemoteState State { get; private set; } = RemoteState.NotLoaded;
 
     // true once the fetch has actually resolved with data: Export must not be
@@ -28,26 +33,38 @@ public static class RemoteBests {
 
     public static void Reset() {
         index = new();
+        routes = new();
         State = RemoteState.NotLoaded;
         Error = null;
     }
 
-    /// Drops what is held: a fetch is starting because the sheet may have moved,
+    /// Drops the times held: a fetch is starting because the sheet may have moved,
     /// and it moved at least once already if this screen wrote to it. Keeping
     /// the old rows would be worse than holding none, since a row built against
     /// them keeps them for the whole session (see ExportMenu.RefreshRemote).
     public static void BeginFetch() {
         index = new();
+        // the routes are deliberately kept: which route a player runs is not a
+        // time that can go stale mid-session, and dropping it made every open
+        // start on the wrong route and collect its rows a second time
         State = RemoteState.Loading;
         Error = null;
     }
 
-    public static void Accept(IEnumerable<RemoteRow> rows) {
+    public static void Accept(IEnumerable<RemoteRow> rows, IEnumerable<RemoteRoute> known = null) {
         Dictionary<(string, string, string), RemoteRow> built = [];
         foreach (RemoteRow row in rows) {
             built[Key(row.Tab, row.Chapter, row.Cp)] = row;
         }
 
+        Dictionary<string, string> chosen = new(StringComparer.OrdinalIgnoreCase);
+        foreach (RemoteRoute route in known ?? []) {
+            if (!string.IsNullOrWhiteSpace(route?.Category) && !string.IsNullOrWhiteSpace(route.Route)) {
+                chosen[route.Category.Trim()] = route.Route.Trim();
+            }
+        }
+
+        routes = chosen;
         index = built;
         State = RemoteState.Ready;
         Error = null;
@@ -57,6 +74,12 @@ public static class RemoteBests {
         State = RemoteState.Error;
         Error = error;
     }
+
+    /// the route the player's own sheet says they run in that category, or
+    /// null: an older script does not send this, and neither does a sheet whose
+    /// Home Page has no route in that column
+    public static string RouteFor(string category) =>
+        category != null && routes.TryGetValue(category, out string route) ? route : null;
 
     public static bool TryGet(SheetRowRef row, out RemoteRow value) =>
         index.TryGetValue(Key(row.Tab, row.Chapter, row.Cp), out value);
