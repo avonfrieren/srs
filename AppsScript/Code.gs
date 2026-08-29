@@ -413,6 +413,27 @@ function srsWriteOne(cache, update) {
     return out;
   }
 
+  // Compare and swap. srs read the sheet before the player reviewed anything,
+  // and the answer it read may itself have come from the cache above, so the
+  // cell it compared against can be minutes old. matches[0].time is this
+  // request's own read, taken inside the document lock, so this is the value at
+  // the moment of writing: differ from what srs expected and nothing is written.
+  //
+  // The comparison is against the cell as it displays, never a parsed time. The
+  // sheet displays "1:36.9" where a reformat gives "1:36.900", and comparing the
+  // two would refuse every such row.
+  //
+  // An update with no expect at all is an older mod, and is written as before.
+  if (update.expect !== undefined && update.expect !== null) {
+    var current = String(matches[0].time == null ? '' : matches[0].time).trim();
+    if (String(update.expect).trim() !== current) {
+      out.status = 'changed';
+      out.reason = label + ' now holds "' + current + '" on the sheet, not "'
+        + String(update.expect).trim() + '"';
+      return out;
+    }
+  }
+
   // Write the time as typed: plain setValue is exactly what a player entering it would get.
   // Standard is a formula and is never touched.
   table.sheet.getRange(row, table.col.time + 1).setValue(time);

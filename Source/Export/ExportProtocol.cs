@@ -12,6 +12,9 @@ public sealed class ExportUpdate {
     [JsonPropertyName("chapter")] public string Chapter { get; set; } = "";
     [JsonPropertyName("cp")] public string Cp { get; set; } = "";
     [JsonPropertyName("time")] public string Time { get; set; } = "";
+    /// what srs believed the cell held, as the sheet displayed it. The script
+    /// refuses the row rather than writing when it no longer matches.
+    [JsonPropertyName("expect")] public string Expect { get; set; } = "";
 }
 
 public sealed class ExportRequest {

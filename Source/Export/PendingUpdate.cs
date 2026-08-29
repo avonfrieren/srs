@@ -12,6 +12,10 @@ public sealed class PendingUpdate {
     public long? RemoteTicks { get; private init; }
     public string LocalText { get; private init; }
     public string RemoteText { get; private init; }
+    /// the cell exactly as the script read it, kept alongside the parsed value:
+    /// it is what the write compares against, and the sheet displays "1:36.9"
+    /// where RemoteText reformats to "1:36.900"
+    public string RemoteCell { get; private init; }
     public string DeltaText { get; private init; }
     public bool WillImprove { get; private init; }
     /// this session holds no run of the segment: the row shows the sheet and
@@ -91,6 +95,7 @@ public sealed class PendingUpdate {
             // only one who can tell a locale from a typo from a note
             RemoteText = unreadable ? remoteCell.Trim()
                        : remoteTicks == null ? "" : TimeFormat.FromTicks(remoteTicks.Value),
+            RemoteCell = remoteCell ?? "",
             DeltaText = delta,
             WillImprove = improves,
             HasLocal = hasLocal,

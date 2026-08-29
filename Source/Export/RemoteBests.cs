@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -27,6 +28,18 @@ public static class RemoteBests {
     private static volatile Dictionary<(string, string), string> chapterSobs = new();
 
     public static RemoteState State { get; private set; } = RemoteState.NotLoaded;
+
+    // when Accept last took an answer in, on the monotonic clock: this is only
+    // ever asked how old the data is, and the wall clock can jump
+    private static long acceptedAt;
+
+    /// How long ago the held answer arrived, and TimeSpan.MaxValue when there
+    /// is none. Read by the screen to decide whether asking again would say
+    /// anything new.
+    public static TimeSpan Age =>
+        State == RemoteState.Ready
+            ? TimeSpan.FromMilliseconds(Environment.TickCount64 - Interlocked.Read(ref acceptedAt))
+            : TimeSpan.MaxValue;
 
     // true once the fetch has actually resolved with data: Export must not be
     // submittable while every row's remote comparison is still a guess
@@ -87,6 +100,7 @@ public static class RemoteBests {
         chapterSobs = summed;
         routes = chosen;
         index = built;
+        Interlocked.Exchange(ref acceptedAt, Environment.TickCount64);
         State = RemoteState.Ready;
         Error = null;
     }

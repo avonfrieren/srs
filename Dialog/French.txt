@@ -80,3 +80,4 @@ SRS_EXPORT_STATUS_WRITTEN=  écrit
 SRS_EXPORT_STATUS_NOTFOUND= ligne introuvable
 SRS_EXPORT_STATUS_AMBIGUOUS= plusieurs lignes correspondent
 SRS_EXPORT_STATUS_REFUSED=  refusé
+SRS_EXPORT_STATUS_CHANGED=  sheet modifiée, non écrit

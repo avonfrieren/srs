@@ -97,6 +97,25 @@ public class PendingUpdateTests {
 
         Assert.Equal("14.722", update.LocalText);
     }
+    // the cell is kept as the sheet displayed it, beside the parsed value. The
+    // write compares against this one: the sheet writes some times short, and
+    // "1:36.9" reformatted is "1:36.900", which would refuse the row
+    [Fact]
+    public void KeepsTheSheetCellAsItWasRead() {
+        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "2a", "Intervention"),
+            "2a Intervention", Ticks(90.0), "1:36.9");
+
+        Assert.Equal("1:36.9", update.RemoteCell);
+        Assert.Equal("1:36.900", update.RemoteText);
+    }
+
+    [Fact]
+    public void AnEmptyCellIsKeptAsAnEmptyString() {
+        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "7a", "3000m"), "7a 3000m",
+            Ticks(41.5), null);
+
+        Assert.Equal("", update.RemoteCell);
+    }
 }
 
 public class SharedCheckpointTests {

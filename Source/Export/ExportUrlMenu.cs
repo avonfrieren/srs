@@ -70,6 +70,9 @@ public static class ExportUrlMenu {
             forgetButton.Visible = true;
 
             BeginCheck(pasted);
+            // the check is about to warm the script's own cache, so the export
+            // screen may as well open on data rather than on a loading line
+            ExportMenu.Refresh("a sheet URL was just set");
         });
 
         // press once to arm ("Forget Sheet URL?"), press again to actually

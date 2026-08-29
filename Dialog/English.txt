@@ -80,5 +80,6 @@ SRS_EXPORT_STATUS_WRITTEN=  written
 SRS_EXPORT_STATUS_NOTFOUND= row not found
 SRS_EXPORT_STATUS_AMBIGUOUS= several rows match
 SRS_EXPORT_STATUS_REFUSED=  refused
+SRS_EXPORT_STATUS_CHANGED=  sheet changed, not written
 
 SRS_EXPORT_URL_DETAIL=      ends in .../exec · set

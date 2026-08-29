@@ -73,6 +73,7 @@ internal static class ModMenu {
                 // the startup refresh is skipped while the mod is off, so this
                 // is the first chance to pick up a sheet retimed in the meantime
                 SheetImporter.BeginUpdate(null);
+                ExportMenu.Refresh("the mod was switched back on");
             }
         });
 

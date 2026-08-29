@@ -107,6 +107,10 @@ Only three tabs: **A Sides**, **B+C Sides** and **Farewell**. Every other tab is
 formula-driven and reads from those three, so writing into one would turn its cells manual
 and break the sheet's auto-fill.
 
+Before writing, it checks that the Time cell still holds what srs read when the export screen
+opened. If you changed it in the browser meanwhile, the row is reported as *sheet changed* and
+left alone; the rest of the export goes through.
+
 On a matched row the script writes the **Time** and **Date** cells, and nothing else. The
 **Standard** column is a formula and is never written; the Date is stamped by the script
 because the sheet's own auto-fill only reacts to edits made by hand.
