@@ -335,10 +335,11 @@ internal sealed class ExportColumns {
 }
 
 /// Phase "review screen": lets the player pick which of this session's PBs to
-/// push to the sheet before anything is written. Opened with a hotkey
-/// (Hotkeys.OpenExportMenu), like a mini pause-menu of its own; it pauses the
-/// level, so that same hotkey cannot close it. The menu's own Cancel button,
-/// Back/ESC and the pause key do (OnCancel/OnESC/OnPause). Loaded last, and it
+/// push to the sheet before anything is written. Opened and closed with the
+/// same hotkey (Hotkeys.OpenExportMenu), like a mini pause-menu of its own; it
+/// pauses the level, and Hotkeys reads HoldsThePause to keep that one combo
+/// alive behind the pause it caused. The menu's own Cancel button, Back/ESC and
+/// the pause key close it too (OnCancel/OnESC/OnPause). Loaded last, and it
 /// has to stay after Hotkeys: it reads OpenExportMenu.Pressed on the frame
 /// Hotkeys produced it. Nothing else constrains it, it only reads what
 /// ExportSource, RemoteBests, ExportClient and ExportProtocol produced.
@@ -360,6 +361,10 @@ internal static class ExportMenu {
     // anybody has seen
     private static Level openLevel;
     private static bool pausedBeforeOpen;
+
+    // read by Hotkeys: the level is paused because this screen paused it, so
+    // the hotkey that opened it must keep being read in order to close it
+    internal static bool HoldsThePause => openLevel != null;
 
     // the screen is up but showing "loading": the table is not built until the
     // sheet has answered, and the fetch landing is what builds it
@@ -443,11 +448,14 @@ internal static class ExportMenu {
             return;
         }
 
-        // Hotkeys already holds the combo at rest while the level is paused, so
-        // this never fires from behind the pause menu — nor from behind this
-        // screen, which pauses the level itself
+        // Hotkeys holds the combo at rest behind the pause menu, but not behind
+        // this screen's own pause: one press opens, the next closes
         if (Hotkeys.OpenExportMenu.Pressed) {
-            Open(self);
+            if (menu != null) {
+                Close();
+            } else {
+                Open(self);
+            }
         }
 
         // the menu may have been closed by the player between a background

@@ -72,12 +72,28 @@ public static class Hotkeys {
         // a console session or a disabled stretch would otherwise be a rising
         // edge on the frame that stretch ends. The pause case covers Mod
         // Options and KeybindConfigUi, which are both reached through it
-        if (!SrsModule.Settings.Enabled || self.Paused || Engine.Commands.Open) {
+        if (!SrsModule.Settings.Enabled || Engine.Commands.Open) {
             Resync();
             return;
         }
 
         InputSnapshot input = InputSnapshot.Current();
+        if (self.Paused) {
+            // the export screen pauses the level itself, so its own hotkey has
+            // to keep reading behind that pause or the combo that opened the
+            // screen could not close it. The other three stay at rest: they
+            // move the selection, which is what the open screen is a view of
+            foreach (ComboHotkey hotkey in all) {
+                if (ExportMenu.HoldsThePause && hotkey == OpenExportMenu) {
+                    hotkey.Update(input);
+                } else {
+                    hotkey.Resync(input);
+                }
+            }
+
+            return;
+        }
+
         foreach (ComboHotkey hotkey in all) {
             hotkey.Update(input);
         }
