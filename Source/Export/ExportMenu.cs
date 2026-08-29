@@ -513,6 +513,10 @@ internal static class ExportMenu {
         // is their check, in a dependency everest.yaml pins only a minimum of,
         // so this stays as insurance against it changing
         if (menu != null && menu.Scene != self) {
+            // logged because this is the one guard here that nothing is known
+            // to trigger. Silent, it can neither be tested nor caught doing its
+            // job in the wild; the line is how the path stops being a theory
+            Logger.Log(LogLevel.Warn, LogTag, "the level was replaced under the export screen; closed it");
             Close();
         }
 
@@ -620,6 +624,11 @@ internal static class ExportMenu {
         RemoteBests.BeginFetch();
         _ = ExportClient.FetchAsync(SrsModule.Settings.ExportUrl).ContinueWith(task => {
             if (fetch != generation) {
+                // the screen this belonged to is gone and another has taken its
+                // place. Logged for the same reason the level-replaced guard is:
+                // silent, there is no way to see it work, and this one guards
+                // against an older answer overwriting a newer one
+                Logger.Log(LogLevel.Info, LogTag, "a fetch resolved after its screen was replaced; discarded");
                 return;
             }
 
