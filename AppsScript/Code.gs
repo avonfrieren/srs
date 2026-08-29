@@ -436,7 +436,17 @@ function srsWriteOne(cache, update) {
 
   // Write the time as typed: plain setValue is exactly what a player entering it would get.
   // Standard is a formula and is never touched.
-  table.sheet.getRange(row, table.col.time + 1).setValue(time);
+  var timeCell = table.sheet.getRange(row, table.col.time + 1);
+  timeCell.setValue(time);
+
+  // The sheet marks a time that is not a whole number of frames by putting a
+  // note on the cell, from its own onEdit. A simple trigger does not fire for a
+  // write made through the API, so that note survives a write it knows nothing
+  // about: it would describe a value that is no longer there, and flag a good
+  // time as bad for as long as the row lives. The note goes with the value it
+  // was about.
+  timeCell.clearNote();
+
   table.sheet.getRange(row, table.col.date + 1).setValue(srsToday());
   out.status = 'written';
   return out;

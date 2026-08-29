@@ -39,8 +39,17 @@ public static class ExportUrlMenu {
         };
 
         // the ping answers on another thread; this is where its answer becomes
-        // visible, and the only place `message` and `checking` are read
+        // visible, and the only place `message` and `checking` are read.
+        //
+        // TextMenu calls OnUpdate on every item each frame, visible or not, so
+        // this owns `status.Visible` from then on: whatever ModMenu's master
+        // switch sets is undone on the next frame unless the switch is read
+        // here too
         setButton.OnUpdate = () => {
+            if (!SrsModule.Settings.Enabled) {
+                return;
+            }
+
             string shown = checking ? Dialog.Clean("SRS_EXPORT_URL_CHECKING") : message;
             status.Title = shown ?? DetailLine(settings);
             status.Visible = shown != null || HasUrl;

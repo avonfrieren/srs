@@ -111,7 +111,12 @@ Before writing, it checks that the Time cell still holds what srs read when the 
 opened. If you changed it in the browser meanwhile, the row is reported as *sheet changed* and
 left alone; the rest of the export goes through.
 
-On a matched row the script writes the **Time** and **Date** cells, and nothing else. The
+On a matched row the script writes the **Time** and **Date** cells, and clears any note on the
+Time cell. That note is your sheet's own doing: it marks a time that is not a whole number of
+frames, and it is added by an `onEdit` trigger, which Google does not run for a write made through
+the API. Left alone it would describe a value that is no longer in the cell.
+
+Nothing else is written. The
 **Standard** column is a formula and is never written; the Date is stamped by the script
 because the sheet's own auto-fill only reacts to edits made by hand.
 

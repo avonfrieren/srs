@@ -459,6 +459,14 @@ internal static class ExportMenu {
     /// failure into the state its status line reports, a background refresh
     /// logs it and keeps what it already holds.
     private static void Take((string body, string error) answer, bool ownedByAScreen) {
+        // the master switch means the mod does nothing, and that has to cover an
+        // answer to a question asked before it was thrown: taking this one in
+        // would write RemoteBests and announce itself while the mod is inert
+        if (!SrsModule.Settings.Enabled) {
+            Logger.Log(LogLevel.Info, LogTag, "the sheet answered after the mod was switched off; dropped");
+            return;
+        }
+
         (string body, string error) = answer;
         if (error != null) {
             Fail(error, ownedByAScreen);
