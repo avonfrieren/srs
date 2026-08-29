@@ -211,4 +211,24 @@ public class SheetRouteTests {
         Assert.Contains("Determination", endingAll.Checkpoints("Farewell"));
         Assert.Contains("Determination DTS", endingAll.Checkpoints("Farewell"));
     }
+
+    // Every chapter srs can find itself in has to be reachable from some route,
+    // or the export screen opens on a table with nothing in it -- and the
+    // controls for picking another category are inside that screen. Any% stops
+    // at 7A, so Farewell and 8A rest entirely on True Ending being transcribed.
+    [Fact]
+    public void EveryScopeSrsCanBeInIsVisitedBySomeRoute() {
+        string[] scopes = [
+            "Prologue", "1a", "2a", "3a", "4a", "5a", "5b", "6a", "6b", "7a", "8a", "Farewell",
+        ];
+
+        List<string> orphaned = [];
+        foreach (string scope in scopes) {
+            if (!SheetRoutes.All.Any(route => route.Covers(scope))) {
+                orphaned.Add(scope);
+            }
+        }
+
+        Assert.Empty(orphaned);
+    }
 }

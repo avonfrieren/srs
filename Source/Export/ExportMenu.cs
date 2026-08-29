@@ -394,12 +394,19 @@ internal static class ExportMenu {
     private static string viewCategory;
     private static int routeIndex;
 
+    // the chapter the open screen is a view of. Both controls only ever offer
+    // what goes there: a category or a route that does not visit this chapter
+    // has nothing to show in it, and offering it is offering a dead end
+    private static string viewScope;
+
     // true once the player has picked a view for themselves. Until then the
     // route their own sheet records is applied when the fetch brings it back,
     // which lands after the screen is already up
     private static bool viewChosenByPlayer;
 
-    private static SheetRoute[] Routes => viewCategory == null ? [] : SheetRoutes.Of(viewCategory);
+    private static SheetRoute[] Routes => viewCategory == null
+        ? []
+        : [.. SheetRoutes.Of(viewCategory).Where(route => route.Covers(viewScope))];
 
     /// the route the table is filtered to, null where the category itself is
     /// "All" and every variant of the chapter shows
@@ -583,13 +590,22 @@ internal static class ExportMenu {
         // a refresh that has landed already carries the route the player's own
         // sheet records, so this opens on the right one rather than on the
         // first of the category
+        viewScope = SegmentAutoDetect.ScopeOf(level.Session);
         OpenOnTheModsOwnView();
         List<PendingUpdate> updates = ExportSource.Collect(level.Session, CurrentRoute);
         Logger.Log(LogLevel.Info, LogTag,
-            $"export view: {SegmentAutoDetect.ChapterOf(level.Session)} scope={SegmentAutoDetect.ScopeOf(level.Session)}"
-            + $" category={viewCategory ?? "All"} route={CurrentRoute?.Name ?? "-"}"
+            $"export view: {SegmentAutoDetect.ChapterOf(level.Session)} scope={viewScope}"
+            // the mod's own category next to the view's: they part company when
+            // the selected one does not come here, and that move is otherwise
+            // invisible -- the view simply opens on something else
+            + $" setting={SrsModule.Settings.Category} category={viewCategory ?? "All"}"
+            + $" route={CurrentRoute?.Name ?? "-"}"
             + $" rows={updates.Count} withRun={updates.Count(u => u.HasLocal)} held={SessionBests.Describe()}");
-        if (updates.Count == 0) {
+        // the chapter, unfiltered: a route that shows nothing here is a view of
+        // the sheet like any other, and the player can move off it from inside
+        // the screen. Only a chapter with no imported row at all has nothing to
+        // open, and that is what the message says
+        if (updates.Count == 0 && ExportSource.Collect(level.Session, null).Count == 0) {
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NOTHING"), null);
             return;
         }
@@ -753,9 +769,14 @@ internal static class ExportMenu {
         return built.Selection;
     }
 
-    // the sheet's categories, then All: the routes read as the list and All as
-    // the way of stepping outside it
-    private static string[] ViewModes => [..SheetRoutes.Categories, null];
+    // the sheet's categories that visit this chapter, then All. Any% stops at
+    // 7A, so in Farewell the list is True Ending and All, and that is the whole
+    // truth about what there is to look at there
+    private static string[] ViewModes =>
+        [.. SheetRoutes.Categories.Where(GoesHere), null];
+
+    private static bool GoesHere(string category) =>
+        SheetRoutes.Of(category).Any(route => route.Covers(viewScope));
 
     /// The sheet totals one route at a time, so the line is shown for one route
     /// at a time. Both "All" views put a checkpoint's variants side by side --
@@ -774,6 +795,14 @@ internal static class ExportMenu {
             SegmentCategory.TrueEnding or SegmentCategory.TrueEndingDts => "True Ending",
             _ => "Any%",
         };
+
+        // unless it does not come here. Any% stops at 7A, and opening on it in
+        // Farewell used to leave the table empty and the screen refusing to
+        // open -- with the control for picking another category inside the
+        // screen that was refusing
+        if (!GoesHere(viewCategory)) {
+            viewCategory = Array.Find(ViewModes, mode => mode != null) ?? null;
+        }
 
         // the first route of the category until the player's own sheet says
         // which one they run, which arrives with the fetch
