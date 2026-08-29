@@ -9,15 +9,6 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// never sets NumberOfRooms, so SpeedrunTool's own PBs are cut on the player's
 /// setting and do not describe sheet segments.
 internal static class ExportSource {
-    /// The route the player is on, as rows: one per game checkpoint of the
-    /// chapter they are in, in sheet order. The selected category picks which
-    /// of a checkpoint's variants the row shows, and it can only pick one --
-    /// the sheet never puts two segments of a category on one checkpoint. That
-    /// invariant is what keeps the list one row per checkpoint however the
-    /// category changes, so no view ever shows one checkpoint twice.
-    ///
-    /// Most rows carry no run: they are the sheet, shown. Only the checkpoint
-    /// this session holds a time for has anything to write.
     /// The chapter the player is in, as rows, in sheet order: the checkpoints
     /// the route plays there, and nothing else. A route names its segments, so
     /// there is no variant to resolve here -- "Depths Tape" and "Depths" are
@@ -35,7 +26,6 @@ internal static class ExportSource {
         if (block == null || scope == null) {
             return updates;
         }
-
 
         // the one place a held run is read, so the one place worth checking it
         // still belongs to the chapter the player is in

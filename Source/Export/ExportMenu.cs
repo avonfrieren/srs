@@ -78,10 +78,6 @@ internal sealed class UpdateRow : TextMenu.Item {
     }
 }
 
-/// The column titles, reissued at the top of each chapter. TextMenu moves the
-/// whole menu when it scrolls, so a single header at the top goes with it;
-/// repeating it is what a grouped spreadsheet does. No chapter label: the row
-/// labels below already carry it ("1a Start").
 /// A line of the second header: what the table is a view of. Drawn at the
 /// table's scale rather than as a menu Option, which reads as a setting --
 /// this is the table's chrome, and nothing chosen here is written to
@@ -155,11 +151,10 @@ internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
 /// Column geometry and the primitives every row of the table draws with.
 /// TextMenu hands an item the vertical CENTRE of its slot, so everything here
 /// is anchored on that: text justifies at y = 0.5, bands and rules are centred.
-/// Column geometry for a table of any height, backed by SessionBests, which
-/// holds exactly one segment: practicing another checkpoint drops the previous
-/// one. So the screen has one row today and this measures across a list.
 ///
-/// That is deliberate, decided 2026-08-28: the alternative was to key
+/// Widths are measured across a list, and one row of it carries a run:
+/// SessionBests holds exactly one segment, practicing another checkpoint drops
+/// the previous one. That is deliberate, decided 2026-08-28: the alternative was to key
 /// SessionBests by segment and let a session accumulate rows, and it was
 /// refused. One segment per export stays the rule, and the table stays with it
 /// because features to come will want it. **Do not "simplify" this away** on
@@ -326,15 +321,15 @@ internal static class ExportMenu {
 
     private static SheetRoute[] Routes => viewCategory == null ? [] : SheetRoutes.Of(viewCategory);
 
+    /// the route the table is filtered to, null where the category itself is
+    /// "All" and every variant of the chapter shows
     private static SheetRoute CurrentRoute =>
         Routes is { Length: > 0 } routes ? routes[Math.Clamp(routeIndex, 0, routes.Length - 1)] : null;
-
-    /// the route the table is filtered to. Null is "All", which lists every
-    /// row of the chapter instead of one route's.
 
     // the row the cursor was on, kept across the rebuild a view change triggers
     private static int RestoreSelection(int selection) =>
         menu == null ? 0 : Math.Clamp(selection, 0, menu.Items.Count - 1);
+
     private static volatile bool queuedSummary;
     private static List<string> summaryLines;
 
@@ -546,7 +541,6 @@ internal static class ExportMenu {
     }
 
     private static void Build(Level level, List<PendingUpdate> updates) {
-
         ExportColumns columns = ExportColumns.Measure(updates);
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
@@ -622,6 +616,7 @@ internal static class ExportMenu {
     /// The route the player records on their own sheet, once the fetch has
     /// brought it back. Their own pick always wins: this only ever fills in a
     /// default they have not overridden.
+    ///
     /// True when it actually moved the view, which means the rows have to be
     /// collected again rather than merely refreshed.
     private static bool AdoptTheSheetsRoute() {
