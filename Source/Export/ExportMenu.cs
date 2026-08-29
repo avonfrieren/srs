@@ -9,10 +9,6 @@ namespace Celeste.Mod.SpeedrunSheet;
 
 /// One checkbox row of the export screen. TextMenu has no built-in item for this.
 internal sealed class UpdateRow : TextMenu.Item {
-    // LiveSplit's default ahead/behind colours
-    private static readonly Color Ahead = Calc.HexToColor("00CC36");
-    private static readonly Color Behind = Calc.HexToColor("CC1200");
-
     private readonly ExportColumns columns;
     private readonly bool odd;
     // the list Submit reads. Rows read through it rather than holding their own
@@ -74,7 +70,8 @@ internal sealed class UpdateRow : TextMenu.Item {
             return Color.Gray;
         }
 
-        return update.LocalTicks < update.RemoteTicks.Value ? Ahead : Behind;
+        return update.LocalTicks < update.RemoteTicks.Value
+            ? ExportColumns.Ahead : ExportColumns.Behind;
     }
 }
 
@@ -138,6 +135,61 @@ internal sealed class GroupRow(ExportColumns columns, string label) : TextMenu.I
     }
 }
 
+/// The chapter's sum of best, closing the table the way a spreadsheet closes a
+/// column: the number the sheet holds today, and what the ticked rows would
+/// leave it with. Reads the live row list rather than a copy, so ticking a row
+/// moves the total on the same frame.
+///
+/// sheetTotal is fixed for the life of the item: it only changes when the fetch
+/// lands or the view moves, and both rebuild the menu.
+internal sealed class SumRow(List<PendingUpdate> slot, ExportColumns columns, string sheetTotal)
+    : TextMenu.Item {
+    private const string Missing = "-";
+
+    public override float LeftWidth() => columns.TotalWidth;
+    public override float Height() => ExportColumns.RowHeight;
+
+    public override void Render(Vector2 position, bool highlighted) {
+        float alpha = Container.Alpha;
+        SumOfBest sum = SumOfBest.Of(slot, sheetTotal);
+
+        ExportColumns.Rule(position, Container.Width, -Height() / 2f, alpha);
+
+        ExportColumns.Text(Dialog.Clean("SRS_EXPORT_SOB"), position, columns.LabelX,
+            Color.Gray * alpha, alpha, left: true);
+
+        // the sheet has no total for this chapter, or none it will show: while
+        // the fetch is in flight, on a route the sheet is not set to, and where
+        // it declines to sum a chapter a checkpoint is missing from
+        if (!sum.Known) {
+            ExportColumns.Text(Missing, position, columns.RemoteX, Color.Gray * alpha, alpha);
+            return;
+        }
+
+        ExportColumns.Text(TimeFormat.FromTicks(sum.SheetTicks), position, columns.RemoteX,
+            Color.Gray * alpha, alpha);
+
+        // a ticked row we cannot read the sheet side of: the same "?" the row
+        // itself shows, and for the same reason -- the saving is unknowable
+        if (sum.ProjectedTicks is not { } projected) {
+            ExportColumns.Text("?", position, columns.DeltaX, Color.Gray * alpha, alpha);
+            return;
+        }
+
+        // nothing ticked leaves the two totals equal: the projection and its
+        // delta would only repeat the column beside them
+        long delta = projected - sum.SheetTicks;
+        if (delta == 0L) {
+            return;
+        }
+
+        ExportColumns.Text(TimeFormat.FromTicks(projected), position, columns.LocalX,
+            Color.White * alpha, alpha);
+        ExportColumns.Text(TimeFormat.Delta(delta), position, columns.DeltaX,
+            delta < 0L ? ExportColumns.Ahead * alpha : ExportColumns.Behind * alpha, alpha);
+    }
+}
+
 /// A rule closing the table, so the buttons below read as buttons and not as
 /// two more rows. OuiJournalPage draws its section separators the same way.
 internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
@@ -163,6 +215,15 @@ internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
 internal sealed class ExportColumns {
     public const float Gap = 18f;
 
+    // the table's own margin. The banding and the rules span the whole menu, so
+    // without it the checkbox sits on the left edge and the delta column ends on
+    // the right one, both touching the grid they are inside
+    private const float Pad = 24f;
+
+    // LiveSplit's default ahead/behind colours
+    public static readonly Color Ahead = Calc.HexToColor("00CC36");
+    public static readonly Color Behind = Calc.HexToColor("CC1200");
+
     // the journal's table scale; 0.6 is TextMenu.SubHeader's, sized for menu
     // chrome rather than for a forty-row table
     private const float Scale = 0.5f;
@@ -176,7 +237,7 @@ internal sealed class ExportColumns {
     public float RemoteX { get; private init; }
     public float LocalX { get; private init; }
     public float DeltaX { get; private init; }
-    public float TotalWidth => DeltaX;
+    public float TotalWidth => DeltaX + Pad;
 
     /// x is the left edge for the label column, the right edge for the times:
     /// digits only line up when they are anchored on the right.
@@ -200,7 +261,7 @@ internal sealed class ExportColumns {
     /// what reads as a checkbox; dot_outline reads as a bullet.
     public static void Checkbox(Vector2 position, bool ticked, Color color) {
         float size = RowHeight * BoxRatio;
-        float x = position.X;
+        float x = position.X + Pad;
         float y = MathF.Floor(position.Y - size / 2f);
         Draw.HollowRect(x, y, size, size, color);
         if (ticked) {
@@ -228,7 +289,7 @@ internal sealed class ExportColumns {
 
     private static float Width(string text) => ActiveFont.Measure(text).X * Scale;
 
-    public static ExportColumns Measure(List<PendingUpdate> updates) {
+    public static ExportColumns Measure(List<PendingUpdate> updates, bool withSum = false) {
         List<string> labels = [];
         foreach (PendingUpdate u in updates) {
             labels.Add(u.Label);
@@ -247,15 +308,21 @@ internal sealed class ExportColumns {
         foreach (string text in labels) {
             label = Math.Max(label, Width(text));
         }
-        // the trailing arrow lives inside the label column, so the times never
-        // move when it appears; the leading one is budgeted in labelX below
-        label += Gap + ArrowWidth;
+
+        // the total's own label, which is wider than a checkpoint name in a
+        // short chapter
+        if (withSum) {
+            label = Math.Max(label, Width(Dialog.Clean("SRS_EXPORT_SOB")));
+        }
         foreach (PendingUpdate u in updates) {
             remote = Math.Max(remote, Width(u.RemoteText));
             local = Math.Max(local, Width(u.LocalText));
             delta = Math.Max(delta, Width(u.DeltaText));
         }
-        float labelX = RowHeight * BoxRatio + Gap + ArrowWidth + Gap;
+        // the row arrows this used to budget for are gone: retargeting a row is
+        // done from the view's own controls now, and the space they held was
+        // left sitting between the checkbox and the labels
+        float labelX = Pad + RowHeight * BoxRatio + Gap;
         float remoteX = labelX + label + Gap + remote;   // right edge
         float localX = remoteX + Gap + local;            // right edge
         return new ExportColumns {
@@ -326,10 +393,6 @@ internal static class ExportMenu {
     private static SheetRoute CurrentRoute =>
         Routes is { Length: > 0 } routes ? routes[Math.Clamp(routeIndex, 0, routes.Length - 1)] : null;
 
-    // the row the cursor was on, kept across the rebuild a view change triggers
-    private static int RestoreSelection(int selection) =>
-        menu == null ? 0 : Math.Clamp(selection, 0, menu.Items.Count - 1);
-
     private static volatile bool queuedSummary;
     private static List<string> summaryLines;
 
@@ -394,11 +457,7 @@ internal static class ExportMenu {
             if (menu != null) {
                 // the cursor stays where the player left it: changing the view
                 // is not a reason to send them back to the top of the table
-                int selection = menu.Selection;
-                Build(self, ExportSource.Collect(self.Session, CurrentRoute));
-                if (menu != null) {
-                    menu.Selection = RestoreSelection(selection);
-                }
+                Build(self, ExportSource.Collect(self.Session, CurrentRoute), menu.Selection);
             }
         }
 
@@ -413,9 +472,11 @@ internal static class ExportMenu {
             }
 
             if (menu != null && currentUpdates != null) {
+                // a moved view is a different table and opens on its own run
+                // row; a refresh is the same table, so the cursor stays put
                 Build(self, moved
                     ? ExportSource.Collect(self.Session, CurrentRoute)
-                    : RefreshRemote(currentUpdates));
+                    : RefreshRemote(currentUpdates), moved ? null : menu.Selection);
             }
         }
 
@@ -464,8 +525,9 @@ internal static class ExportMenu {
             if (error != null) {
                 RemoteBests.Fail(error);
             } else if (ExportProtocol.TryParseRows(body, out List<RemoteRow> rows,
-                           out List<RemoteRoute> known, out string parseError)) {
-                RemoteBests.Accept(rows, known);
+                           out List<RemoteRoute> known, out List<RemoteSob> totals,
+                           out string parseError)) {
+                RemoteBests.Accept(rows, known, totals);
                 Logger.Log(LogLevel.Info, LogTag,
                     $"sheet answered: {rows.Count} rows, routes ["
                     + string.Join(", ", known.Select(r => $"{r.Category}={r.Route}")) + "]");
@@ -540,8 +602,11 @@ internal static class ExportMenu {
         currentUpdates = backing;
     }
 
-    private static void Build(Level level, List<PendingUpdate> updates) {
-        ExportColumns columns = ExportColumns.Measure(updates);
+    /// keepSelection is the row the cursor was on, for a rebuild that leaves
+    /// the table's shape alone. Without one the screen opens on the run itself.
+    private static void Build(Level level, List<PendingUpdate> updates, int? keepSelection = null) {
+        bool withSum = ShowsSum;
+        ExportColumns columns = ExportColumns.Measure(updates, withSum);
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
         newMenu.Add(new TextMenu.SubHeader(StatusLine()));
@@ -566,6 +631,12 @@ internal static class ExportMenu {
             odd = !odd;
         }
 
+        if (withSum) {
+            newMenu.Add(new SumRow(updates, columns,
+                RemoteBests.Sob(viewCategory, CurrentRoute?.Name,
+                    SegmentAutoDetect.ScopeOf(level.Session))));
+        }
+
         newMenu.Add(new TableFooter(columns));
 
         TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = true };
@@ -583,11 +654,40 @@ internal static class ExportMenu {
         newMenu.Add(cancelButton);
 
         Show(level, newMenu, updates);
+        newMenu.Selection = keepSelection is { } kept
+            ? Math.Clamp(kept, 0, newMenu.Items.Count - 1)
+            : RowCarryingTheRun(newMenu);
+    }
+
+    /// The row the screen opens on: the one carrying this session's run, so the
+    /// cursor lands on what there is to do rather than on the table's own
+    /// controls. Where an "All" view puts a checkpoint's variants side by side
+    /// they all carry it, and the first is as good a place to start as any --
+    /// which of them to tick stays the player's call (UntickSharedCheckpoints).
+    ///
+    /// Falls back to whatever TextMenu picked, which is the category line: with
+    /// no run to export, changing the view is the only thing left to do here.
+    private static int RowCarryingTheRun(TextMenu built) {
+        for (int i = 0; i < built.Items.Count; i++) {
+            if (built.Items[i] is UpdateRow row && row.Update.HasLocal) {
+                return i;
+            }
+        }
+
+        return built.Selection;
     }
 
     // the sheet's categories, then All: the routes read as the list and All as
     // the way of stepping outside it
     private static string[] ViewModes => [..SheetRoutes.Categories, null];
+
+    /// The sheet totals one route at a time, so the line is shown for one route
+    /// at a time. Both "All" views put a checkpoint's variants side by side --
+    /// "Depths" next to "Depths Tape" -- and the sheet has no total for such a
+    /// list. Picking a route the sheet is not set to leaves the line showing
+    /// "-" rather than another route's number; that check is in RemoteBests.Sob.
+    private static bool ShowsSum =>
+        viewCategory != null && CurrentRoute is { Name: not SheetRoutes.AllRoutes };
 
     /// opens on what the mod itself thinks the player is running, so the table
     /// agrees with the tier row under the timer until the player says otherwise

@@ -20,6 +20,11 @@ It also reads the `Route` row of your `Home Page` tab, so the export screen open
 you actually run rather than the first one in its list. Nothing depends on it: a sheet whose
 Home Page has moved, or has no route in a column, simply gets the first route instead.
 
+It reads one more thing, and writes none of it: the `Segment` / `Chapter Time` summary block of
+your `Any%` and `True Ending` tabs, which is where the export screen's *Sum of Best* line comes
+from. That total is your sheet's, never a sum srs does itself. Same rule as the route: a block
+that has moved or is missing just leaves the line showing `-`.
+
 ## Deploy
 
 1. Open your copy of the sheet, then **Extensions > Apps Script**.
@@ -105,6 +110,9 @@ and break the sheet's auto-fill.
 On a matched row the script writes the **Time** and **Date** cells, and nothing else. The
 **Standard** column is a formula and is never written; the Date is stamped by the script
 because the sheet's own auto-fill only reacts to edits made by hand.
+
+The summary block it reads for the *Sum of Best* line is found the same way, by its `Segment`
+and `Chapter Time` headers, so the rows moving with your route costs nothing.
 
 Rows are found by their labels, not by position: inserting rows above a table is fine, and
 so is inserting rows inside it. Renaming a tab, renaming a checkpoint, or renaming the

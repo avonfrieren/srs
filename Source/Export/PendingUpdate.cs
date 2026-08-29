@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Globalization;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
@@ -79,9 +77,7 @@ public sealed class PendingUpdate {
         } else if (unreadable) {
             delta = "?";
         } else if (remoteTicks != null) {
-            double seconds = TimeSpan.FromTicks(localTicks - remoteTicks.Value).TotalSeconds;
-            delta = (seconds < 0 ? "-" : "+")
-                  + Math.Abs(seconds).ToString("0.000", CultureInfo.InvariantCulture);
+            delta = TimeFormat.Delta(localTicks - remoteTicks.Value);
         }
 
         return new PendingUpdate {
@@ -101,5 +97,50 @@ public sealed class PendingUpdate {
             RemoteUnreadable = unreadable,
             Selected = improves,
         };
+    }
+}
+
+/// The chapter's sum of best under the export table: the number the player's own
+/// sheet holds for the chapter they are in, and what it would hold once the
+/// ticked rows are written.
+///
+/// The base is read, never added up. The sheet's own summary counts rows srs
+/// does not import (the Wake Up animations), reuses one block's first row in the
+/// next -- "5a Start" counts in the tape block and in the plain one -- and
+/// switches on the route for Farewell and for 7a's 3k split. A sum done here
+/// would quietly disagree with the document it claims to total.
+///
+/// Only ever built over a single route. Both "All" views list a checkpoint's
+/// variants side by side, and the sheet has no total for such a list.
+public readonly record struct SumOfBest(long SheetTicks, long? ProjectedTicks) {
+    public bool Known => SheetTicks > 0L;
+
+    /// sheetTotal is the summary cell exactly as the script read it. Anything
+    /// that is not a time is nothing at all: an empty chapter, a #REF!, a total
+    /// the sheet declines to compute because a checkpoint is missing from it.
+    ///
+    /// The projection applies the ticked rows to that base -- the base plus what
+    /// each one saves -- rather than adding the rows up. Null where a ticked
+    /// row's own cell is unreadable, since the saving cannot then be worked out.
+    public static SumOfBest Of(IReadOnlyList<PendingUpdate> updates, string sheetTotal) {
+        long sheet = SheetData.TryParseTime(sheetTotal)?.Ticks ?? 0L;
+        if (sheet <= 0L) {
+            return new SumOfBest(0L, null);
+        }
+
+        long projected = sheet;
+        foreach (PendingUpdate update in updates ?? []) {
+            if (!update.Selected || !update.HasLocal) {
+                continue;
+            }
+
+            if (update.RemoteUnreadable) {
+                return new SumOfBest(sheet, null);
+            }
+
+            projected += update.LocalTicks - (update.RemoteTicks ?? 0L);
+        }
+
+        return new SumOfBest(sheet, projected);
     }
 }

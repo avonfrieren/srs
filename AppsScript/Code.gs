@@ -22,6 +22,11 @@ var SRS_TAB_ORDER = ['a sides', 'b+c sides', 'farewell'];
 // Where the player records the route they run, one column per category.
 var SRS_HOME_TAB = 'Home Page';
 
+// The category tabs whose summary block carries a chapter total. Only these two
+// are stable on the sheet; the others lay their summary out differently and
+// carry #REF! where a category is not filled in.
+var SRS_CATEGORY_TABS = ['Any%', 'True Ending'];
+
 function doGet() {
   try {
     var cache = {};
@@ -50,7 +55,16 @@ function doGet() {
       routes = [];
     }
 
-    return srsJson({ rows: rows, routes: routes });
+    // never fatal, for the same reason as the routes: a summary block that
+    // moved must not cost the player their export
+    var sobs = [];
+    try {
+      sobs = srsReadSobs();
+    } catch (err) {
+      sobs = [];
+    }
+
+    return srsJson({ rows: rows, routes: routes, sobs: sobs });
   } catch (err) {
     return srsJson({ error: String(err) });
   }
@@ -132,6 +146,72 @@ function srsReadRoutes() {
       out.push({ category: category, route: route });
     }
   }
+
+  return out;
+}
+
+/**
+ * The chapter totals from each category tab's summary block: the "Checkpoints"
+ * table, whose "Segment" column names a chapter and whose "Chapter Time" column
+ * holds that chapter's sum of best.
+ *
+ * The block is found by its header rather than addressed by number, like
+ * srsFindHeader and srsReadRoutes: the rows move with the route.
+ *
+ * A row whose Segment is blank is a chapter the route does not visit -- the
+ * cells are formulas keyed on the route in A2, and they render empty. So a
+ * blank row is skipped rather than read as the end of the table. What ends it
+ * is the next section title ("IL's"), which is a Segment with no Chapter Time.
+ *
+ * The route in A2 comes back with the totals on purpose: the whole block is
+ * computed for that route, so a caller showing another one must not use them.
+ */
+function srsReadSobs() {
+  var out = [];
+  SRS_CATEGORY_TABS.forEach(function (name) {
+    var sheet = SpreadsheetApp.getActive().getSheetByName(name);
+    if (!sheet) {
+      return;
+    }
+
+    // display values for the same reason as everywhere else: these cells are
+    // formatted durations, and the raw value is a fraction of a day
+    var values = sheet.getDataRange().getDisplayValues();
+    var header = -1;
+    var segCol = -1;
+    for (var i = 0; i < values.length && header < 0; i++) {
+      for (var c = 0; c < values[i].length - 1; c++) {
+        if (srsNorm(values[i][c]) === 'segment' && srsNorm(values[i][c + 1]) === 'chapter time') {
+          header = i;
+          segCol = c;
+          break;
+        }
+      }
+    }
+
+    if (header < 0) {
+      return;
+    }
+
+    var chapters = [];
+    for (var r = header + 1; r < values.length; r++) {
+      var segment = String(values[r][segCol] == null ? '' : values[r][segCol]).trim();
+      var time = String(values[r][segCol + 1] == null ? '' : values[r][segCol + 1]).trim();
+      if (!segment) {
+        continue;   // a chapter this route does not visit
+      }
+      if (!time) {
+        break;      // a section title: the end of the Checkpoints table
+      }
+      chapters.push({ segment: segment, time: time });
+    }
+
+    out.push({
+      category: name,
+      route: String(values.length > 1 && values[1][0] != null ? values[1][0] : '').trim(),
+      chapters: chapters
+    });
+  });
 
   return out;
 }

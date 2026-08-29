@@ -42,6 +42,20 @@ public sealed class RemoteRoute {
     [JsonPropertyName("route")] public string Route { get; set; }
 }
 
+/// One chapter's sum of best, read from a category tab's summary block. The
+/// route comes with it because the block is computed for that route: under any
+/// other one these totals describe rows the screen is not showing.
+public sealed class RemoteSob {
+    [JsonPropertyName("category")] public string Category { get; set; }
+    [JsonPropertyName("route")] public string Route { get; set; }
+    [JsonPropertyName("chapters")] public List<RemoteChapterSob> Chapters { get; set; }
+}
+
+public sealed class RemoteChapterSob {
+    [JsonPropertyName("segment")] public string Segment { get; set; } = "";
+    [JsonPropertyName("time")] public string Time { get; set; } = "";
+}
+
 public sealed class RemoteRow {
     [JsonPropertyName("tab")] public string Tab { get; set; } = "";
     [JsonPropertyName("chapter")] public string Chapter { get; set; } = "";
@@ -55,6 +69,7 @@ public sealed class RemoteRow {
 internal sealed class RowsResponse {
     [JsonPropertyName("rows")] public List<RemoteRow> Rows { get; set; }
     [JsonPropertyName("routes")] public List<RemoteRoute> Routes { get; set; }
+    [JsonPropertyName("sobs")] public List<RemoteSob> Sobs { get; set; }
     [JsonPropertyName("error")] public string Error { get; set; }
 }
 
@@ -130,12 +145,16 @@ public static class ExportProtocol {
     }
 
     public static bool TryParseRows(string body, out List<RemoteRow> rows, out string error) =>
-        TryParseRows(body, out rows, out List<RemoteRoute> _, out error);
+        TryParseRows(body, out rows, out List<RemoteRoute> _, out List<RemoteSob> _, out error);
 
+    /// routes and sobs are both optional on the wire: a script older than either
+    /// field simply does not send it, and the screen falls back rather than
+    /// failing. Only rows are required, since they are what the screen is for.
     public static bool TryParseRows(string body, out List<RemoteRow> rows,
-        out List<RemoteRoute> routes, out string error) {
+        out List<RemoteRoute> routes, out List<RemoteSob> sobs, out string error) {
         rows = null;
         routes = [];
+        sobs = [];
         if (!Guard(body, out error)) {
             return false;
         }
@@ -160,6 +179,7 @@ public static class ExportProtocol {
         }
         rows = wrapper.Rows;
         routes = wrapper.Routes ?? [];
+        sobs = wrapper.Sobs ?? [];
         error = null;
         return true;
     }

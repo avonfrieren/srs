@@ -36,6 +36,10 @@ SRS_EXPORT_TITLE=Export To Practice Sheet
 SRS_EXPORT_CATEGORY=Category
 SRS_EXPORT_CATEGORY_ALL=All
 SRS_EXPORT_ROUTE=Route
+# The chapter total under the table. It shows "-" as soon as one checkpoint
+# of the route has no time on the sheet: the sum would then be the part of it
+# the sheet holds, and a smaller number there is not a better one.
+SRS_EXPORT_SOB=Sum of Best
 SRS_EXPORT_NOTHING=No sheet rows for the chapter you are in
 SRS_EXPORT_LOADING=Loading sheet data...
 SRS_EXPORT_WRITING=Writing to the sheet...

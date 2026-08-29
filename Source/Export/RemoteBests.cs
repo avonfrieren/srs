@@ -22,6 +22,10 @@ public static class RemoteBests {
     // the same way and for the same reason as the index above
     private static volatile Dictionary<string, string> routes = new();
 
+    // the chapter totals each category tab's summary block shows, keyed by
+    // (category, chapter). Published the same way again
+    private static volatile Dictionary<(string, string), string> chapterSobs = new();
+
     public static RemoteState State { get; private set; } = RemoteState.NotLoaded;
 
     // true once the fetch has actually resolved with data: Export must not be
@@ -34,6 +38,7 @@ public static class RemoteBests {
     public static void Reset() {
         index = new();
         routes = new();
+        chapterSobs = new();
         State = RemoteState.NotLoaded;
         Error = null;
     }
@@ -51,7 +56,8 @@ public static class RemoteBests {
         Error = null;
     }
 
-    public static void Accept(IEnumerable<RemoteRow> rows, IEnumerable<RemoteRoute> known = null) {
+    public static void Accept(IEnumerable<RemoteRow> rows, IEnumerable<RemoteRoute> known = null,
+        IEnumerable<RemoteSob> totals = null) {
         Dictionary<(string, string, string), RemoteRow> built = [];
         foreach (RemoteRow row in rows) {
             built[Key(row.Tab, row.Chapter, row.Cp)] = row;
@@ -64,6 +70,20 @@ public static class RemoteBests {
             }
         }
 
+        // keyed on the route the block was computed for, not merely the
+        // category: the summary is one route's, and a view on another must not
+        // read it (Sob checks the route it asks for)
+        Dictionary<(string, string), string> summed = [];
+        foreach (RemoteSob total in totals ?? []) {
+            foreach (RemoteChapterSob chapter in total?.Chapters ?? []) {
+                if (!string.IsNullOrWhiteSpace(chapter?.Segment)) {
+                    summed[(Normalize(total.Category) + "|" + Normalize(total.Route),
+                        Normalize(chapter.Segment))] = chapter.Time;
+                }
+            }
+        }
+
+        chapterSobs = summed;
         routes = chosen;
         index = built;
         State = RemoteState.Ready;
@@ -80,6 +100,18 @@ public static class RemoteBests {
     /// Home Page has no route in that column
     public static string RouteFor(string category) =>
         category != null && routes.TryGetValue(category, out string route) ? route : null;
+
+    /// The chapter's sum of best as the player's own sheet shows it, or null.
+    ///
+    /// The route is part of the question rather than a filter applied after:
+    /// the summary block is computed for the one route the tab is set to, so
+    /// asking under another route has no answer rather than a wrong one.
+    public static string Sob(string category, string route, string chapter) =>
+        category != null && route != null && chapter != null
+        && chapterSobs.TryGetValue((Normalize(category) + "|" + Normalize(route), Normalize(chapter)),
+            out string time)
+            ? time
+            : null;
 
     public static bool TryGet(SheetRowRef row, out RemoteRow value) =>
         index.TryGetValue(Key(row.Tab, row.Chapter, row.Cp), out value);

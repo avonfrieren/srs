@@ -139,7 +139,8 @@ public class RemoteRouteTests {
                                  {"category":"True Ending","route":"6b DTS"}]}
             """;
 
-        Assert.True(ExportProtocol.TryParseRows(body, out _, out List<RemoteRoute> routes, out string error));
+        Assert.True(ExportProtocol.TryParseRows(body, out _, out List<RemoteRoute> routes,
+            out List<RemoteSob> _, out string error));
         Assert.Null(error);
         Assert.Equal(["Any%", "True Ending"], routes.Select(r => r.Category));
         Assert.Equal(["5b6b", "6b DTS"], routes.Select(r => r.Route));
@@ -150,8 +151,27 @@ public class RemoteRouteTests {
     [Fact]
     public void TreatsAMissingRoutesFieldAsNone() {
         Assert.True(ExportProtocol.TryParseRows("""{"rows":[]}""", out _,
-            out List<RemoteRoute> routes, out string error));
+            out List<RemoteRoute> routes, out List<RemoteSob> sobs, out string error));
         Assert.Null(error);
         Assert.Empty(routes);
+        Assert.Empty(sobs);
+    }
+
+    // the summary block of each category tab, with the route it was computed
+    // for: a total read under one route says nothing about another
+    [Fact]
+    public void ReadsTheChapterTotalsAndTheRouteTheyBelongTo() {
+        const string body = """
+            {"rows":[],"sobs":[{"category":"Any%","route":"5b6b","chapters":[
+                {"segment":"1a","time":"55.114"},{"segment":"5a","time":"58.405"}]}]}
+            """;
+
+        Assert.True(ExportProtocol.TryParseRows(body, out _, out _,
+            out List<RemoteSob> sobs, out string error));
+        Assert.Null(error);
+        RemoteSob any = Assert.Single(sobs);
+        Assert.Equal("5b6b", any.Route);
+        Assert.Equal(["1a", "5a"], any.Chapters.Select(c => c.Segment));
+        Assert.Equal(["55.114", "58.405"], any.Chapters.Select(c => c.Time));
     }
 }
