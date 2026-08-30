@@ -51,7 +51,7 @@ SRS_EXPORT_URL_CHECK_OK=      The sheet answered. Rows it can write:
 SRS_EXPORT_URL_CHECK_FAILED=      The sheet did not answer:
 SRS_EXPORT_URL_CHECK_NOT_SHEET=      Something answered, but not the export script. Check the deployment.
 
-# Sheet export — errors. No {0} placeholders: Celeste may eat the braces, so
+# Sheet export - errors. No {0} placeholders: Celeste may eat the braces, so
 # anything carrying a value is composed in code from these prefixes.
 SRS_EXPORT_ERR_NO_URL=      No sheet URL configured. See Mod Options.
 SRS_EXPORT_ERR_STATUS=      The sheet answered with error

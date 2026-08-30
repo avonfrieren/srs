@@ -54,9 +54,6 @@ public static class RemoteBests {
     /// on display.
     public static void BeginFetch() {
         index = new();
-        // the routes are deliberately kept: which route a player runs is not a
-        // time that can go stale mid-session, and dropping it made every open
-        // start on the wrong route and collect its rows a second time
         State = RemoteState.Loading;
         Error = null;
     }

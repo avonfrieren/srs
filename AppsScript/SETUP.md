@@ -80,13 +80,13 @@ it makes no outbound request of any kind.
 Google then demands an OAuth token on every call and answers a plain HTTP request with a
 login page, so every sync fails. Only "Anyone" makes the URL itself sufficient.
 
-Note that "Execute as: Me" means the script writes with *your* permissions — the sheet
+Note that "Execute as: Me" means the script writes with *your* permissions - the sheet
 itself never has to be shared with anyone.
 
 ## Your /exec URL is a password
 
 It grants read and write access to this sheet, with your permissions, to anyone holding
-it. **Never write it inside the sheet itself** — not in a cell, not in a comment, not in
+it. **Never write it inside the sheet itself** - not in a cell, not in a comment, not in
 the description. It belongs only in the mod's settings.
 
 Making your copy of the sheet publicly viewable is safe: deployment URLs are not exposed

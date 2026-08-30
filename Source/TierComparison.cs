@@ -131,9 +131,9 @@ public static class TierComparison {
         SetTier(time, "Unranked");
     }
 
-    // SpeedrunTool's own time format ("s.fff" under a minute, "m:ss.fff" above)
+    // Format matches what SpeedrunTool displayed during the run (see TimeFormat.FromTicks).
     private static string FormatTime(TimeSpan time) =>
-        time.ToString(time.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff");
+        TimeFormat.FromTicks(time.Ticks);
 
     // tier colors: each sheet column name maps to its exact palette hex. Unlike
     // XNA's named colors, the "1"-"3" rank suffix is significant here, so
