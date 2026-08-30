@@ -14,7 +14,7 @@ public class RemoteBestsStateTests {
     public void AcceptingRowsMovesToReadyAndIndexesThem() {
         RemoteBests.Reset();
         RemoteBests.Accept([
-            new RemoteRow { Tab = "A Sides", Chapter = "1a", Cp = "Crossing", Time = "21.948", Standard = "Pink" },
+            new RemoteRow { Tab = "A Sides", Chapter = "1a", Cp = "Crossing", Time = "21.948" },
         ]);
 
         Assert.Equal(RemoteState.Ready, RemoteBests.State);

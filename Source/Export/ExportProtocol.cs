@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
@@ -42,9 +41,6 @@ public sealed class RemoteRow {
     [JsonPropertyName("chapter")] public string Chapter { get; set; } = "";
     [JsonPropertyName("cp")] public string Cp { get; set; } = "";
     [JsonPropertyName("time")] public string Time { get; set; } = "";
-    // sent by the script and not read yet, unlike the fields removed around it:
-    // this one is on the wire, it is the tier the sheet itself assigns
-    [JsonPropertyName("standard")] public string Standard { get; set; } = "";
 }
 
 internal sealed class RowsResponse {
@@ -69,15 +65,6 @@ public static class ExportProtocol {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    // System.Text.Encodings.Web has no way to leave supplementary-plane characters (emoji, U+10000+)
-    // unescaped: JavaScriptEncoder always escapes surrogate pairs into 📼-style sequences,
-    // even with UnsafeRelaxedJsonEscaping or an explicit AllowCodePoints() for that scalar value
-    // (verified against .NET 8.0.24 — this is a known runtime limitation, not a config we're missing).
-    // The escaped form is valid JSON either way, so unescape just the surrogate-pair case afterwards
-    // to keep emoji literal on the wire, matching what the Apps Script side expects to log/compare.
-    private static readonly Regex SurrogatePairEscape =
-        new(@"\\u(d[89ab][0-9a-f]{2})\\u(d[c-f][0-9a-f]{2})", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
     /// A deployed Apps Script Web App endpoint. The /dev URL of the same
     /// script answers a signed-out client with a login page, so it is refused
     /// here rather than accepted and left to fail at export time.
@@ -91,14 +78,8 @@ public static class ExportProtocol {
             && uri.AbsolutePath.EndsWith("/exec", StringComparison.Ordinal);
     }
 
-    public static string SerializeRequest(ExportRequest request) {
-        string json = JsonSerializer.Serialize(request, Options);
-        return SurrogatePairEscape.Replace(json, m => {
-            char high = (char) Convert.ToInt32(m.Groups[1].Value, 16);
-            char low = (char) Convert.ToInt32(m.Groups[2].Value, 16);
-            return new string(new[] { high, low });
-        });
-    }
+    public static string SerializeRequest(ExportRequest request) =>
+        JsonSerializer.Serialize(request, Options);
 
     public static bool TryParseResponse(string body, out ExportResponse response, out string error) {
         response = null;

@@ -17,17 +17,6 @@ public class ExportProtocolTests {
         Assert.Contains("\"time\":\"1:07.915\"", json);
     }
 
-    [Fact]
-    public void SerializesEmojiWithoutEscapingThemIntoSurrogatePairs() {
-        var request = new ExportRequest {
-            Updates = { new ExportUpdate { Chapter = "6a", Cp = "Hollows \U0001F4FC", Time = "8.704" } },
-        };
-
-        string json = ExportProtocol.SerializeRequest(request);
-
-        Assert.Contains("\U0001F4FC", json);
-    }
-
     // the payloads below are what the deployed script actually answered on
     // 2026-08-28, copied verbatim. They used to be invented, and they invented
     // an "ok" and a "row" the script has never sent
@@ -92,7 +81,6 @@ public class ExportProtocolTests {
         Assert.Single(rows);
         Assert.Equal("A Sides", rows[0].Tab);
         Assert.Equal("Crossing", rows[0].Cp);
-        Assert.Equal("Pink", rows[0].Standard);
     }
 
     [Fact]

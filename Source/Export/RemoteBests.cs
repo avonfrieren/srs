@@ -8,15 +8,12 @@ namespace Celeste.Mod.SpeedrunSheet;
 
 public enum RemoteState { NotLoaded, Loading, Ready, Error }
 
-/// Cache of what the sheet currently holds, filled by the export screen and read
-/// by it alone so far. Deliberately NOT registered with SpeedrunTool.SaveLoad:
-/// loading a savestate must not wipe downloaded data.
+/// Cache of what the sheet holds. Deliberately NOT registered with
+/// SpeedrunTool.SaveLoad: a savestate load must not wipe downloaded data.
 public static class RemoteBests {
-    // written by the worker thread that resolves a fetch, read every frame by
-    // the game thread. Never mutated in place: Accept builds a fresh dictionary
-    // and publishes it with one assignment, so a read landing mid-fetch sees
-    // either the whole previous index or the whole new one, and never a
-    // dictionary being cleared and refilled under it
+    // written by the worker resolving a fetch, read every frame by the game
+    // thread. Never mutated in place: Accept publishes a fresh dictionary in one
+    // assignment, so a read sees one whole index or the other
     private static volatile Dictionary<(string, string, string), RemoteRow> index = new();
 
 
@@ -34,12 +31,10 @@ public static class RemoteBests {
             ? TimeSpan.FromMilliseconds(Environment.TickCount64 - Interlocked.Read(ref acceptedAt))
             : TimeSpan.MaxValue;
 
-    // true once the fetch has actually resolved with data: Export must not be
-    // submittable while every row's remote comparison is still a guess
-    // (Loading/NotLoaded) or known-stale (Error)
+    // Export must not be submittable while a row's remote comparison is still a
+    // guess (Loading/NotLoaded) or known-stale (Error)
     public static bool IsResolved => State == RemoteState.Ready;
     public static string Error { get; private set; }
-    public static IReadOnlyCollection<RemoteRow> Rows => index.Values;
 
     public static void Reset() {
         index = new();
@@ -47,11 +42,9 @@ public static class RemoteBests {
         Error = null;
     }
 
-    /// Drops the times held: a fetch is starting because the sheet may have moved,
-    /// and it moved at least once already if this screen wrote to it. Nothing is
-    /// shown against the emptied index -- the screen waits for the answer before
-    /// building its table -- so this leaves no window in which stale values are
-    /// on display.
+    /// Drops the times held: the sheet may have moved, and did if this screen
+    /// wrote to it. The screen waits for the answer before building its table,
+    /// so nothing is shown against the emptied index.
     public static void BeginFetch() {
         index = new();
         State = RemoteState.Loading;
