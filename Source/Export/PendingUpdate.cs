@@ -28,10 +28,14 @@ public sealed class PendingUpdate {
     /// confused. An unreadable cell used to count as empty, so the row ticked
     /// itself and overwrote whatever was in it; a sheet whose Google locale
     /// writes 8,704 rather than 8.704 does that on every single row, every time.
+    /// A cell that parses to exactly 0:00.000 is treated the same as an empty
+    /// one: it is the sheet's own idiom for "no time yet" (see TierComparison's
+    /// threshold > TimeSpan.Zero and the standards import), not a real PB.
     public static PendingUpdate Create(SheetRowRef row, string label, long localTicks, string remoteCell,
         SheetSegment segment = null) {
-        long? remoteTicks = SheetData.TryParseTime(remoteCell)?.Ticks;
-        bool unreadable = remoteTicks == null && !string.IsNullOrWhiteSpace(remoteCell);
+        long? parsedTicks = SheetData.TryParseTime(remoteCell)?.Ticks;
+        bool unreadable = parsedTicks == null && !string.IsNullOrWhiteSpace(remoteCell);
+        long? remoteTicks = parsedTicks == 0 ? null : parsedTicks;
 
         // an unreadable cell is never an improvement: we cannot tell, and the
         // safe default is to leave a time we do not understand alone

@@ -51,6 +51,23 @@ public class PendingUpdateTests {
         Assert.False(update.RemoteUnreadable);
     }
 
+    // the sheet writes 0:00.000 into a cell that has never held a time: its own
+    // placeholder for "no record yet", not a PB to beat
+    [Fact]
+    public void AZeroCellCountsAsAnImprovement() {
+        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "7a", "3000m"), "7a 3000m",
+            Ticks(41.5), "0:00.000");
+
+        Assert.True(update.WillImprove);
+        Assert.True(update.Selected);
+        Assert.False(update.RemoteUnreadable);
+        Assert.Null(update.RemoteTicks);
+        Assert.Equal("", update.RemoteText);
+        Assert.Equal("", update.DeltaText);
+        // the raw cell is still what the write compares against
+        Assert.Equal("0:00.000", update.RemoteCell);
+    }
+
     [Fact]
     public void AnIdenticalTimeIsNotAnImprovement() {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "1a Crossing",
