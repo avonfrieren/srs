@@ -36,21 +36,25 @@ public class SheetConsistencyTests {
     }
 
     // 2. every imported segment carries the end condition its raw sheet name
-    // declares: the two 📼 RTM rows end at the cassette collect, everything
-    // else — the two hearts included, their rows are not RTM ones — ends at
-    // the next in-game checkpoint (or the chapter's completion when there is
-    // none, resolved at runtime, no table for it). A marker slipping through
-    // Import unnoticed would silently mistime the segment
+    // declares. Only a row that ends in RTM or RC stops at what it collects:
+    // the two 📼 RTM rows at the cassette, "2a Start 💙 RC" at the heart. The
+    // other two hearts are Clear rows — collect and keep going — so they end
+    // at the next in-game checkpoint, like everything else (or at the
+    // chapter's completion when there is none, resolved at runtime). A marker
+    // slipping through Import unnoticed would silently mistime the segment
     [Fact]
     public void EveryImportedSegmentEndsTheWayItsRawNameDeclares() {
-        HashSet<(string, string)> cassette = [
+        static HashSet<(string, string)> EndingAt(EndCondition condition) => [
             .. Fixtures.Imported
-                .Where(segment => segment.End == EndCondition.Cassette)
+                .Where(segment => segment.End == condition)
                 .Select(segment => (segment.Chapter, segment.Name))
         ];
 
-        Assert.Equal([("5a/b", "Depths Tape"), ("6a/b", "Hollows Tape")], cassette);
-        Assert.All(Fixtures.Imported.Where(segment => segment.End != EndCondition.Cassette),
+        Assert.Equal([("5a/b", "Depths Tape"), ("6a/b", "Hollows Tape")], EndingAt(EndCondition.Cassette));
+        Assert.Equal([("2a", "Start Heart RC")], EndingAt(EndCondition.Heart));
+        Assert.All(
+            Fixtures.Imported.Where(segment =>
+                segment.End != EndCondition.Cassette && segment.End != EndCondition.Heart),
             segment => Assert.Equal(EndCondition.Checkpoint, segment.End));
     }
 
@@ -341,5 +345,31 @@ public class SheetConsistencyTests {
     [InlineData("Filetime Buffer")]
     public void LeavesTheNotYetSupportedChaptersOut(string chapter) {
         Assert.DoesNotContain(Fixtures.Imported, segment => segment.Chapter.Contains(chapter));
+    }
+
+    // GameNameOf answers on (scope, sheet name) and never sees the segment's
+    // chapter, so a name that several chapters share resolves to one anchor.
+    // SessionBests keys on that anchor, which is what lets a run be re-labelled
+    // onto another row of the same checkpoint -- and what makes any caller
+    // walking the whole sheet responsible for filtering by chapter first.
+    //
+    // Pinned because dropping that filter put the Start row of six chapters on
+    // the export screen at once, most of them ticked. Seen on 2026-08-30.
+    [Fact]
+    public void OneCheckpointNameIsSharedByChaptersAndResolvesToOneAnchor() {
+        List<string> chapters = [.. SheetData.Import.Values
+            .Where(target => target.Name == "Start")
+            .Select(target => target.Chapter)
+            .Distinct()];
+
+        // several chapters call their first segment "Start" -- that is the
+        // premise; if it ever stops being true this test has nothing to say
+        Assert.True(chapters.Count > 1, string.Join(", ", chapters));
+
+        // and that one name resolves under each of their scopes, so a caller
+        // holding a scope and a name has nothing left that says which chapter
+        foreach (string chapter in chapters) {
+            Assert.NotNull(SegmentAutoDetect.GameNameOf(chapter, "Start"));
+        }
     }
 }

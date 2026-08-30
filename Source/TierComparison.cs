@@ -131,9 +131,9 @@ public static class TierComparison {
         SetTier(time, "Unranked");
     }
 
-    // SpeedrunTool's own time format ("s.fff" under a minute, "m:ss.fff" above)
+    // Format matches what SpeedrunTool displayed during the run (see TimeFormat.FromTicks).
     private static string FormatTime(TimeSpan time) =>
-        time.ToString(time.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff");
+        TimeFormat.FromTicks(time.Ticks);
 
     // tier colors: each sheet column name maps to its exact palette hex. Unlike
     // XNA's named colors, the "1"-"3" rank suffix is significant here, so
@@ -225,12 +225,14 @@ public static class TierComparison {
             y += rowHeight + 1f;
         }
 
-        // SpeedrunTool's own PB-row width heuristic (v3.1.0), not the measured
-        // text width: the background is a 288px strip that fades out to the
-        // right, and every row of the stack is meant to end *inside* the text,
-        // letting the tail sit over the fade. Measuring the text put the whole
-        // fade past the last character instead, making this row visibly longer
-        // than the rows above it — same formula, same length now
+        // SpeedrunTool's own PB-row width heuristic, read off 3.27.17 and copied
+        // here in srs v3.1.0, not the measured text width: the background is a
+        // 288px strip that fades out to the right, and every row of the stack is
+        // meant to end *inside* the text, letting the tail sit over the fade.
+        // Measuring the text put the whole fade past the last character instead,
+        // making this row visibly longer than the ones above it. Nothing rechecks
+        // the formula against SpeedrunTool, so a release that changes it brings
+        // that back with no test failing
         float width = 60f + Math.Max(0f, 18f * (text.Length - 8));
         Draw.Rect(x, y - 1f, width + bg.Width * scale, 1f, Color.Black);
         Draw.Rect(x, y, width + 2f, rowHeight, Color.Black);
