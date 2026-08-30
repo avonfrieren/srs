@@ -51,7 +51,7 @@ public class SheetConsistencyTests {
         ];
 
         Assert.Equal([("5a/b", "Depths Tape"), ("6a/b", "Hollows Tape")], EndingAt(EndCondition.Cassette));
-        Assert.Equal([("2a", "Start Heart")], EndingAt(EndCondition.Heart));
+        Assert.Equal([("2a", "Start Heart RC")], EndingAt(EndCondition.Heart));
         Assert.All(
             Fixtures.Imported.Where(segment =>
                 segment.End != EndCondition.Cassette && segment.End != EndCondition.Heart),

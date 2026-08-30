@@ -26,7 +26,7 @@ public static class SheetLabels {
         [("1a", "Chasm")] = new(TAB_A_SIDES, "1a", "Chasm"),
 
         [("2a", "Start")] = new(TAB_A_SIDES, "2a", "2a Start"),
-        [("2a", "Start Heart")] = new(TAB_A_SIDES, "2a", "2a Start " + HEART + " RC"),
+        [("2a", "Start Heart RC")] = new(TAB_A_SIDES, "2a", "2a Start " + HEART + " RC"),
         [("2a", "Intervention")] = new(TAB_A_SIDES, "2a", "Intervention"),
         [("2a", "Awake")] = new(TAB_A_SIDES, "2a", "Awake"),
 
