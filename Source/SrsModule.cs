@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Reflection;
 using System.IO;
 using FMOD.Studio;
 
@@ -15,6 +17,9 @@ public class SrsModule : EverestModule {
     }
 
     public override void Load() {
+        // before anything formats a time
+        AdoptSpeedrunToolsTimeFormat();
+
         SheetImporter.Load();
         // Level.Update hook order matters: each later Load wraps the previous
         // hooks, so after orig the frame runs innermost-first — Hotkeys reads
@@ -43,6 +48,40 @@ public class SrsModule : EverestModule {
         RunWatcher.Unload();
         Hotkeys.Unload();
         SheetImporter.Unload();
+    }
+
+    /// srs exports the string SpeedrunTool printed, so it takes the formatter
+    /// rather than copying it. By reflection because there is no other way in:
+    /// RoomTimerData.FormatTime is public, its class is not, the ModInterop
+    /// exports the stopwatch and not its rendering, and a Publicizer is ruled
+    /// out project-wide.
+    ///
+    /// isPbTime: false — the true branch returns "" for a zero, which is how
+    /// SpeedrunTool draws an absent PB, and srs has its own rule for that.
+    private static void AdoptSpeedrunToolsTimeFormat() {
+        try {
+            Assembly assembly = Everest.Modules
+                .FirstOrDefault(module => module.Metadata?.Name == "SpeedrunTool")?
+                .GetType().Assembly;
+            MethodInfo method = assembly?
+                .GetType("Celeste.Mod.SpeedrunTool.RoomTimer.RoomTimerData")?
+                .GetMethod("FormatTime", BindingFlags.Public | BindingFlags.Static,
+                    null, [typeof(long), typeof(bool)], null);
+
+            if (method?.CreateDelegate(typeof(Func<long, bool, string>)) is Func<long, bool, string> format) {
+                TimeFormat.Format = ticks => format(ticks, false);
+                return;
+            }
+        } catch (Exception e) {
+            Logger.Log(LogLevel.Error, "srs", "could not reach SpeedrunTool's time format: " + e);
+        }
+
+        // fatal on purpose: a second formatter that agrees today drifts in
+        // silence, and writes a time into the player's sheet that no longer
+        // matches the timer. Failing loudly costs a release instead
+        throw new InvalidOperationException(
+            "SpeedrunTool's RoomTimerData.FormatTime could not be found. It is where srs takes its"
+            + " time format from, and srs keeps no copy. This needs a srs update.");
     }
 
     public override void LoadSettings() {
