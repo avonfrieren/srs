@@ -34,13 +34,10 @@ internal sealed class UpdateRow : TextMenu.Item {
         this.session = session;
         candidates = ExportSource.CandidatesFor(slot[index].Segment, session);
         // by name, not by reference: SheetImporter.Data is reassigned from a
-        // worker and a refresh landing between Collect and here hands out fresh
-        // SheetSegment instances, which have no Equals. IndexOf would return -1
-        // and left/right would die without a word, in the first minute of a
-        // session since v3.5.0 refreshes on launch
+        // worker, and the fresh SheetSegment instances have no Equals, so
+        // IndexOf would return -1 and left/right would die without a word
         candidate = candidates.FindIndex(other => other.Name == slot[index].Segment?.Name);
-        // base TextMenu.Item defaults this to false; without it the cursor
-        // can never land on the row and ConfirmPressed() is never dispatched
+        // false on the base item: without it the cursor never lands on the row
         Selectable = true;
     }
 
@@ -67,9 +64,7 @@ internal sealed class UpdateRow : TextMenu.Item {
         }
 
         PendingUpdate next = ExportSource.Build(row, segment, Update.LocalTicks, session);
-        // carry the tick over, but never onto a row it would not improve: the
-        // screen promises to start unticked when it would not, and one arrow
-        // press must not be what takes that promise back
+        // carry the tick over, never onto a row it would not improve
         next.Selected = Update.Selected && next.WillImprove;
         slot[index] = next;
         Audio.Play(direction < 0 ? "event:/ui/main/rollover_up" : "event:/ui/main/rollover_down");
@@ -82,8 +77,8 @@ internal sealed class UpdateRow : TextMenu.Item {
         float alpha = Container.Alpha;
         PendingUpdate update = Update;
 
-        // both parities are banded, at two alphas: one stripe over bare
-        // background reads as a tinted list, two read as a grid
+        // both parities banded: one stripe over bare background reads as a
+        // tinted list, two read as a grid
         Color band = highlighted
             ? Color.White * (0.22f * alpha)
             : Color.White * ((odd ? 0.09f : 0.04f) * alpha);
@@ -102,10 +97,10 @@ internal sealed class UpdateRow : TextMenu.Item {
         ExportColumns.Text(update.DeltaText, position, columns.DeltaX, DeltaColor(update) * alpha, alpha);
     }
 
-    // neutral when there is nothing to compare against, and when the two times
-    // are equal: "+0.000" in red says a regression that did not happen. An
-    // unreadable cell lands here too, through RemoteTicks staying null, and
-    // grey is right for it: its "?" is not a regression, it is a refusal
+    // neutral when there is nothing to compare against and when the times are
+    // equal: "+0.000" in red says a regression that did not happen. An
+    // unreadable cell lands here through RemoteTicks staying null, and its "?"
+    // is a refusal rather than a regression
     private static Color DeltaColor(PendingUpdate update) {
         if (update.RemoteTicks == null || update.LocalTicks == update.RemoteTicks.Value) {
             return Color.Gray;
@@ -152,24 +147,18 @@ internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
 /// TextMenu hands an item the vertical CENTRE of its slot, so everything here
 /// is anchored on that: text justifies at y = 0.5, bands and rules are centred.
 ///
-/// Widths are measured across a list, and one row of it carries a run:
-/// SessionBests holds exactly one segment, practicing another checkpoint drops
-/// the previous one. That is deliberate, decided 2026-08-28: the alternative was to key
-/// SessionBests by segment and let a session accumulate rows, and it was
-/// refused. One segment per export stays the rule, and the table stays with it
-/// because features to come will want it. **Do not "simplify" this away** on
-/// the grounds that the list is always length one; a review has already
-/// proposed exactly that, and the answer was no.
+/// ⚠️ Widths are measured across a list even though SessionBests holds exactly
+/// one segment. Do not collapse the geometry to a single row: a review proposed
+/// it on 2026-08-28 and the answer was no, the list is what the next feature needs.
 internal sealed class ExportColumns {
     public const float Gap = 18f;
 
-    // the table's own margin. The banding and the rules span the whole menu, so
-    // without it the checkbox sits on the left edge and the delta column ends on
-    // the right one, both touching the grid they are inside
+    // the table's own margin: the banding and rules span the whole menu, so
+    // without it the checkbox and the delta column touch its edges
     private const float Pad = 24f;
 
-    // the journal's table scale; 0.6 is TextMenu.SubHeader's, sized for menu
-    // chrome rather than for a forty-row table
+    // the journal's table scale. TextMenu.SubHeader's 0.6 is sized for menu
+    // chrome, not for a table
     private const float Scale = 0.5f;
     private const float BandRatio = 0.9f;   // a gutter survives between stripes
     private const float RuleHeight = 2f;
@@ -271,31 +260,24 @@ internal sealed class ExportColumns {
     }
 }
 
-/// Phase "review screen": lets the player pick which of this session's PBs to
-/// push to the sheet before anything is written. Opened and closed with the
-/// same hotkey (Hotkeys.OpenExportMenu), like a mini pause-menu of its own; it
-/// pauses the level, and Hotkeys reads HoldsThePause to keep that one combo
-/// alive behind the pause it caused. The menu's own Cancel button, Back/ESC and
-/// the pause key close it too (OnCancel/OnESC/OnPause). Loaded last, and it
-/// has to stay after Hotkeys: it reads OpenExportMenu.Pressed on the frame
-/// Hotkeys produced it. Nothing else constrains it, it only reads what
-/// ExportSource, RemoteBests, ExportClient and ExportProtocol produced.
+/// The review screen: which of this session's times to push to the sheet, with
+/// nothing written before it is confirmed. Opened and closed by the same hotkey;
+/// it pauses the level, and Hotkeys reads HoldsThePause to keep that one combo
+/// alive behind the pause it caused. Cancel, Back/ESC and pause close it too.
+///
+/// ⚠️ Must load after Hotkeys: it reads OpenExportMenu.Pressed on the frame
+/// Hotkeys produced it.
 internal static class ExportMenu {
     private const string LogTag = "srs";
 
     private static TextMenu menu;
 
-    // the Level the menu is currently open on, and whether that level was
-    // already paused before Open() forced it, so Close() restores the exact
-    // prior state instead of unconditionally clearing Paused.
+    // the Level the screen is open on, and whether it was already paused before
+    // Open() forced it, so Close() restores the prior state.
     //
-    // Holding a Level across frames is what CLAUDE.md forbids, and this is the
-    // deliberate exception: nothing replaces the level while the screen is up.
-    // A savestate load was the way through we expected and is not one, but the
-    // reason is SpeedrunTool's rather than ours, so the guarantee is only as
-    // good as their code (see OnLevelUpdate). OnLevelUpdate closes on
-    // menu.Scene != self against a path nobody has found rather than one
-    // anybody has seen
+    // ⚠️ Holding a Level across frames is the exception CLAUDE.md forbids.
+    // Nothing replaces it while the screen is up, and that guarantee is
+    // SpeedrunTool's rather than ours; OnLevelUpdate closes on menu.Scene != self
     private static Level openLevel;
     private static bool pausedBeforeOpen;
 
@@ -303,9 +285,8 @@ internal static class ExportMenu {
     // the hotkey that opened it must keep being read in order to close it
     internal static bool HoldsThePause => openLevel != null;
 
-    // the screen is up but showing "loading": the table is not built until the
-    // sheet has answered, and the fetch landing is what builds it. Read from a
-    // worker thread by Refresh, which must not start one behind that wait
+    // the screen is up showing "loading": the table is built by the fetch
+    // landing. Read from a worker by Refresh, which must not start one behind it
     private static volatile bool awaitingRows;
 
     // a background refresh is in flight. Only one at a time: they exist to have
@@ -325,11 +306,9 @@ internal static class ExportMenu {
     // guards against double-submitting while a POST is in flight
     private static volatile bool submitting;
 
-    // bumped by every Open(). Close() cancels nothing in flight, so opening,
-    // waiting, closing and reopening leaves two fetches racing into the same
-    // state with no order guaranteed. The one that hurts is a Fail() from the
-    // first arriving after the second succeeded: the screen has its rows and
-    // Export is greyed out for good, over data that came back fine
+    // bumped by every Open(). Close() cancels nothing in flight, so reopening
+    // races two fetches; the one that hurts is the first's Fail() landing after
+    // the second succeeded, greying Export out over data that came back fine
     private static volatile int generation;
 
     public static void Load() {
@@ -337,20 +316,16 @@ internal static class ExportMenu {
 
         On.Celeste.Level.Update += OnLevelUpdate;
 
-        // the screen's whole wait is one round trip, and about a second of it
-        // is Google's dispatch whatever the script does. Starting it here is
-        // what lets the screen open on data instead of on a loading line
+        // about a second of the round trip is Google's dispatch whatever the
+        // script does; starting here is what opens the screen on data
         Refresh("launch");
     }
 
-    /// A refresh nobody is waiting on. It takes no generation and queues no
-    /// rebuild, and a failure leaves what we hold rather than replacing it with
-    /// an error the player has no screen to read. What stands in for the
-    /// generation is the URL it asked, rechecked when the answer lands.
-    ///
-    /// Safe to let land under an open screen: the table holds the rows it was
-    /// built from, nothing rebuilds under the player, and the values a write
-    /// compares against travel with it (ExportUpdate.Expect).
+    /// A refresh nobody is waiting on: no generation, no rebuild, and a failure
+    /// keeps what we hold. The URL it asked stands in for the generation, and is
+    /// rechecked when the answer lands. Safe to let land under an open screen,
+    /// which holds the rows it was built from and the values a write compares
+    /// against (ExportUpdate.Expect).
     internal static void Refresh(string why) {
         string url = SrsModule.Settings.ExportUrl;
         if (!SrsModule.Settings.Enabled || refreshing || awaitingRows
@@ -362,10 +337,8 @@ internal static class ExportMenu {
         Logger.Log(LogLevel.Info, LogTag, "refreshing the sheet in the background: " + why);
         _ = ExportClient.FetchAsync(url).ContinueWith(task => {
             try {
-                // the sheet can be repointed or forgotten from Mod Options while
-                // this is out: taking the answer in would republish the old
-                // sheet's times, and on the forget path would leave RemoteBests
-                // resolved against a URL that no longer exists
+                // repointed or forgotten from Mod Options while this was out:
+                // taking it in would resolve RemoteBests against another sheet
                 if (url != SrsModule.Settings.ExportUrl) {
                     Logger.Log(LogLevel.Info, LogTag,
                         "a background refresh answered for a sheet URL that is no longer the one set; dropped");
@@ -378,24 +351,20 @@ internal static class ExportMenu {
                 // a throw here would leave the game with the exception
                 Logger.Log(LogLevel.Warn, LogTag, "a background refresh could not be taken in: " + e);
             } finally {
-                // never in the body: the flag is cleared nowhere else, so a throw
-                // that skipped it would silently kill every later refresh of the
-                // session
+                // never in the body: cleared nowhere else, so a throw skipping
+                // it would silently kill every later refresh of the session
                 refreshing = false;
             }
         });
     }
 
-    /// Takes in an answer from the sheet. Runs on a worker thread, and writes
-    /// nothing but RemoteBests, which is built to be written from one.
-    ///
-    /// ownedByAScreen says whether someone is waiting on this: a screen turns a
-    /// failure into the state its status line reports, a background refresh
-    /// logs it and keeps what it already holds.
+    /// Takes an answer in. Runs on a worker thread and writes nothing but
+    /// RemoteBests, which is built for that. ownedByAScreen says whether someone
+    /// is waiting: a screen turns a failure into its status line, a background
+    /// refresh logs it and keeps what it holds.
     private static void Take((string body, string error) answer, bool ownedByAScreen) {
-        // the master switch means the mod does nothing, and that has to cover an
-        // answer to a question asked before it was thrown: taking this one in
-        // would write RemoteBests and announce itself while the mod is inert
+        // the master switch has to cover an answer to a question asked before it
+        // was thrown, or the mod writes and announces itself while inert
         if (!SrsModule.Settings.Enabled) {
             Logger.Log(LogLevel.Info, LogTag, "the sheet answered after the mod was switched off; dropped");
             return;
@@ -433,25 +402,20 @@ internal static class ExportMenu {
     private static void OnLevelUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         orig(self);
 
-        // a level replaced under an open screen leaves the menu an entity of
-        // the old one: it vanishes from the display while `menu` stays non
-        // null, and Open() refuses for the rest of the session. No path there
-        // is known. The savestate load we expected to be one is refused by
-        // SpeedrunTool itself, not held back by the pause: read off 3.27.17,
-        // its hotkeys are driven from MInput.Update and fire while paused, and
-        // it is SaveLoadHotkeys that gates each action on !scene.Paused. That
-        // is their check, in a dependency everest.yaml pins only a minimum of,
-        // so this stays as insurance against it changing
+        // a level replaced under an open screen leaves the menu an entity of the
+        // old one: it vanishes while `menu` stays non null and Open() refuses for
+        // the rest of the session. No path there is known -- the savestate load is
+        // refused by SpeedrunTool's own !scene.Paused gate (3.27.17), in a
+        // dependency everest.yaml pins only a minimum of
         if (menu != null && menu.Scene != self) {
-            // logged because this is the one guard here that nothing is known
-            // to trigger. Silent, it can neither be tested nor caught doing its
-            // job in the wild; the line is how the path stops being a theory
+            // logged because nothing is known to trigger it: silent, the path
+            // could neither be tested nor caught doing its job
             Logger.Log(LogLevel.Warn, LogTag, "the level was replaced under the export screen; closed it");
             Close();
         }
 
-        // switched off with the screen open: close it instead of leaving a menu
-        // behind that could still submit an export while the mod is inert
+        // switched off with the screen open: a menu left behind could still
+        // submit an export while the mod is inert
         if (!SrsModule.Settings.Enabled) {
             if (menu != null) {
                 Close();
@@ -460,7 +424,7 @@ internal static class ExportMenu {
             return;
         }
 
-        // Hotkeys holds the combo at rest behind the pause menu, but not behind
+        // Hotkeys holds the combo at rest behind the pause menu but not behind
         // this screen's own pause: one press opens, the next closes
         if (Hotkeys.OpenExportMenu.Pressed) {
             if (menu != null) {
@@ -498,8 +462,7 @@ internal static class ExportMenu {
         Logger.Log(LogLevel.Info, LogTag,
             $"export: scope={SegmentAutoDetect.ScopeOf(level.Session)}"
             + $" rows={updates.Count} held={SessionBests.Describe()}");
-        // nothing run this session, or a run whose segment does not map to a
-        // row: either way there is nothing to export and no screen to show
+        // nothing run this session, or a run that maps to no row
         if (updates.Count == 0) {
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NOTHING"), null);
             return;
@@ -508,21 +471,17 @@ internal static class ExportMenu {
         pausedBeforeOpen = level.Paused;
         openLevel = level;
         level.Paused = true;
-        // taken by every open, whichever branch follows: a POST from the
-        // previous screen may still be in flight, and its continuation checks
-        // this to know its screen is gone
+        // taken by every open: a POST from the previous screen may still be in
+        // flight, and its continuation checks this to know its screen is gone
         int fetch = ++generation;
 
-        // a refresh has answered: the table is built now, with no wait at all,
-        // and another starts behind it so the next open is no staler than this
-        // one. What is on screen can be a refresh old, and the write is what
-        // guards against that -- it compares each cell before touching it
+        // a refresh has answered: build now, with no wait. What is on screen can
+        // be a refresh old, and the write is what guards against that -- it
+        // compares each cell before touching it
         if (RemoteBests.IsResolved) {
             Build(level, updates);
-            // and only then a refresh behind it. Opening, closing and opening
-            // again inside a minute is one action rather than three, and asking
-            // three times gets the same answer three times -- at a call against
-            // the player's own script each
+            // opening, closing and reopening inside a minute is one action, and
+            // asking three times costs three calls against the player's script
             if (RemoteBests.Age > AskAgainAfter) {
                 Refresh("a screen opened on data already held");
             }
@@ -536,21 +495,16 @@ internal static class ExportMenu {
         string url = SrsModule.Settings.ExportUrl;
         _ = ExportClient.FetchAsync(url).ContinueWith(task => {
             if (fetch != generation) {
-                // the screen this belonged to is gone and another has taken its
-                // place. Logged for the same reason the level-replaced guard is:
-                // silent, there is no way to see it work, and this one guards
-                // against an older answer overwriting a newer one
+                // an older answer would overwrite a newer one. Logged for the
+                // same reason as the guard above: silent, it cannot be seen work
                 Logger.Log(LogLevel.Info, LogTag, "a fetch resolved after its screen was replaced; discarded");
                 return;
             }
 
             // the generation only moves when a screen opens, and the sheet is
-            // repointed or forgotten from Mod Options with no screen up at all:
-            // closing this one and forgetting the URL leaves the generation
-            // where it was, and this answer would resolve RemoteBests against a
-            // sheet nobody is pointed at any more. Nothing rebuilds either way,
-            // the screen is gone by construction (Mod Options is behind the
-            // pause, and OnPause closes this screen)
+            // repointed from Mod Options with no screen up: closing and
+            // forgetting the URL leaves the generation where it was, and this
+            // answer would resolve RemoteBests against a sheet nobody points at
             if (url != SrsModule.Settings.ExportUrl) {
                 Logger.Log(LogLevel.Info, LogTag,
                     "a fetch resolved for a sheet URL that is no longer the one set; discarded");
@@ -560,8 +514,8 @@ internal static class ExportMenu {
             try {
                 Take(task.Result, ownedByAScreen: true);
             } catch (Exception e) {
-                // a screen is waiting on this: with no state to show, it would
-                // sit on "loading" until the player cancels it
+                // a screen is waiting: with no state to show it sits on
+                // "loading" until the player cancels
                 Logger.Log(LogLevel.Warn, LogTag, "an answer could not be taken in: " + e);
                 RemoteBests.Fail(Dialog.Clean("SRS_EXPORT_UNREAD"));
             } finally {
@@ -579,9 +533,8 @@ internal static class ExportMenu {
         menu = null;
         awaitingRows = false;
 
-        // stale flags from this session must never bleed into a later one:
-        // if a background fetch/submit resolves after Close(), its queued
-        // rebuild/summary would otherwise fire against a freshly reopened menu
+        // a fetch or submit resolving after Close() would otherwise fire its
+        // queued rebuild against a freshly reopened menu
         queuedRebuild = false;
         queuedSummary = false;
         summaryLines = null;
@@ -595,10 +548,9 @@ internal static class ExportMenu {
         }
     }
 
-    /// Puts a screen up in place of whatever is there. Every screen this class
-    /// shows goes through here: the three ways out of a menu are wired in one
-    /// place rather than repeated, which is what stops a new screen from
-    /// forgetting one and trapping the player in a paused level.
+    /// Puts a screen up in place of whatever is there. Every screen goes through
+    /// here so the three ways out are wired once: a screen forgetting one traps
+    /// the player in a paused level.
     private static void Show(Level level, TextMenu newMenu) {
         newMenu.OnCancel = Close;
         newMenu.OnESC = Close;
@@ -669,11 +621,8 @@ internal static class ExportMenu {
     private static string ExportLabel(List<PendingUpdate> updates) =>
         $"{Dialog.Clean("SRS_EXPORT_CONFIRM")} ({updates.Count(u => u.Selected)})";
 
-    // reflects RemoteBests.State: Loading/Error get their own message, Ready
-    // (or NotLoaded, which cannot really happen here since BeginFetch runs
-    // before the first Build) shows the column legend instead
     // empty once the fetch resolves: the chapter bands carry the column titles
-    // from then on, aligned with the rows, which a free-text SubHeader cannot be
+    // from then on, aligned with the rows, which a SubHeader cannot be
     private static string StatusLine() => RemoteBests.State switch {
         RemoteState.Loading => Dialog.Clean("SRS_EXPORT_LOADING"),
         RemoteState.Error => RemoteBests.Error ?? Dialog.Clean("SRS_EXPORT_UNREAD"),
@@ -688,14 +637,10 @@ internal static class ExportMenu {
             return;
         }
 
-        // rows are pre-selected as "improves" while the fetch is still in flight
-        // (remoteTicks == null) or after it failed, and submitting in either
-        // state risks overwriting a good sheet time with a worse local one,
-        // since the comparison was never actually made. Unreachable as things
-        // stand, the Export button is Disabled on the same condition and a
-        // disabled item cannot be pressed; kept because it guards a data-loss
-        // path and costs nothing, but logging rather than popping a message no
-        // player is in a position to read
+        // unresolved rows pre-select as "improves" without ever having been
+        // compared, so submitting one can overwrite a better sheet time.
+        // Unreachable (Export is Disabled on the same condition), kept because
+        // it guards a data-loss path
         if (!RemoteBests.IsResolved) {
             Logger.Log(LogLevel.Warn, LogTag, "submit reached the unresolved guard: " + RemoteBests.State);
             return;
@@ -734,10 +679,9 @@ internal static class ExportMenu {
 
         _ = ExportClient.PostAsync(url, json).ContinueWith(task => {
             if (submission != generation) {
-                // the screen this belonged to was closed and another opened. The
-                // write did happen and its outcome is in the log; there is no
-                // longer anyone to show it to, and clearing `submitting` here
-                // would open the double-submit guard on the newer screen
+                // the write happened and its outcome is in the log; nobody is
+                // left to show it to, and clearing `submitting` here would open
+                // the double-submit guard on the newer screen
                 Logger.Log(LogLevel.Info, LogTag, "export resolved after its screen was replaced");
                 return;
             }
@@ -757,10 +701,8 @@ internal static class ExportMenu {
                 return;
             }
 
-            // the status is translated, the script's own reason is not, on
-            // purpose: it names the row and the cause, we do not author it, and
-            // a report pasted into an issue has to carry its words whatever the
-            // player's language
+            // the status is translated, the script's own reason is not: we do
+            // not author it, and a pasted report has to carry its words
             foreach (ExportResult r in response.Results) {
                 Logger.Log(LogLevel.Info, LogTag, $"  {RowLabel(r)}: {r.Status}" +
                     (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
@@ -785,18 +727,16 @@ internal static class ExportMenu {
         queuedSummary = true;
     }
 
-    /// Up while the first fetch is in flight, in place of the table. Rows built
-    /// before the sheet has answered compare against values that have not
-    /// arrived: every one of them pre-ticks as an improvement, which reads as a
-    /// finished table and is not one. Waiting is what makes the table mean
-    /// something, and it is why nothing has to be patched up afterwards.
+    /// Up while the first fetch is in flight, in place of the table: rows built
+    /// before the sheet answers compare against values that have not arrived and
+    /// pre-tick as improvements, which reads as a finished table and is not one.
     private static void ShowLoading(Level level) {
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
         newMenu.Add(new TextMenu.SubHeader(Dialog.Clean("SRS_EXPORT_LOADING")));
 
-        // a way out that does not require knowing that Back closes it: this is
-        // the one screen the player may want to leave before it has done anything
+        // a way out without knowing Back closes it: the one screen the player
+        // may want to leave before it has done anything
         TextMenu.Button cancelButton = new(Dialog.Clean("SRS_EXPORT_CANCEL"));
         cancelButton.Pressed(Close);
         newMenu.Add(cancelButton);
@@ -814,9 +754,8 @@ internal static class ExportMenu {
         Show(level, newMenu);
     }
 
-    // replaces the menu contents with a plain-text, line-per-row summary of
-    // the export result plus a single Close button; reached only from
-    // OnLevelUpdate on the game thread
+    // a line-per-row summary of the result plus a Close button; reached only
+    // from OnLevelUpdate, on the game thread
     private static void ShowSummary(Level level, List<string> lines) {
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_DONE")));

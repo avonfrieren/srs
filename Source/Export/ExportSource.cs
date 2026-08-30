@@ -3,23 +3,16 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// Turns this session's segment bests into the reviewable rows of the export
-/// screen. Replaces the old reading of SpeedrunTool's PbTimes: since v3.0.0 srs
-/// never sets NumberOfRooms, so SpeedrunTool's own PBs are cut on the player's
-/// setting and do not describe sheet segments.
+/// Turns this session's segment best into the reviewable row of the export
+/// screen. Not SpeedrunTool's PbTimes: srs has not set NumberOfRooms since
+/// v3.0.0, so those are cut on the player's setting and describe no sheet segment.
 internal static class ExportSource {
     /// The one row there is to export: the segment the mod has selected, when
-    /// this session holds a run of it. The screen is an export screen and not a
-    /// way of looking at the sheet -- a row carrying no run has nothing to write
-    /// and nothing to decide.
+    /// this session holds a run of it.
     ///
-    /// ⚠️ The chapter is checked here and cannot be left to SessionBests. Its
-    /// key is (scope, game checkpoint), and GameNameOf takes a name without a
-    /// chapter, so "Start" resolves to the same anchor in every chapter that has
-    /// one. Walking the whole sheet and keeping what the held run answers to
-    /// therefore returns the Start row of 1a, 2a, 3a, 4a, 8a and Farewell at
-    /// once, most of them ticked, and confirming writes one run into six
-    /// chapters. Seen on screen on 2026-08-30.
+    /// ⚠️ The chapter check cannot be left to SessionBests. Its key is (scope,
+    /// game checkpoint) and "Start" resolves to the same anchor in every chapter
+    /// that has one, so without it one run exports into six chapters at once.
     public static List<PendingUpdate> Collect(Session session) {
         List<PendingUpdate> updates = [];
 
@@ -40,13 +33,11 @@ internal static class ExportSource {
     }
 
     /// The mappable segments anchored on the same game checkpoint, in sheet
-    /// order. Auto-detect cannot tell those apart, since they start in the same
-    /// room, and this is what the export screen offers to retarget onto: the
-    /// pairs the feature was written for, {Hollows, Hollows Tape} and its like.
-    /// The whole chapter would be wrong here, not merely wide: on 7a it offers
-    /// seven rows that begin at seven different checkpoints, and two arrow
-    /// presses write the time of 0m into the row of 3000m, which the script
-    /// accepts because it only checks that the row exists.
+    /// order: auto-detect cannot tell those apart, and this is what the arrows
+    /// retarget onto ({Hollows, Hollows Tape} and its like).
+    ///
+    /// ⚠️ Never the whole chapter. On 7a that is seven different checkpoints,
+    /// and two arrow presses write 0m's time into 3000m's row.
     public static List<SheetSegment> CandidatesFor(SheetSegment segment, Session session) {
         List<SheetSegment> candidates = [];
         SheetBlock block = SheetImporter.Data?.CheckpointBlock;
@@ -75,11 +66,9 @@ internal static class ExportSource {
         return candidates;
     }
 
-    /// srs folds 6A and 6B into one chapter "6a/b" and re-prefixes only the
-    /// names both sides share ("6a Rock Bottom"). On screen that prefix is
-    /// noise, the player knows which side they are on, so it comes off. Nothing
-    /// collides once it does: CandidatesFor anchors on the game checkpoint of
-    /// the current scope, and the other side has none in it.
+    /// srs folds 6A and 6B into "6a/b" and re-prefixes the names both sides
+    /// share ("6a Rock Bottom"). On screen that prefix is noise, and dropping it
+    /// collides with nothing: CandidatesFor anchors on the current scope.
     public static string DisplayName(SheetSegment segment, Session session) {
         string side = SegmentAutoDetect.ScopeOf(session);
         return side != null && segment.Name.StartsWith(side + " ", StringComparison.Ordinal)

@@ -38,13 +38,11 @@ public static class ExportUrlMenu {
             Visible = HasUrl,
         };
 
-        // the ping answers on another thread; this is where its answer becomes
-        // visible, and the only place `message` and `checking` are read.
+        // the only place `message` and `checking` are read.
         //
-        // TextMenu calls OnUpdate on every item each frame, visible or not, so
-        // this owns `status.Visible` from then on: whatever ModMenu's master
-        // switch sets is undone on the next frame unless the switch is read
-        // here too
+        // ⚠️ TextMenu calls OnUpdate on every item each frame, visible or not,
+        // so this owns `status.Visible`: whatever ModMenu's master switch sets
+        // is undone next frame unless the switch is read here too
         setButton.OnUpdate = () => {
             if (!SrsModule.Settings.Enabled) {
                 return;
@@ -84,9 +82,8 @@ public static class ExportUrlMenu {
             ExportMenu.Refresh("a sheet URL was just set");
         });
 
-        // press once to arm ("Forget Sheet URL?"), press again to actually
-        // clear — no built-in confirm dialog for TextMenu.Button in this
-        // codebase, so this two-step is the confirmation
+        // press once to arm ("Forget Sheet URL?"), press again to clear:
+        // TextMenu.Button has no confirm dialog, so the two-step is one
         bool forgetArmed = false;
         forgetButton.Pressed(() => {
             if (!forgetArmed) {
@@ -116,10 +113,9 @@ public static class ExportUrlMenu {
         return new List<TextMenu.Item> { forgetButton };
     }
 
-    /// Asks the endpoint for its rows. A URL of the right shape can still be
-    /// the wrong deployment, or one nobody has authorised, and both answer 200
-    /// with something that is not ours — so the check is that it parses, not
-    /// that it responded.
+    /// Asks the endpoint for its rows. The wrong deployment and an unauthorised
+    /// one both answer 200 with something that is not ours, so the check is that
+    /// it parses rather than that it responded.
     private static void BeginCheck(string url) {
         int fetch = ++generation;
         checking = true;

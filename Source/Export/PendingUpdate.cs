@@ -22,15 +22,12 @@ public sealed class PendingUpdate {
     public bool RemoteUnreadable { get; private init; }
     public bool Selected { get; set; }
 
-    /// remoteCell is the cell exactly as the script read it, never a parsed
-    /// time: empty means the sheet holds nothing there, and anything that does
-    /// not parse means it holds something unreadable. The two must not be
-    /// confused. An unreadable cell used to count as empty, so the row ticked
-    /// itself and overwrote whatever was in it; a sheet whose Google locale
-    /// writes 8,704 rather than 8.704 does that on every single row, every time.
-    /// A cell that parses to exactly 0:00.000 is treated the same as an empty
-    /// one: it is the sheet's own idiom for "no time yet" (see TierComparison's
-    /// threshold > TimeSpan.Zero and the standards import), not a real PB.
+    /// remoteCell is the cell as the script read it, never a parsed time.
+    ///
+    /// ⚠️ Empty and unreadable must not be confused: an unreadable cell counted
+    /// as empty ticks the row and overwrites it, which a Google locale writing
+    /// 8,704 does on every row. 0:00.000 counts as empty, the sheet's own idiom
+    /// for "no time yet" (as in TierComparison's threshold > TimeSpan.Zero).
     public static PendingUpdate Create(SheetRowRef row, string label, long localTicks, string remoteCell,
         SheetSegment segment = null) {
         long? parsedTicks = SheetData.TryParseTime(remoteCell)?.Ticks;

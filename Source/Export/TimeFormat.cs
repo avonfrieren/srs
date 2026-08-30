@@ -7,11 +7,8 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// receives.
 public static class TimeFormat {
     /// SpeedrunTool's own formatter, installed by SrsModule.Load: it measured
-    /// the segment, so what it prints is what the player watched.
-    ///
-    /// A delegate rather than a call, for the reason ExportProtocol.Localize is
-    /// one — this file is compiled into the test project, which references
-    /// neither Celeste nor SpeedrunTool and installs its own stand-in.
+    /// the segment, so what it prints is what the player watched. A delegate
+    /// rather than a call, for the reason ExportProtocol.Localize is one.
     public static Func<long, string> Format;
 
     public static string FromTicks(long ticks) =>
@@ -22,10 +19,9 @@ public static class TimeFormat {
             : throw new InvalidOperationException(
                 "TimeFormat.Format was never set; SpeedrunTool's formatter is the only one srs has");
 
-    /// A signed difference, always in seconds: "+1.250", "-73.000". Ours, not
-    /// SpeedrunTool's -- it has no such format. Deltas are read against each
-    /// other and against a threshold, where seconds stay comparable at a glance
-    /// and m:ss stops being so.
+    /// A signed difference, always in seconds: "+1.250", "-73.000". Ours,
+    /// SpeedrunTool has no such format. Deltas are read against each other,
+    /// where seconds stay comparable at a glance and m:ss stops being so.
     public static string Delta(long ticks) {
         double seconds = TimeSpan.FromTicks(ticks).TotalSeconds;
         return (seconds < 0 ? "-" : "+")
