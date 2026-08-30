@@ -345,7 +345,8 @@ internal static class ExportMenu {
 
     /// A refresh nobody is waiting on. It takes no generation and queues no
     /// rebuild, and a failure leaves what we hold rather than replacing it with
-    /// an error the player has no screen to read.
+    /// an error the player has no screen to read. What stands in for the
+    /// generation is the URL it asked, rechecked when the answer lands.
     ///
     /// Safe to let land under an open screen: the table holds the rows it was
     /// built from, nothing rebuilds under the player, and the values a write
@@ -360,8 +361,28 @@ internal static class ExportMenu {
         refreshing = true;
         Logger.Log(LogLevel.Info, LogTag, "refreshing the sheet in the background: " + why);
         _ = ExportClient.FetchAsync(url).ContinueWith(task => {
-            Take(task.Result, ownedByAScreen: false);
-            refreshing = false;
+            try {
+                // the sheet can be repointed or forgotten from Mod Options while
+                // this is out: taking the answer in would republish the old
+                // sheet's times, and on the forget path would leave RemoteBests
+                // resolved against a URL that no longer exists
+                if (url != SrsModule.Settings.ExportUrl) {
+                    Logger.Log(LogLevel.Info, LogTag,
+                        "a background refresh answered for a sheet URL that is no longer the one set; dropped");
+                    return;
+                }
+
+                Take(task.Result, ownedByAScreen: false);
+            } catch (Exception e) {
+                // no screen is waiting on this one, and nothing above it catches:
+                // a throw here would leave the game with the exception
+                Logger.Log(LogLevel.Warn, LogTag, "a background refresh could not be taken in: " + e);
+            } finally {
+                // never in the body: the flag is cleared nowhere else, so a throw
+                // that skipped it would silently kill every later refresh of the
+                // session
+                refreshing = false;
+            }
         });
     }
 
@@ -512,7 +533,8 @@ internal static class ExportMenu {
         // nothing held: the first open of a session that launched offline, or
         // one whose refresh has not landed yet
         RemoteBests.BeginFetch();
-        _ = ExportClient.FetchAsync(SrsModule.Settings.ExportUrl).ContinueWith(task => {
+        string url = SrsModule.Settings.ExportUrl;
+        _ = ExportClient.FetchAsync(url).ContinueWith(task => {
             if (fetch != generation) {
                 // the screen this belonged to is gone and another has taken its
                 // place. Logged for the same reason the level-replaced guard is:
@@ -522,9 +544,30 @@ internal static class ExportMenu {
                 return;
             }
 
-            Take(task.Result, ownedByAScreen: true);
-            // build on the game thread: a TextMenu is never touched off it
-            queuedRebuild = true;
+            // the generation only moves when a screen opens, and the sheet is
+            // repointed or forgotten from Mod Options with no screen up at all:
+            // closing this one and forgetting the URL leaves the generation
+            // where it was, and this answer would resolve RemoteBests against a
+            // sheet nobody is pointed at any more. Nothing rebuilds either way,
+            // the screen is gone by construction (Mod Options is behind the
+            // pause, and OnPause closes this screen)
+            if (url != SrsModule.Settings.ExportUrl) {
+                Logger.Log(LogLevel.Info, LogTag,
+                    "a fetch resolved for a sheet URL that is no longer the one set; discarded");
+                return;
+            }
+
+            try {
+                Take(task.Result, ownedByAScreen: true);
+            } catch (Exception e) {
+                // a screen is waiting on this: with no state to show, it would
+                // sit on "loading" until the player cancels it
+                Logger.Log(LogLevel.Warn, LogTag, "an answer could not be taken in: " + e);
+                RemoteBests.Fail(Dialog.Clean("SRS_EXPORT_UNREAD"));
+            } finally {
+                // build on the game thread: a TextMenu is never touched off it
+                queuedRebuild = true;
+            }
         });
 
         awaitingRows = true;
