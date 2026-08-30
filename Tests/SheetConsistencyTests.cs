@@ -346,4 +346,30 @@ public class SheetConsistencyTests {
     public void LeavesTheNotYetSupportedChaptersOut(string chapter) {
         Assert.DoesNotContain(Fixtures.Imported, segment => segment.Chapter.Contains(chapter));
     }
+
+    // GameNameOf answers on (scope, sheet name) and never sees the segment's
+    // chapter, so a name that several chapters share resolves to one anchor.
+    // SessionBests keys on that anchor, which is what lets a run be re-labelled
+    // onto another row of the same checkpoint -- and what makes any caller
+    // walking the whole sheet responsible for filtering by chapter first.
+    //
+    // Pinned because dropping that filter put the Start row of six chapters on
+    // the export screen at once, most of them ticked. Seen on 2026-08-30.
+    [Fact]
+    public void OneCheckpointNameIsSharedByChaptersAndResolvesToOneAnchor() {
+        List<string> chapters = [.. SheetData.Import.Values
+            .Where(target => target.Name == "Start")
+            .Select(target => target.Chapter)
+            .Distinct()];
+
+        // several chapters call their first segment "Start" -- that is the
+        // premise; if it ever stops being true this test has nothing to say
+        Assert.True(chapters.Count > 1, string.Join(", ", chapters));
+
+        // and that one name resolves under each of their scopes, so a caller
+        // holding a scope and a name has nothing left that says which chapter
+        foreach (string chapter in chapters) {
+            Assert.NotNull(SegmentAutoDetect.GameNameOf(chapter, "Start"));
+        }
+    }
 }

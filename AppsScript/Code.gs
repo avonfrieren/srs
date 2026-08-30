@@ -1,14 +1,11 @@
 /**
- * srs: export endpoint for your own copy of the practice sheet.
+ * srs: export endpoint for your own copy of the practice sheet. SETUP.md, next to this
+ * file, is what the player follows.
  *
- * Since 2026-08-29 the sheet template carries this file as srsExport.gs, so a copy made
- * from it has nothing to paste in and only has to deploy. This file stays the source of
- * truth: change it here, then push the same change to the template, or the two drift and
- * a player's copy is whichever version it was made from. Only the header differs there.
- * SETUP.md next to this file is what the player follows, older copies included.
- * Every function here is prefixed "srs" except doGet/doPost, which Apps Script requires.
- * The generated /exec URL is a secret: it grants read and write access to
- * this spreadsheet with the owner's permissions.
+ * Mirrored in the sheet template as srsExport.gs. This file is the source of truth:
+ * change it here and push the same change there, or the two drift.
+ *
+ * The /exec URL is a secret. It reads and writes this spreadsheet as its owner.
  */
 
 // The only writable tabs. Everything else is formula-driven and reads from these.
@@ -19,20 +16,12 @@ var SRS_TABS = {
 };
 var SRS_TAB_ORDER = ['a sides', 'b+c sides', 'farewell'];
 
-// Where the player records the route they run, one column per category.
-var SRS_HOME_TAB = 'Home Page';
-
-// The whole GET answer, kept script-side. Six getDisplayValues calls are ~1.9 s
-// of a ~3.2 s round trip and none of it changes between two opens of the export
-// screen. Dropped by doPost, so a time srs writes is never served back stale;
-// a correction made by hand in the browser waits the TTL out.
+// The whole GET answer, kept script-side: reading the tabs is most of what a call
+// costs, and none of it changes between two opens of the export screen. Dropped by
+// doPost, so a time srs writes is never served back stale; a correction made by
+// hand in the browser waits the TTL out.
 var SRS_CACHE_KEY = 'srsGet';
 var SRS_CACHE_SECONDS = 300;
-
-// The category tabs whose summary block carries a chapter total. Only these two
-// are stable on the sheet; the others lay their summary out differently and
-// carry #REF! where a category is not filled in.
-var SRS_CATEGORY_TABS = ['Any%', 'True Ending'];
 
 function doGet() {
   try {
@@ -66,25 +55,7 @@ function doGet() {
         });
       });
     });
-    // never fatal: the export is what this endpoint is for, and a sheet whose
-    // Home Page has moved must still be writable
-    var routes = [];
-    try {
-      routes = srsReadRoutes();
-    } catch (err) {
-      routes = [];
-    }
-
-    // never fatal, for the same reason as the routes: a summary block that
-    // moved must not cost the player their export
-    var sobs = [];
-    try {
-      sobs = srsReadSobs();
-    } catch (err) {
-      sobs = [];
-    }
-
-    var payload = { rows: rows, routes: routes, sobs: sobs };
+    var payload = { rows: rows };
     try {
       scriptCache.put(SRS_CACHE_KEY, JSON.stringify(payload), SRS_CACHE_SECONDS);
     } catch (err) {
@@ -142,118 +113,6 @@ function doPost(e) {
  * NFC, collapsed whitespace, U+FE0F stripped, lowercased. Emoji are NOT stripped:
  * "Depths 📼 RTM" and "Depths 💙+📼 RTM" are distinct rows.
  */
-/**
- * The route the player runs, per category, from the Home Page tab: a row
- * labelled "Category" and one labelled "Route", read as columns.
- *
- * The rows are searched for rather than addressed by number, the same lesson
- * srsFindHeader learned: a tab gains a row and everything below it moves.
- * A category with no route in it is left out rather than reported empty.
- */
-function srsReadRoutes() {
-  var sheet = SpreadsheetApp.getActive().getSheetByName(SRS_HOME_TAB);
-  if (!sheet) {
-    return [];
-  }
-
-  // display values, not raw ones: "100%" is the number 1 with a percent format,
-  // and getValues hands back 1, which names no category
-  var values = sheet.getDataRange().getDisplayValues();
-  var categoryRow = -1;
-  var routeRow = -1;
-  for (var i = 0; i < values.length; i++) {
-    var label = srsNorm(values[i][0]);
-    if (label === 'category' && categoryRow < 0) {
-      categoryRow = i;
-    } else if (label === 'route' && routeRow < 0) {
-      routeRow = i;
-    }
-  }
-
-  if (categoryRow < 0 || routeRow < 0) {
-    return [];
-  }
-
-  var out = [];
-  for (var c = 1; c < values[categoryRow].length; c++) {
-    var category = String(values[categoryRow][c] == null ? '' : values[categoryRow][c]).trim();
-    var route = c < values[routeRow].length
-      ? String(values[routeRow][c] == null ? '' : values[routeRow][c]).trim()
-      : '';
-    if (category && route) {
-      out.push({ category: category, route: route });
-    }
-  }
-
-  return out;
-}
-
-/**
- * The chapter totals from each category tab's summary block: the "Checkpoints"
- * table, whose "Segment" column names a chapter and whose "Chapter Time" column
- * holds that chapter's sum of best.
- *
- * The block is found by its header rather than addressed by number, like
- * srsFindHeader and srsReadRoutes: the rows move with the route.
- *
- * A row whose Segment is blank is a chapter the route does not visit -- the
- * cells are formulas keyed on the route in A2, and they render empty. So a
- * blank row is skipped rather than read as the end of the table. What ends it
- * is the next section title ("IL's"), which is a Segment with no Chapter Time.
- *
- * The route in A2 comes back with the totals on purpose: the whole block is
- * computed for that route, so a caller showing another one must not use them.
- */
-function srsReadSobs() {
-  var out = [];
-  SRS_CATEGORY_TABS.forEach(function (name) {
-    var sheet = SpreadsheetApp.getActive().getSheetByName(name);
-    if (!sheet) {
-      return;
-    }
-
-    // display values for the same reason as everywhere else: these cells are
-    // formatted durations, and the raw value is a fraction of a day
-    var values = sheet.getDataRange().getDisplayValues();
-    var header = -1;
-    var segCol = -1;
-    for (var i = 0; i < values.length && header < 0; i++) {
-      for (var c = 0; c < values[i].length - 1; c++) {
-        if (srsNorm(values[i][c]) === 'segment' && srsNorm(values[i][c + 1]) === 'chapter time') {
-          header = i;
-          segCol = c;
-          break;
-        }
-      }
-    }
-
-    if (header < 0) {
-      return;
-    }
-
-    var chapters = [];
-    for (var r = header + 1; r < values.length; r++) {
-      var segment = String(values[r][segCol] == null ? '' : values[r][segCol]).trim();
-      var time = String(values[r][segCol + 1] == null ? '' : values[r][segCol + 1]).trim();
-      if (!segment) {
-        continue;   // a chapter this route does not visit
-      }
-      if (!time) {
-        break;      // a section title: the end of the Checkpoints table
-      }
-      chapters.push({ segment: segment, time: time });
-    }
-
-    out.push({
-      category: name,
-      route: String(values.length > 1 && values[1][0] != null ? values[1][0] : '').trim(),
-      chapters: chapters
-    });
-  });
-
-  return out;
-}
-
 function srsNorm(value) {
   return String(value == null ? '' : value)
     .normalize('NFC')

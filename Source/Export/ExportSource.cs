@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -9,82 +8,71 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// never sets NumberOfRooms, so SpeedrunTool's own PBs are cut on the player's
 /// setting and do not describe sheet segments.
 internal static class ExportSource {
-    /// The chapter the player is in, as rows, in sheet order: the checkpoints
-    /// the route plays there, and nothing else. A route names its segments, so
-    /// there is no variant to resolve here -- "Depths Tape" and "Depths" are
-    /// two names, and a route holds one of them.
+    /// The one row there is to export: the segment the mod has selected, when
+    /// this session holds a run of it. The screen is an export screen and not a
+    /// way of looking at the sheet -- a row carrying no run has nothing to write
+    /// and nothing to decide.
     ///
-    /// A null route, or the "All" entry, filters nothing: every row of the
-    /// chapter shows, variants side by side.
-    ///
-    /// Most rows carry no run: they are the sheet, shown. Only the checkpoint
-    /// this session holds a time for has anything to write.
-    public static List<PendingUpdate> Collect(Session session, SheetRoute route) {
+    /// ⚠️ The chapter is checked here and cannot be left to SessionBests. Its
+    /// key is (scope, game checkpoint), and GameNameOf takes a name without a
+    /// chapter, so "Start" resolves to the same anchor in every chapter that has
+    /// one. Walking the whole sheet and keeping what the held run answers to
+    /// therefore returns the Start row of 1a, 2a, 3a, 4a, 8a and Farewell at
+    /// once, most of them ticked, and confirming writes one run into six
+    /// chapters. Seen on screen on 2026-08-30.
+    public static List<PendingUpdate> Collect(Session session) {
         List<PendingUpdate> updates = [];
-        SheetBlock block = SheetImporter.Data?.CheckpointBlock;
-        string scope = SegmentAutoDetect.ScopeOf(session);
-        if (block == null || scope == null) {
-            return updates;
-        }
 
         // the one place a held run is read, so the one place worth checking it
         // still belongs to the chapter the player is in
         SessionBests.DropIfElsewhere(session);
 
-        string chapter = SegmentAutoDetect.ChapterOf(session);
-        IReadOnlyList<string> played = route is { FiltersRows: true } ? route.Checkpoints(scope) : null;
-
-        // parallel to updates: an "All" view lists a checkpoint's variants side
-        // by side, and the held run answers to all of them
-        List<string> anchors = [];
-
-        foreach (SheetSegment segment in InOrder(block, chapter, played)) {
-            if (!SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)) {
-                continue;
-            }
-
-            // no anchor in this scope means the other side of a folded chapter,
-            // which is made of runs this player cannot have just done
-            string anchor = SegmentAutoDetect.GameNameOf(scope, segment.Name);
-            if (anchor == null) {
-                continue;
-            }
-
-            long ticks = SessionBests.TryGet(segment, session, out long held) ? held : 0L;
-            updates.Add(Build(row, segment, ticks, session));
-            anchors.Add(anchor);
+        SheetSegment segment = SegmentSelector.Current;
+        if (segment == null
+            || segment.Chapter != SegmentAutoDetect.ChapterOf(session)
+            || !SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)
+            || !SessionBests.TryGet(segment, session, out long ticks)) {
+            return updates;
         }
 
-        PendingUpdate.UntickSharedCheckpoints(updates, anchors);
+        updates.Add(Build(row, segment, ticks, session));
         return updates;
     }
 
-    /// A route's rows in the order it plays them, which is the order its
-    /// category tab lists them and not the order the standards tab does: a
-    /// 2a-heart route visits the chapter for the heart before playing it, and
-    /// the standards tab has the plain row first. Falls back to sheet order
-    /// where there is no route to ask, which is what "All" wants.
-    private static IEnumerable<SheetSegment> InOrder(SheetBlock block, string chapter,
-        IReadOnlyList<string> played) {
-        if (played == null) {
-            return block.Segments.Where(segment => segment.Chapter == chapter);
+    /// The mappable segments anchored on the same game checkpoint, in sheet
+    /// order. Auto-detect cannot tell those apart, since they start in the same
+    /// room, and this is what the export screen offers to retarget onto: the
+    /// pairs the feature was written for, {Hollows, Hollows Tape} and its like.
+    /// The whole chapter would be wrong here, not merely wide: on 7a it offers
+    /// seven rows that begin at seven different checkpoints, and two arrow
+    /// presses write the time of 0m into the row of 3000m, which the script
+    /// accepts because it only checks that the row exists.
+    public static List<SheetSegment> CandidatesFor(SheetSegment segment, Session session) {
+        List<SheetSegment> candidates = [];
+        SheetBlock block = SheetImporter.Data?.CheckpointBlock;
+        if (block == null || segment == null) {
+            return candidates;
         }
 
-        Dictionary<string, SheetSegment> byName = [];
-        foreach (SheetSegment segment in block.Segments) {
-            if (segment.Chapter == chapter) {
-                byName[segment.Name] = segment;
+        string scope = SegmentAutoDetect.ScopeOf(session);
+        string anchor = SegmentAutoDetect.GameNameOf(scope, segment.Name);
+        if (anchor == null) {
+            // no game checkpoint behind this row: nothing can be said about
+            // what shares its start room, so offer nothing rather than a chapter
+            return candidates;
+        }
+
+        foreach (SheetSegment other in block.Segments) {
+            if (other.Chapter != segment.Chapter
+                || !SheetLabels.TryMap(other.Chapter, other.Name, out _)
+                || SegmentAutoDetect.GameNameOf(scope, other.Name) != anchor) {
+                continue;
             }
+
+            candidates.Add(other);
         }
 
-        List<SheetSegment> ordered = [];
-        foreach (string name in played) {
-            if (byName.TryGetValue(name, out SheetSegment segment)) {
-                ordered.Add(segment);
-            }
-        }
-
-        return ordered;
+        return candidates;
     }
 
     /// srs folds 6A and 6B into one chapter "6a/b" and re-prefixes only the

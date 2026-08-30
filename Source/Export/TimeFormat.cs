@@ -9,12 +9,7 @@ namespace Celeste.Mod.SpeedrunSheet;
 public static class TimeFormat {
     public static string FromTicks(long ticks) {
         TimeSpan span = TimeSpan.FromTicks(ticks);
-        // the hour branch is ours, not SpeedrunTool's: no room time reaches an
-        // hour, but a chapter's sum of best can, and "m" alone would render
-        // 1:05:00 as 5:00
-        string format = span.TotalSeconds < 60 ? "s\\.fff"
-                      : span.TotalHours < 1 ? "m\\:ss\\.fff"
-                      : "h\\:mm\\:ss\\.fff";
+        string format = span.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff";
         return span.ToString(format, CultureInfo.InvariantCulture);
     }
 

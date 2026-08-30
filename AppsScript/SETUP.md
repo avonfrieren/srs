@@ -16,14 +16,7 @@ It writes times to `A Sides`, `B+C Sides` and `Farewell`, the three tabs the she
 to fill. It never touches a category tab: those read from the three above, and writing into one
 would turn the cell manual and break its auto-fill.
 
-It also reads the `Route` row of your `Home Page` tab, so the export screen opens on the route
-you actually run rather than the first one in its list. Nothing depends on it: a sheet whose
-Home Page has moved, or has no route in a column, simply gets the first route instead.
-
-It reads one more thing, and writes none of it: the `Segment` / `Chapter Time` summary block of
-your `Any%` and `True Ending` tabs, which is where the export screen's *Sum of Best* line comes
-from. That total is your sheet's, never a sum srs does itself. Same rule as the route: a block
-that has moved or is missing just leaves the line showing `-`.
+It reads those same three tabs and nothing else.
 
 ## Deploy
 
@@ -119,9 +112,6 @@ the API. Left alone it would describe a value that is no longer in the cell.
 Nothing else is written. The
 **Standard** column is a formula and is never written; the Date is stamped by the script
 because the sheet's own auto-fill only reacts to edits made by hand.
-
-The summary block it reads for the *Sum of Best* line is found the same way, by its `Segment`
-and `Chapter Time` headers, so the rows moving with your route costs nothing.
 
 The script keeps its last answer for five minutes rather than reading your sheet again on every
 open, and throws that answer away the moment srs writes a row. So an export is never read back

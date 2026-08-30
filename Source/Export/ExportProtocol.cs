@@ -37,28 +37,6 @@ public sealed class ExportResponse {
     [JsonPropertyName("error")] public string Error { get; set; }
 }
 
-/// The route the player records on their own sheet for a category. Absent
-/// from a script older than the field, which is why nothing depends on it: it
-/// picks a better default, and its absence picks the first route instead.
-public sealed class RemoteRoute {
-    [JsonPropertyName("category")] public string Category { get; set; }
-    [JsonPropertyName("route")] public string Route { get; set; }
-}
-
-/// One chapter's sum of best, read from a category tab's summary block. The
-/// route comes with it because the block is computed for that route: under any
-/// other one these totals describe rows the screen is not showing.
-public sealed class RemoteSob {
-    [JsonPropertyName("category")] public string Category { get; set; }
-    [JsonPropertyName("route")] public string Route { get; set; }
-    [JsonPropertyName("chapters")] public List<RemoteChapterSob> Chapters { get; set; }
-}
-
-public sealed class RemoteChapterSob {
-    [JsonPropertyName("segment")] public string Segment { get; set; } = "";
-    [JsonPropertyName("time")] public string Time { get; set; } = "";
-}
-
 public sealed class RemoteRow {
     [JsonPropertyName("tab")] public string Tab { get; set; } = "";
     [JsonPropertyName("chapter")] public string Chapter { get; set; } = "";
@@ -71,8 +49,6 @@ public sealed class RemoteRow {
 
 internal sealed class RowsResponse {
     [JsonPropertyName("rows")] public List<RemoteRow> Rows { get; set; }
-    [JsonPropertyName("routes")] public List<RemoteRoute> Routes { get; set; }
-    [JsonPropertyName("sobs")] public List<RemoteSob> Sobs { get; set; }
     // how long the script itself took, so the wait can be split between its
     // work and Google's dispatch. Absent from an older script
     [JsonPropertyName("ms")] public int? Ms { get; set; }
@@ -152,22 +128,12 @@ public static class ExportProtocol {
     }
 
     public static bool TryParseRows(string body, out List<RemoteRow> rows, out string error) =>
-        TryParseRows(body, out rows, out List<RemoteRoute> _, out List<RemoteSob> _, out error);
+        TryParseRows(body, out rows, out string _, out error);
 
-    /// routes and sobs are both optional on the wire: a script older than either
-    /// field simply does not send it, and the screen falls back rather than
-    /// failing. Only rows are required, since they are what the screen is for.
-    public static bool TryParseRows(string body, out List<RemoteRow> rows,
-        out List<RemoteRoute> routes, out List<RemoteSob> sobs, out string error) =>
-        TryParseRows(body, out rows, out routes, out sobs, out string _, out error);
-
-    public static bool TryParseRows(string body, out List<RemoteRow> rows,
-        out List<RemoteRoute> routes, out List<RemoteSob> sobs, out string scriptTiming,
+    public static bool TryParseRows(string body, out List<RemoteRow> rows, out string scriptTiming,
         out string error) {
         scriptTiming = null;
         rows = null;
-        routes = [];
-        sobs = [];
         if (!Guard(body, out error)) {
             return false;
         }
@@ -191,8 +157,6 @@ public static class ExportProtocol {
             return false;
         }
         rows = wrapper.Rows;
-        routes = wrapper.Routes ?? [];
-        sobs = wrapper.Sobs ?? [];
         scriptTiming = wrapper.Ms is { } ms
             ? $"{ms} ms in the script{(wrapper.Cached ? ", cached" : "")}"
             : "script timing unknown";

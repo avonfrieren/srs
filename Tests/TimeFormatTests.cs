@@ -35,18 +35,6 @@ public class TimeFormatTests {
         Assert.Equal("0.000", TimeFormat.FromTicks(0));
     }
 
-    // aucun temps de room n'atteint l'heure, mais une somme de best si : sans
-    // la branche des heures, "m" rendrait 1:05:00 en "5:00"
-    [Fact]
-    public void AnHourGetsItsOwnComponent() {
-        Assert.Equal("1:05:33.250", TimeFormat.FromTicks(TimeSpan.FromSeconds(3933.25).Ticks));
-    }
-
-    [Fact]
-    public void JustUnderAnHourStaysInMinutes() {
-        Assert.Equal("59:59.999", TimeFormat.FromTicks(TimeSpan.FromSeconds(3599.999).Ticks));
-    }
-
     [Fact]
     public void DeltaIsSignedSecondsEvenPastAMinute() {
         Assert.Equal("-73.500", TimeFormat.Delta(-TimeSpan.FromSeconds(73.5).Ticks));

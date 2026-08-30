@@ -9,31 +9,70 @@ namespace Celeste.Mod.SpeedrunSheet;
 
 /// One checkbox row of the export screen. TextMenu has no built-in item for this.
 internal sealed class UpdateRow : TextMenu.Item {
+    // LiveSplit's default ahead/behind colours
+    private static readonly Color Ahead = Calc.HexToColor("00CC36");
+    private static readonly Color Behind = Calc.HexToColor("CC1200");
+
     private readonly ExportColumns columns;
     private readonly bool odd;
-    // the list Submit reads. Rows read through it rather than holding their own
-    // copy, so what is shown and what is written cannot drift apart
+    // the list Submit reads: retargeting replaces this row's entry in it, so
+    // reading through the list is what keeps the two in step
     private readonly List<PendingUpdate> slot;
     private readonly int index;
 
+    private readonly List<SheetSegment> candidates;
+    private readonly Session session;
+    private int candidate;
+
     public PendingUpdate Update => slot[index];
 
-    public UpdateRow(List<PendingUpdate> slot, int index, ExportColumns columns, bool odd) {
+    public UpdateRow(List<PendingUpdate> slot, int index, ExportColumns columns, bool odd, Session session) {
         this.slot = slot;
         this.index = index;
         this.columns = columns;
         this.odd = odd;
-        // base TextMenu.Item defaults this to false; without it the cursor can
-        // never land on the row and ConfirmPressed() is never dispatched. Rows
-        // the session holds no run for are the sheet shown back: there is
-        // nothing to tick, so the cursor skips them
-        Selectable = slot[index].HasLocal;
+        this.session = session;
+        candidates = ExportSource.CandidatesFor(slot[index].Segment, session);
+        // by name, not by reference: SheetImporter.Data is reassigned from a
+        // worker and a refresh landing between Collect and here hands out fresh
+        // SheetSegment instances, which have no Equals. IndexOf would return -1
+        // and left/right would die without a word, in the first minute of a
+        // session since v3.5.0 refreshes on launch
+        candidate = candidates.FindIndex(other => other.Name == slot[index].Segment?.Name);
+        // base TextMenu.Item defaults this to false; without it the cursor
+        // can never land on the row and ConfirmPressed() is never dispatched
+        Selectable = true;
     }
 
     public override void ConfirmPressed() {
-        if (Update.HasLocal) {
-            Update.Selected = !Update.Selected;
+        Update.Selected = !Update.Selected;
+    }
+
+    // auto-detect cannot tell two segments sharing a start room apart; left and
+    // right move the time onto another row anchored on the same checkpoint
+    public override void LeftPressed() => Retarget(-1);
+    public override void RightPressed() => Retarget(1);
+
+    private bool CanRetarget => candidates.Count > 1 && candidate >= 0;
+
+    private void Retarget(int direction) {
+        if (!CanRetarget) {
+            return;
         }
+
+        candidate = (candidate + direction + candidates.Count) % candidates.Count;
+        SheetSegment segment = candidates[candidate];
+        if (!SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)) {
+            return;
+        }
+
+        PendingUpdate next = ExportSource.Build(row, segment, Update.LocalTicks, session);
+        // carry the tick over, but never onto a row it would not improve: the
+        // screen promises to start unticked when it would not, and one arrow
+        // press must not be what takes that promise back
+        next.Selected = Update.Selected && next.WillImprove;
+        slot[index] = next;
+        Audio.Play(direction < 0 ? "event:/ui/main/rollover_up" : "event:/ui/main/rollover_down");
     }
 
     public override float LeftWidth() => columns.TotalWidth;
@@ -50,12 +89,14 @@ internal sealed class UpdateRow : TextMenu.Item {
             : Color.White * ((odd ? 0.09f : 0.04f) * alpha);
         ExportColumns.Band(position, Container.Width, band);
 
-        if (update.HasLocal) {
-            ExportColumns.Checkbox(position, update.Selected, Color.White * alpha);
+        ExportColumns.Checkbox(position, update.Selected, Color.White * alpha);
+
+        Color text = Color.White * alpha;
+        ExportColumns.Text(update.Label, position, columns.LabelX, text, alpha, left: true);
+        if (CanRetarget && highlighted) {
+            ExportColumns.Arrows(position, columns, update.Label, text, alpha);
         }
 
-        Color text = (update.HasLocal ? Color.White : Color.Gray) * alpha;
-        ExportColumns.Text(update.Label, position, columns.LabelX, text, alpha, left: true);
         ExportColumns.Text(update.RemoteText, position, columns.RemoteX, Color.Gray * alpha, alpha);
         ExportColumns.Text(update.LocalText, position, columns.LocalX, text, alpha);
         ExportColumns.Text(update.DeltaText, position, columns.DeltaX, DeltaColor(update) * alpha, alpha);
@@ -70,51 +111,13 @@ internal sealed class UpdateRow : TextMenu.Item {
             return Color.Gray;
         }
 
-        return update.LocalTicks < update.RemoteTicks.Value
-            ? ExportColumns.Ahead : ExportColumns.Behind;
+        return update.LocalTicks < update.RemoteTicks.Value ? Ahead : Behind;
     }
 }
 
-/// A line of the second header: what the table is a view of. Drawn at the
-/// table's scale rather than as a menu Option, which reads as a setting --
-/// this is the table's chrome, and nothing chosen here is written to
-/// SrsSettings.
-internal sealed class ViewControls : TextMenu.Item {
-    private readonly ExportColumns columns;
-    private readonly Func<string> label;
-    private readonly Action<int> cycle;
-
-    public ViewControls(ExportColumns columns, Func<string> label, Action<int> cycle) {
-        this.columns = columns;
-        this.label = label;
-        this.cycle = cycle;
-        Selectable = true;
-    }
-
-    public override void LeftPressed() => Cycle(-1);
-    public override void RightPressed() => Cycle(1);
-
-    private void Cycle(int direction) {
-        cycle(direction);
-        Audio.Play(direction < 0 ? "event:/ui/main/rollover_up" : "event:/ui/main/rollover_down");
-    }
-
-    public override float LeftWidth() => columns.TotalWidth;
-    public override float Height() => ExportColumns.RowHeight;
-
-    public override void Render(Vector2 position, bool highlighted) {
-        float alpha = Container.Alpha;
-        Color color = (highlighted ? Color.White : Color.Gray) * alpha;
-        string text = label();
-
-        float x = (Container.Width - ExportColumns.TextWidth(text)) / 2f;
-        ExportColumns.Text(text, position, x, color, alpha, left: true);
-        if (highlighted) {
-            ExportColumns.ArrowsAt(position, x, text, color, alpha);
-        }
-    }
-}
-
+/// The column titles, over the chapter they belong to. TextMenu moves the whole
+/// menu when it scrolls, so a single header at the top goes with it; repeating
+/// it is what a grouped spreadsheet does.
 internal sealed class GroupRow(ExportColumns columns, string label) : TextMenu.Item {
     public override float LeftWidth() => columns.TotalWidth;
     public override float Height() => ExportColumns.RowHeight;
@@ -126,67 +129,12 @@ internal sealed class GroupRow(ExportColumns columns, string label) : TextMenu.I
         ExportColumns.Rule(position, Container.Width, -Height() / 2f, alpha);
         ExportColumns.Rule(position, Container.Width, Height() / 2f, alpha);
 
-        // the chapter the rows below belong to: with one row on screen it is
-        // the only place it appears, the row labels having dropped it
+        // the chapter the rows below belong to: the row labels have dropped it
+        // on the folded chapters, and never carried it on Farewell
         ExportColumns.Text(label, position, columns.LabelX, color, alpha, left: true);
         ExportColumns.Text(Dialog.Clean("SRS_EXPORT_COL_SHEET"), position, columns.RemoteX, color, alpha);
         ExportColumns.Text(Dialog.Clean("SRS_EXPORT_COL_LOCAL"), position, columns.LocalX, color, alpha);
         ExportColumns.Text(Dialog.Clean("SRS_EXPORT_COL_DELTA"), position, columns.DeltaX, color, alpha);
-    }
-}
-
-/// The chapter's sum of best, closing the table the way a spreadsheet closes a
-/// column: the number the sheet holds today, and what the ticked rows would
-/// leave it with. Reads the live row list rather than a copy, so ticking a row
-/// moves the total on the same frame.
-///
-/// sheetTotal is fixed for the life of the item: it only changes when the fetch
-/// lands or the view moves, and both rebuild the menu.
-internal sealed class SumRow(List<PendingUpdate> slot, ExportColumns columns, string sheetTotal)
-    : TextMenu.Item {
-    private const string Missing = "-";
-
-    public override float LeftWidth() => columns.TotalWidth;
-    public override float Height() => ExportColumns.RowHeight;
-
-    public override void Render(Vector2 position, bool highlighted) {
-        float alpha = Container.Alpha;
-        SumOfBest sum = SumOfBest.Of(slot, sheetTotal);
-
-        ExportColumns.Rule(position, Container.Width, -Height() / 2f, alpha);
-
-        ExportColumns.Text(Dialog.Clean("SRS_EXPORT_SOB"), position, columns.LabelX,
-            Color.Gray * alpha, alpha, left: true);
-
-        // the sheet has no total for this chapter, or none it will show: while
-        // the fetch is in flight, on a route the sheet is not set to, and where
-        // it declines to sum a chapter a checkpoint is missing from
-        if (!sum.Known) {
-            ExportColumns.Text(Missing, position, columns.RemoteX, Color.Gray * alpha, alpha);
-            return;
-        }
-
-        ExportColumns.Text(TimeFormat.FromTicks(sum.SheetTicks), position, columns.RemoteX,
-            Color.Gray * alpha, alpha);
-
-        // a ticked row we cannot read the sheet side of: the same "?" the row
-        // itself shows, and for the same reason -- the saving is unknowable
-        if (sum.ProjectedTicks is not { } projected) {
-            ExportColumns.Text("?", position, columns.DeltaX, Color.Gray * alpha, alpha);
-            return;
-        }
-
-        // nothing ticked leaves the two totals equal: the projection and its
-        // delta would only repeat the column beside them
-        long delta = projected - sum.SheetTicks;
-        if (delta == 0L) {
-            return;
-        }
-
-        ExportColumns.Text(TimeFormat.FromTicks(projected), position, columns.LocalX,
-            Color.White * alpha, alpha);
-        ExportColumns.Text(TimeFormat.Delta(delta), position, columns.DeltaX,
-            delta < 0L ? ExportColumns.Ahead * alpha : ExportColumns.Behind * alpha, alpha);
     }
 }
 
@@ -219,10 +167,6 @@ internal sealed class ExportColumns {
     // without it the checkbox sits on the left edge and the delta column ends on
     // the right one, both touching the grid they are inside
     private const float Pad = 24f;
-
-    // LiveSplit's default ahead/behind colours
-    public static readonly Color Ahead = Calc.HexToColor("00CC36");
-    public static readonly Color Behind = Calc.HexToColor("CC1200");
 
     // the journal's table scale; 0.6 is TextMenu.SubHeader's, sized for menu
     // chrome rather than for a forty-row table
@@ -275,24 +219,22 @@ internal sealed class ExportColumns {
     /// The "< label >" affordance vanilla's Option draws, on the label cell.
     /// Both are drawn from their left edge, so the left one is pulled back by
     /// its own width to leave a real gap rather than butt against the checkbox.
-    public static void ArrowsAt(Vector2 position, float x, string label, Color color, float alpha) {
-        Text("<", position, x - Gap - ArrowWidth, color, alpha, left: true);
-        Text(">", position, x + Width(label) + Gap, color, alpha, left: true);
+    public static void Arrows(Vector2 position, ExportColumns columns, string label, Color color, float alpha) {
+        Text("<", position, columns.LabelX - Gap - ArrowWidth, color, alpha, left: true);
+        Text(">", position, columns.LabelX + Width(label) + Gap, color, alpha, left: true);
     }
-
-    public static float TextWidth(string text) => Width(text);
-
-    /// Centred on the whole menu rather than aligned with the label column: the
-    /// view's own controls head the table, they are not a row of it.
-    public static void Centered(string text, Vector2 position, float width, Color color, float alpha) =>
-        Text(text, position, (width - Width(text)) / 2f, color, alpha, left: true);
 
     private static float Width(string text) => ActiveFont.Measure(text).X * Scale;
 
-    public static ExportColumns Measure(List<PendingUpdate> updates, bool withSum = false) {
+    public static ExportColumns Measure(List<PendingUpdate> updates, Session session) {
         List<string> labels = [];
         foreach (PendingUpdate u in updates) {
             labels.Add(u.Label);
+            // every row the arrows can reach, so the column does not resize
+            // under a retarget
+            foreach (SheetSegment other in ExportSource.CandidatesFor(u.Segment, session)) {
+                labels.Add(ExportSource.DisplayName(other, session));
+            }
         }
 
         // floors, so a column does not resize when the fetch lands and the
@@ -309,20 +251,15 @@ internal sealed class ExportColumns {
             label = Math.Max(label, Width(text));
         }
 
-        // the total's own label, which is wider than a checkpoint name in a
-        // short chapter
-        if (withSum) {
-            label = Math.Max(label, Width(Dialog.Clean("SRS_EXPORT_SOB")));
-        }
+        // the trailing arrow lives inside the label column, so the times never
+        // move when it appears; the leading one is budgeted in labelX below
+        label += Gap + ArrowWidth;
         foreach (PendingUpdate u in updates) {
             remote = Math.Max(remote, Width(u.RemoteText));
             local = Math.Max(local, Width(u.LocalText));
             delta = Math.Max(delta, Width(u.DeltaText));
         }
-        // the row arrows this used to budget for are gone: retargeting a row is
-        // done from the view's own controls now, and the space they held was
-        // left sitting between the checkbox and the labels
-        float labelX = Pad + RowHeight * BoxRatio + Gap;
+        float labelX = Pad + RowHeight * BoxRatio + Gap + ArrowWidth + Gap;
         float remoteX = labelX + label + Gap + remote;   // right edge
         float localX = remoteX + Gap + local;            // right edge
         return new ExportColumns {
@@ -382,37 +319,6 @@ internal static class ExportMenu {
     // consumed on the game thread by the Level.Update hook — TextMenu must
     // never be touched off the game thread
     private static volatile bool queuedRebuild;
-    // set by the category control; consumed on the game thread like the rest,
-    // and a full rebuild rather than a refresh because "All" changes the row
-    // count and the menu items are built one per row
-    private static volatile bool queuedRecollect;
-
-    // what the table is a view of. Null is "All", which lists every variant
-    // instead of one route's. Neither this nor the route is ever written to
-    // SrsSettings: the screen is a way of looking at the sheet, not a way of
-    // setting the mod
-    private static string viewCategory;
-    private static int routeIndex;
-
-    // the chapter the open screen is a view of. Both controls only ever offer
-    // what goes there: a category or a route that does not visit this chapter
-    // has nothing to show in it, and offering it is offering a dead end
-    private static string viewScope;
-
-    // true once the player has picked a view for themselves. Until then the
-    // route their own sheet records is applied when the fetch brings it back,
-    // which lands after the screen is already up
-    private static bool viewChosenByPlayer;
-
-    private static SheetRoute[] Routes => viewCategory == null
-        ? []
-        : [.. SheetRoutes.Of(viewCategory).Where(route => route.Covers(viewScope))];
-
-    /// the route the table is filtered to, null where the category itself is
-    /// "All" and every variant of the chapter shows
-    private static SheetRoute CurrentRoute =>
-        Routes is { Length: > 0 } routes ? routes[Math.Clamp(routeIndex, 0, routes.Length - 1)] : null;
-
     private static volatile bool queuedSummary;
     private static List<string> summaryLines;
 
@@ -481,17 +387,13 @@ internal static class ExportMenu {
         }
 
         if (!ExportProtocol.TryParseRows(body, out List<RemoteRow> rows,
-                out List<RemoteRoute> known, out List<RemoteSob> totals,
                 out string scriptTiming, out string parseError)) {
             Fail(parseError, ownedByAScreen);
             return;
         }
 
-        RemoteBests.Accept(rows, known, totals);
-        Logger.Log(LogLevel.Info, LogTag,
-            $"sheet answered: {rows.Count} rows, {scriptTiming},"
-            + $" routes [{string.Join(", ", known.Select(r => $"{r.Category}={r.Route}"))}],"
-            + $" totals [{string.Join(", ", totals.Select(t => $"{t.Category}/{t.Route}={t.Chapters?.Count ?? 0}"))}]");
+        RemoteBests.Accept(rows);
+        Logger.Log(LogLevel.Info, LogTag, $"sheet answered: {rows.Count} rows, {scriptTiming}");
     }
 
     private static void Fail(string error, bool ownedByAScreen) {
@@ -547,28 +449,12 @@ internal static class ExportMenu {
             }
         }
 
-        // the menu may have been closed by the player between a background
-        // task finishing and this frame running; nothing to do then
-        if (queuedRecollect) {
-            queuedRecollect = false;
-            if (menu != null) {
-                // the cursor stays where the player left it: changing the view
-                // is not a reason to send them back to the top of the table
-                Build(self, ExportSource.Collect(self.Session, CurrentRoute), menu.Selection);
-            }
-        }
-
+        // the menu may have been closed by the player between the fetch
+        // resolving and this frame running; nothing to do then
         if (queuedRebuild) {
             queuedRebuild = false;
-            // the fetch carries the player's own route, and it lands before the
-            // first table is built: the rows are collected once, for the right
-            // route, against sheet values that are already there
-            if (AdoptTheSheetsRoute()) {
-                Logger.Log(LogLevel.Info, LogTag, $"view moved to the route the sheet records: {CurrentRoute?.Name}");
-            }
-
             if (menu != null && awaitingRows) {
-                Build(self, ExportSource.Collect(self.Session, CurrentRoute));
+                Build(self, ExportSource.Collect(self.Session));
             }
         }
 
@@ -587,25 +473,13 @@ internal static class ExportMenu {
             return;
         }
 
-        // a refresh that has landed already carries the route the player's own
-        // sheet records, so this opens on the right one rather than on the
-        // first of the category
-        viewScope = SegmentAutoDetect.ScopeOf(level.Session);
-        OpenOnTheModsOwnView();
-        List<PendingUpdate> updates = ExportSource.Collect(level.Session, CurrentRoute);
+        List<PendingUpdate> updates = ExportSource.Collect(level.Session);
         Logger.Log(LogLevel.Info, LogTag,
-            $"export view: {SegmentAutoDetect.ChapterOf(level.Session)} scope={viewScope}"
-            // the mod's own category next to the view's: they part company when
-            // the selected one does not come here, and that move is otherwise
-            // invisible -- the view simply opens on something else
-            + $" setting={SrsModule.Settings.Category} category={viewCategory ?? "All"}"
-            + $" route={CurrentRoute?.Name ?? "-"}"
-            + $" rows={updates.Count} withRun={updates.Count(u => u.HasLocal)} held={SessionBests.Describe()}");
-        // the chapter, unfiltered: a route that shows nothing here is a view of
-        // the sheet like any other, and the player can move off it from inside
-        // the screen. Only a chapter with no imported row at all has nothing to
-        // open, and that is what the message says
-        if (updates.Count == 0 && ExportSource.Collect(level.Session, null).Count == 0) {
+            $"export: scope={SegmentAutoDetect.ScopeOf(level.Session)}"
+            + $" rows={updates.Count} held={SessionBests.Describe()}");
+        // nothing run this session, or a run whose segment does not map to a
+        // row: either way there is nothing to export and no screen to show
+        if (updates.Count == 0) {
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NOTHING"), null);
             return;
         }
@@ -666,7 +540,6 @@ internal static class ExportMenu {
         // if a background fetch/submit resolves after Close(), its queued
         // rebuild/summary would otherwise fire against a freshly reopened menu
         queuedRebuild = false;
-        queuedRecollect = false;
         queuedSummary = false;
         summaryLines = null;
         // a POST may still be in flight; the generation check in its
@@ -695,19 +568,12 @@ internal static class ExportMenu {
 
     /// keepSelection is the row the cursor was on, for a rebuild that leaves
     /// the table's shape alone. Without one the screen opens on the run itself.
-    private static void Build(Level level, List<PendingUpdate> updates, int? keepSelection = null) {
+    private static void Build(Level level, List<PendingUpdate> updates) {
         awaitingRows = false;
-        bool withSum = ShowsSum;
-        ExportColumns columns = ExportColumns.Measure(updates, withSum);
+        ExportColumns columns = ExportColumns.Measure(updates, level.Session);
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
         newMenu.Add(new TextMenu.SubHeader(StatusLine()));
-
-        newMenu.Add(new ViewControls(columns, CategoryLabel, CycleCategory));
-        // its own line, and only where the category has more than one way through
-        if (Routes.Length > 1) {
-            newMenu.Add(new ViewControls(columns, RouteLabel, CycleRoute));
-        }
 
         string chapter = null;
         bool odd = false;
@@ -719,24 +585,16 @@ internal static class ExportMenu {
                 newMenu.Add(new GroupRow(columns, group));
             }
 
-            newMenu.Add(new UpdateRow(updates, i, columns, odd));
+            newMenu.Add(new UpdateRow(updates, i, columns, odd, level.Session));
             odd = !odd;
-        }
-
-        if (withSum) {
-            newMenu.Add(new SumRow(updates, columns,
-                RemoteBests.Sob(viewCategory, CurrentRoute?.Name,
-                    SegmentAutoDetect.ScopeOf(level.Session))));
         }
 
         newMenu.Add(new TableFooter(columns));
 
-        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = true };
+        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = !RemoteBests.IsResolved };
         exportButton.OnUpdate = () => {
             exportButton.Label = ExportLabel(updates);
-            // most rows are the sheet shown back, with nothing to write: the
-            // button stays dead until something is actually ticked
-            exportButton.Disabled = !RemoteBests.IsResolved || !updates.Any(u => u.Selected);
+            exportButton.Disabled = !RemoteBests.IsResolved;
         };
         exportButton.Pressed(() => Submit(level, updates));
         newMenu.Add(exportButton);
@@ -746,120 +604,6 @@ internal static class ExportMenu {
         newMenu.Add(cancelButton);
 
         Show(level, newMenu);
-        newMenu.Selection = keepSelection is { } kept
-            ? Math.Clamp(kept, 0, newMenu.Items.Count - 1)
-            : RowCarryingTheRun(newMenu);
-    }
-
-    /// The row the screen opens on: the one carrying this session's run, so the
-    /// cursor lands on what there is to do rather than on the table's own
-    /// controls. Where an "All" view puts a checkpoint's variants side by side
-    /// they all carry it, and the first is as good a place to start as any --
-    /// which of them to tick stays the player's call (UntickSharedCheckpoints).
-    ///
-    /// Falls back to whatever TextMenu picked, which is the category line: with
-    /// no run to export, changing the view is the only thing left to do here.
-    private static int RowCarryingTheRun(TextMenu built) {
-        for (int i = 0; i < built.Items.Count; i++) {
-            if (built.Items[i] is UpdateRow row && row.Update.HasLocal) {
-                return i;
-            }
-        }
-
-        return built.Selection;
-    }
-
-    // the sheet's categories that visit this chapter, then All. Any% stops at
-    // 7A, so in Farewell the list is True Ending and All, and that is the whole
-    // truth about what there is to look at there
-    private static string[] ViewModes =>
-        [.. SheetRoutes.Categories.Where(GoesHere), null];
-
-    private static bool GoesHere(string category) =>
-        SheetRoutes.Of(category).Any(route => route.Covers(viewScope));
-
-    /// The sheet totals one route at a time, so the line is shown for one route
-    /// at a time. Both "All" views put a checkpoint's variants side by side --
-    /// "Depths" next to "Depths Tape" -- and the sheet has no total for such a
-    /// list. Picking a route the sheet is not set to leaves the line showing
-    /// "-" rather than another route's number; that check is in RemoteBests.Sob.
-    private static bool ShowsSum =>
-        viewCategory != null && CurrentRoute is { Name: not SheetRoutes.AllRoutes };
-
-    /// opens on what the mod itself thinks the player is running, so the table
-    /// agrees with the tier row under the timer until the player says otherwise
-    private static void OpenOnTheModsOwnView() {
-        // DTS is a route now, not a category: both True Ending settings open
-        // on the same category, and the route below decides which of them
-        viewCategory = SrsModule.Settings.Category switch {
-            SegmentCategory.TrueEnding or SegmentCategory.TrueEndingDts => "True Ending",
-            _ => "Any%",
-        };
-
-        // unless it does not come here. Any% stops at 7A, and opening on it in
-        // Farewell used to leave the table empty and the screen refusing to
-        // open -- with the control for picking another category inside the
-        // screen that was refusing
-        if (!GoesHere(viewCategory)) {
-            viewCategory = Array.Find(ViewModes, mode => mode != null) ?? null;
-        }
-
-        // the first route of the category until the player's own sheet says
-        // which one they run, which arrives with the fetch
-        routeIndex = 0;
-        viewChosenByPlayer = false;
-        AdoptTheSheetsRoute();
-    }
-
-    private static string CategoryLabel() =>
-        $"{Dialog.Clean("SRS_EXPORT_CATEGORY")}  " +
-        (viewCategory ?? Dialog.Clean("SRS_EXPORT_CATEGORY_ALL"));
-
-    private static string RouteLabel() =>
-        $"{Dialog.Clean("SRS_EXPORT_ROUTE")}  {CurrentRoute?.Name}";
-
-    /// The route the player records on their own sheet, once the fetch has
-    /// brought it back. Their own pick always wins: this only ever fills in a
-    /// default they have not overridden.
-    ///
-    /// True when it actually moved the view, which means the rows have to be
-    /// collected again rather than merely refreshed.
-    private static bool AdoptTheSheetsRoute() {
-        if (viewChosenByPlayer) {
-            return false;
-        }
-
-        string recorded = RemoteBests.RouteFor(viewCategory);
-        int at = recorded == null
-            ? -1
-            : Array.FindIndex(Routes, route =>
-                string.Equals(route.Name, recorded, StringComparison.OrdinalIgnoreCase));
-        if (at < 0 || at == routeIndex) {
-            return false;
-        }
-
-        routeIndex = at;
-        return true;
-    }
-
-    private static void CycleCategory(int direction) {
-        string[] modes = ViewModes;
-        int at = Array.IndexOf(modes, viewCategory);
-        viewCategory = modes[(at + direction + modes.Length) % modes.Length];
-        routeIndex = 0;
-        // a category the player chose still takes its route from the sheet:
-        // only picking a route is a statement about the route
-        AdoptTheSheetsRoute();
-        queuedRecollect = true;
-    }
-
-    private static void CycleRoute(int direction) {
-        int count = Routes.Length;
-        if (count > 0) {
-            routeIndex = (routeIndex + direction + count) % count;
-            viewChosenByPlayer = true;
-            queuedRecollect = true;
-        }
     }
 
     // the sheet's own labels, never translated. Most checkpoint labels already

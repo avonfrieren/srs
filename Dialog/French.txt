@@ -34,14 +34,7 @@ SRS_KEYBIND_NO_CONTROLLER= Aucune manette connectée
 # Export vers la sheet
 MODOPTIONS_SRS_OPENEXPORTMENU= Ouvrir l'export vers la sheet
 SRS_EXPORT_TITLE=           Export vers la practice sheet
-SRS_EXPORT_CATEGORY=Categorie
-SRS_EXPORT_CATEGORY_ALL=Tout
-SRS_EXPORT_ROUTE=Route
-# Total du chapitre sous le tableau. Affiche "-" des qu'un checkpoint de la
-# route n'a pas de temps sur la sheet : la somme ne couvrirait qu'une partie,
-# et un nombre plus petit n'y est pas un meilleur temps.
-SRS_EXPORT_SOB=Somme des best
-SRS_EXPORT_NOTHING=         Aucune ligne de sheet pour ce chapitre
+SRS_EXPORT_NOTHING=         Rien à exporter : aucun segment couru cette session
 SRS_EXPORT_LOADING=         Chargement des données de la sheet...
 SRS_EXPORT_WRITING=       Écriture dans la sheet...
 SRS_EXPORT_UNREAD=        Lecture de la sheet impossible.
