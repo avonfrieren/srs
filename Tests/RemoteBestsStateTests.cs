@@ -43,7 +43,7 @@ public class RemoteBestsStateTests {
 
     [Fact]
     public void LookupStripsVariationSelectorFromRawSheetEcho() {
-        // Code.gs's doGet()/readTable() returns the RAW sheet cell text, which
+        // The Web App's doGet()/readTable() returns the RAW sheet cell text, which
         // may carry a trailing U+FE0F variation selector that SheetLabels.cs's
         // hardcoded emoji literal does not. The lookup key (built from
         // SheetLabels, no variation selector) must still find this row.

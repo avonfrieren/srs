@@ -3,9 +3,8 @@
 You need **your own copy** of the practice sheet template, and srs's endpoint inside it.
 Deploying that endpoint is what gives srs a private URL it can write your times to.
 
-`Code.gs` in this folder is that endpoint. **A copy made from the current template already
-carries it**, as `srsExport.gs`, so there is nothing to paste in: you only deploy it. A copy
-made before 2026-08-29 does not have it, and step 2 below tells you how to add it.
+**The template already carries that endpoint**, as `srsExport.gs`, so there is nothing to
+paste in: you only deploy it.
 
 Nothing in it runs until you deploy. It adds no trigger, and its two entry points are
 reachable only through a deployment URL, so an undeployed copy behaves exactly as before.
@@ -21,11 +20,8 @@ It reads those same three tabs and nothing else.
 ## Deploy
 
 1. Open your copy of the sheet, then **Extensions > Apps Script**.
-2. Look for `srsExport.gs` in the file list on the left. If it is there, skip to step 3.
-   If it is not, your copy predates it: add `Code.gs` from this folder as a **new** script
-   file, next to the sheet's own scripts. Do not replace them: the sheet needs them, and
-   this endpoint does not conflict with them (every function in it is prefixed `srs`,
-   except `doGet` and `doPost`, whose names Apps Script fixes).
+2. Check that `srsExport.gs` is in the file list on the left. If it is not, your copy
+   predates it: make a new copy from the current template.
 3. **Deploy > New deployment**. Click the gear next to *Select type* and pick **Web app**,
    then set the two fields that decide everything:
    - *Execute as*: **Me**
