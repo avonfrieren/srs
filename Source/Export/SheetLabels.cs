@@ -68,7 +68,7 @@ public static class SheetLabels {
         [("6a/b", "6b Rock Bottom")] = new(TAB_B_C_SIDES, "6b", "Rock Bottom"),
         [("6a/b", "Reprieve")] = new(TAB_B_C_SIDES, "6b", "Reprieve"),
 
-        [("7a", "0m")] = new(TAB_A_SIDES, "7a", "0m"),
+        [("7a", "7a Start")] = new(TAB_A_SIDES, "7a", "7a Start"),
         [("7a", "500m")] = new(TAB_A_SIDES, "7a", "500m"),
         [("7a", "1000m")] = new(TAB_A_SIDES, "7a", "1000m"),
         [("7a", "1500m")] = new(TAB_A_SIDES, "7a", "1500m"),

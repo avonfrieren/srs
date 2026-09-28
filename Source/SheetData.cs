@@ -142,7 +142,7 @@ public class SheetData {
         [("6a CP", "Reflection")] = ("6a/b", "Reflection"),
         [("6a CP", "Rock Bottom")] = ("6a/b", "6a Rock Bottom"),
         [("6a CP", "Resolution")] = ("6a/b", "Resolution"),
-        [("7a CP", "0m")] = ("7a", "0m"),
+        [("7a CP", "7a Start")] = ("7a", "7a Start"),
         [("7a CP", "500m")] = ("7a", "500m"),
         [("7a CP", "1000m")] = ("7a", "1000m"),
         [("7a CP", "1500m")] = ("7a", "1500m"),

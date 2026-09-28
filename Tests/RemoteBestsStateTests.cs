@@ -57,18 +57,18 @@ public class RemoteBestsStateTests {
 
     [Fact]
     public void RowsDifferingOnlyByEmojiStayDistinct() {
-        // ten such pairs exist in the sheet ("0m" / "0m \U0001F48E", every 7A
+        // ten such pairs exist in the sheet ("7a Start" / "7a Start \U0001F48E", every 7A
         // checkpoint, "Crossing" / "Crossing \U0001F499"...). Stripping emoji
         // instead of only the variation selector merges them.
         RemoteBests.Reset();
         RemoteBests.Accept([
-            new RemoteRow { Tab = "A Sides", Chapter = "7a", Cp = "0m", Time = "39.457" },
-            new RemoteRow { Tab = "A Sides", Chapter = "7a", Cp = "0m \U0001F48E", Time = "12.345" },
+            new RemoteRow { Tab = "A Sides", Chapter = "7a", Cp = "7a Start", Time = "39.457" },
+            new RemoteRow { Tab = "A Sides", Chapter = "7a", Cp = "7a Start \U0001F48E", Time = "12.345" },
         ]);
 
-        Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "7a", "0m"), out RemoteRow plain));
+        Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "7a", "7a Start"), out RemoteRow plain));
         Assert.Equal("39.457", plain.Time);
-        Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "7a", "0m \U0001F48E"), out RemoteRow gem));
+        Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "7a", "7a Start \U0001F48E"), out RemoteRow gem));
         Assert.Equal("12.345", gem.Time);
     }
 

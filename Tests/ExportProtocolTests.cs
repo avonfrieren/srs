@@ -23,14 +23,14 @@ public class ExportProtocolTests {
     [Fact]
     public void ParsesAResponse() {
         const string json = """
-            {"results":[{"tab":"A Sides","chapter":"7a","cp":"0m \uD83D\uDC8E","status":"written","reason":""}]}
+            {"results":[{"tab":"A Sides","chapter":"7a","cp":"7a Start \uD83D\uDC8E","status":"written","reason":""}]}
             """;
 
         Assert.True(ExportProtocol.TryParseResponse(json, out var response, out string error));
         Assert.Null(error);
         Assert.Single(response.Results);
         Assert.Equal("written", response.Results[0].Status);
-        Assert.Equal("0m \U0001F48E", response.Results[0].Cp);
+        Assert.Equal("7a Start \U0001F48E", response.Results[0].Cp);
     }
 
     [Fact]

@@ -78,7 +78,7 @@ public class SheetConsistencyTests {
         Assert.Equal("Hollows", SegmentAutoDetect.GameNameOf("6a", "Hollows Tape"));
         Assert.Equal("Huge Mess", SegmentAutoDetect.GameNameOf("3a", "Huge Mess Heart"));
         Assert.Equal("Start", SegmentAutoDetect.GameNameOf("Farewell", "Start DTS"));
-        Assert.Equal("Start", SegmentAutoDetect.GameNameOf("7a", "0m"));
+        Assert.Equal("Start", SegmentAutoDetect.GameNameOf("7a", "7a Start"));
         // where the sheet's name is genuinely not the game's, which is what the
         // table is for: 6B's Reflection is the sheet's "Falling"
         Assert.Equal("Reflection", SegmentAutoDetect.GameNameOf("6b", "Falling"));

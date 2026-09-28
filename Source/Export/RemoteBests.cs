@@ -76,7 +76,7 @@ public static class RemoteBests {
 
     /// Same rule as the Apps Script's norm(): NFC, collapsed whitespace, and the
     /// U+FE0F variation selector dropped. Emoji are NOT stripped — they are what
-    /// tells "0m" from "0m \U0001F48E", and ten such pairs exist in the sheet.
+    /// tells "7a Start" from "7a Start \U0001F48E", and ten such pairs exist in the sheet.
     private static string Normalize(string value) {
         if (string.IsNullOrEmpty(value)) {
             return "";
