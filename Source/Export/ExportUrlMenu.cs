@@ -28,6 +28,13 @@ public static class ExportUrlMenu {
     public static List<TextMenu.Item> CreateMenuEntries(TextMenu menu) {
         SrsSettings settings = SrsModule.Settings;
 
+        // a check's answer belongs to the visit it was asked in: the menu is
+        // rebuilt on every open, and the next one goes back to the detail line.
+        // One still out lands on this visit instead
+        if (!checking) {
+            message = null;
+        }
+
         // declared up front (unset) so each Pressed() closure below can
         // reference the others' Label/Visible/Title after a change
         TextMenu.Button setButton = new(StatusLabel(settings));
@@ -85,6 +92,10 @@ public static class ExportUrlMenu {
         // press once to arm ("Forget Sheet URL?"), press again to clear:
         // TextMenu.Button has no confirm dialog, so the two-step is one
         bool forgetArmed = false;
+        forgetButton.OnLeave = () => {
+            forgetArmed = false;
+            forgetButton.Label = Dialog.Clean("SRS_EXPORT_URL_FORGET");
+        };
         forgetButton.Pressed(() => {
             if (!forgetArmed) {
                 forgetArmed = true;
@@ -127,11 +138,16 @@ public static class ExportUrlMenu {
             }
 
             (string body, string error) = task.Result;
-            message = error != null
-                ? $"{Dialog.Clean("SRS_EXPORT_URL_CHECK_FAILED")} {error}"
-                : ExportProtocol.TryParseRows(body, out List<RemoteRow> rows, out string _)
-                    ? $"{Dialog.Clean("SRS_EXPORT_URL_CHECK_OK")} {rows.Count}"
-                    : Dialog.Clean("SRS_EXPORT_URL_CHECK_NOT_SHEET");
+            if (error != null) {
+                message = $"{Dialog.Clean("SRS_EXPORT_URL_CHECK_FAILED")} {error}";
+            } else if (ExportProtocol.TryParseRows(body, out List<RemoteRow> rows, out string _)) {
+                // the count proves the export script answered with real rows;
+                // the player has no use for the number, the log keeps it
+                Logger.Log(LogLevel.Info, LogTag, $"sheet URL check: {rows.Count} rows read");
+                message = Dialog.Clean("SRS_EXPORT_URL_CHECK_OK");
+            } else {
+                message = Dialog.Clean("SRS_EXPORT_URL_CHECK_NOT_SHEET");
+            }
             checking = false;
         });
     }

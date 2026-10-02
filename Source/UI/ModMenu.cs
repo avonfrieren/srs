@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Celeste.Mod.CelesteHotkeys;
 using Monocle;
@@ -28,7 +29,7 @@ internal static class ModMenu {
         menu.Add(showSelection);
 
         SegmentSelector.CreateMenuEntries(menu);
-        SheetImporter.CreateMenuEntries(menu);
+        Action updateStandards = SheetImporter.CreateMenuEntries(menu);
 
         // ExportUrlMenu keeps these two hidden until an export URL is set
         List<TextMenu.Item> urlDependent = ExportUrlMenu.CreateMenuEntries(menu);
@@ -50,6 +51,10 @@ internal static class ModMenu {
                 level.Unpause();
                 Engine.Scene.OnEndOfFrame += () => ExportMenu.Open(level);
             });
+            // nothing to open without a sheet: shown once a URL is set, which can
+            // happen during this visit. OnUpdate runs for hidden items too, and
+            // the master switch is read here so it is not undone the next frame
+            openExport.OnUpdate = () => openExport.Visible = settings.Enabled && ExportUrlMenu.HasUrl;
             menu.Add(openExport);
         }
 
@@ -68,8 +73,9 @@ internal static class ModMenu {
             ShowSubOptions(subOptions, urlDependent, on);
             if (on) {
                 // the startup refresh is skipped while the mod is off, so this
-                // is the first chance to pick up a sheet retimed in the meantime
-                SheetImporter.BeginUpdate(null);
+                // is the first chance to pick up a sheet retimed in the meantime.
+                // Run as the button would be, so the status line follows it
+                updateStandards();
                 ExportMenu.Refresh("the mod was switched back on");
             }
         });

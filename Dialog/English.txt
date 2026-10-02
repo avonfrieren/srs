@@ -29,6 +29,8 @@ SRS_KEYBIND_COMBO_HINT=   Every key you bind joins the combo (all must be held);
 # Sheet export
 SRS_EXPORT_TITLE=Export To Practice Sheet
 SRS_EXPORT_NOTHING=Nothing to export: no segment run this session
+SRS_EXPORT_NONE_TICKED=No row ticked
+SRS_EXPORT_NEEDS_URL=Set your sheet URL in Mod Options first
 SRS_EXPORT_LOADING=Loading sheet data...
 SRS_EXPORT_WRITING=Writing to the sheet...
 SRS_EXPORT_UNREAD=Could not read the sheet.
@@ -42,7 +44,7 @@ SRS_EXPORT_URL_REPLACE_FROM_CLIPBOARD=Replace Sheet URL from clipboard
 SRS_EXPORT_URL_CLIPBOARD_EMPTY=      Clipboard is empty. Copy the /exec URL first.
 SRS_EXPORT_URL_CLIPBOARD_INVALID=      That is not a web app URL. It must start with https and end in /exec.
 SRS_EXPORT_URL_CHECKING=      Asking the sheet...
-SRS_EXPORT_URL_CHECK_OK=      The sheet answered. Rows it can write:
+SRS_EXPORT_URL_CHECK_OK=      The sheet answered.
 SRS_EXPORT_URL_CHECK_FAILED=      The sheet did not answer:
 SRS_EXPORT_URL_CHECK_NOT_SHEET=      Something answered, but not the export script. Check the deployment.
 
