@@ -116,7 +116,7 @@ public static class TierComparison {
         }
 
         SheetBlock block = SheetImporter.Data?.CheckpointBlock;
-        SheetSegment segment = SegmentSelector.Current;
+        SheetSegment segment = RunWatcher.CapturedSegment;
         if (block == null || segment == null) {
             return;
         }

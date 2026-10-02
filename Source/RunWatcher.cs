@@ -24,6 +24,11 @@ public static class RunWatcher {
     private static bool completed;
     private static bool hasCapture;
     private static long capturedTicks;
+    // the segment the run completed, by name: the selection can move after
+    // the run (the sliders, the category hotkey), and the tier must stay
+    // graded against the thresholds the run was made on
+    private static string capturedChapter;
+    private static string capturedName;
 
     private static object saveLoadAction;
 
@@ -39,6 +44,18 @@ public static class RunWatcher {
     // is always visible
     public static bool HasCapture => hasCapture;
     public static long CapturedTicks => capturedTicks;
+
+    /// The completed segment in the sheet as it is now, looked up by name so a
+    /// re-import mid-session is picked up. Null when nothing is completed or
+    /// the sheet no longer has that row.
+    public static SheetSegment CapturedSegment {
+        get {
+            SheetBlock block = SheetImporter.Data?.CheckpointBlock;
+            return !completed || block == null
+                ? null
+                : block.Segments.Find(s => s.Chapter == capturedChapter && s.Name == capturedName);
+        }
+    }
 
     // fields are filled at runtime by ModInterop()
 #pragma warning disable CS0649
@@ -65,7 +82,8 @@ public static class RunWatcher {
         typeof(RoomTimerImports).ModInterop();
         typeof(SaveLoadImports).ModInterop();
         saveLoadAction = SaveLoadImports.RegisterStaticTypes?.Invoke(typeof(RunWatcher),
-            [nameof(startRoom), nameof(completed), nameof(hasCapture), nameof(capturedTicks)]);
+            [nameof(startRoom), nameof(completed), nameof(hasCapture), nameof(capturedTicks),
+                nameof(capturedChapter), nameof(capturedName)]);
     }
 
     public static void Unload() {
@@ -188,6 +206,8 @@ public static class RunWatcher {
 
     private static void Complete(Session session, SheetSegment segment, long time) {
         completed = true;
+        capturedChapter = segment.Chapter;
+        capturedName = segment.Name;
 
         // start guard: a tier only makes sense for a run of the whole
         // segment. The time freezes either way — the greyed row is the
