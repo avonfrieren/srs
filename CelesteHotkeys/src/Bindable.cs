@@ -17,42 +17,37 @@ internal static class Bindable {
     internal static bool IsBindable(Keys key) =>
         key != Keys.None && key != Keys.F1 && key != Keys.F2 && key != Keys.F3 && key != Keys.F5;
 
-    internal enum KeyPress {
-        /// <summary>No key went down this frame.</summary>
-        Nothing,
-        /// <summary>A bindable key went down; it is the one to record.</summary>
-        Bindable,
-        /// <summary>Only keys that cannot be bound went down. Say so rather than stay silent.</summary>
-        Refused,
+    /// <summary>The keys a chord may take from what is held this frame — <c>KeyboardState.GetPressedKeys()</c>.</summary>
+    internal static List<Keys> BindableKeys(Keys[] held) {
+        List<Keys> keys = new();
+        if (held is null) return keys;
+        foreach (Keys key in held) {
+            if (IsBindable(key)) keys.Add(key);
+        }
+        return keys;
     }
 
-    /// <summary>The key a remap should record this frame.</summary>
+    /// <summary>Whether a key that cannot be bound went down this frame. Say so rather than stay silent.</summary>
     /// <param name="held">Every key held now — <c>KeyboardState.GetPressedKeys()</c>.</param>
     /// <param name="newlyPressed">Whether a key went down this frame — <c>MInput.Keyboard.Pressed</c>.</param>
-    // ⚠️ The first NEWLY PRESSED key, never the last HELD one. GetPressedKeys comes back in ascending
-    // Keys order and the modifiers are 160..165, above every letter, digit, arrow and F-key, so taking
-    // the last held key named a Shift still down from the confirm press rather than the letter just
-    // pressed: nothing bound, and the screen timed out five seconds later with no message.
-    //
-    // The edge test is a parameter so this stays a pure function with a unit test.
-    internal static KeyPress ReadKeyPress(Keys[] held, Func<Keys, bool> newlyPressed, out Keys key) {
-        key = Keys.None;
-        if (held is null) return KeyPress.Nothing;
-
-        bool refused = false;
-        foreach (Keys candidate in held) {
-            if (!newlyPressed(candidate)) continue;
-            if (!IsBindable(candidate)) {
-                // A None edge is an unmappable key; saying "refused" for it is still more useful than
-                // silence, since the player did press something.
-                refused = true;
-                continue;
-            }
-            key = candidate;
-            return KeyPress.Bindable;
+    // A None edge is an unmappable key; calling it refused is still more useful than silence, since
+    // the player did press something. The edge test is a parameter so this stays a pure function.
+    internal static bool RefusedKeyWentDown(Keys[] held, Func<Keys, bool> newlyPressed) {
+        if (held is null) return false;
+        foreach (Keys key in held) {
+            if (!IsBindable(key) && newlyPressed(key)) return true;
         }
-        return refused ? KeyPress.Refused : KeyPress.Nothing;
+        return false;
     }
+
+    /// <summary>The modifiers: a binding lists them first, and a combo is blocked by one it does not name.</summary>
+    internal static readonly Keys[] Modifiers = {
+        Keys.LeftShift, Keys.RightShift,
+        Keys.LeftControl, Keys.RightControl,
+        Keys.LeftAlt, Keys.RightAlt,
+    };
+
+    internal static bool IsModifier(Keys key) => Array.IndexOf(Modifiers, key) >= 0;
 
     /// <summary>Every button the remap screen listens for, in the order it prefers them.</summary>
     internal static readonly Buttons[] RecordableButtons = {
@@ -64,32 +59,19 @@ internal static class Bindable {
         Buttons.DPadUp, Buttons.DPadDown, Buttons.DPadLeft, Buttons.DPadRight,
     };
 
-    /// <summary>The first button that went down between two pad states, or null.</summary>
-    internal static Buttons? NewlyPressedButton(in GamePadState current, in GamePadState previous) {
+    /// <summary>The recordable buttons held on a pad, in <see cref="RecordableButtons"/> order.</summary>
+    internal static List<Buttons> HeldButtons(in GamePadState pad) {
+        List<Buttons> buttons = new();
         foreach (Buttons button in RecordableButtons) {
-            if (current.IsButtonDown(button) && !previous.IsButtonDown(button)) return button;
+            if (pad.IsButtonDown(button)) buttons.Add(button);
         }
-        return null;
+        return buttons;
     }
 
     /// <summary>The most inputs one binding may hold. Every one must be held for the combo to fire.</summary>
     // More than a hand holds at once is not a combo anyone can press, and the cap also bounds how wide
     // the remap screen has to draw a binding.
     internal const int MaxComboInputs = 4;
-
-    /// <summary>
-    ///     Adds an input to a binding, or removes it if it is already there. False when the binding
-    ///     already holds <see cref="MaxComboInputs"/> and nothing changed.
-    /// </summary>
-    // Pressing a bound input again is how a single input is unbound; clearing a whole row is the
-    // Journal action or Delete on the screen. A full binding refuses a new input rather than dropping
-    // its oldest, as vanilla does: dropping one would silently turn the combo into a different one.
-    internal static bool Toggle<T>(List<T> inputs, T input) {
-        if (inputs.Remove(input)) return true;
-        if (inputs.Count >= MaxComboInputs) return false;
-        inputs.Add(input);
-        return true;
-    }
 
     /// <summary>
     ///     Strips Keys.None from every ButtonBinding property of a settings object. Call once, after

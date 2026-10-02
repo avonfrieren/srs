@@ -14,7 +14,7 @@ internal sealed class KeybindScreenText {
     /// <summary>The screen's title, e.g. "Hotkeys", and the label of the Mod Options row that opens it.</summary>
     public required string HeaderId { get; init; }
 
-    /// <summary>What a combo is and how to unbind one input, drawn on the recording overlay.</summary>
+    /// <summary>How to record a combo — hold its inputs together, then let go — drawn on the recording overlay.</summary>
     public required string ComboHintId { get; init; }
 
     /// <summary>How to clear a whole row: Journal or Delete.</summary>
@@ -46,6 +46,8 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
     private readonly HotkeySet<TSettings> hotkeys;
     private readonly KeybindScreenText text;
     private readonly Action save;
+    private readonly ChordRecorder<Keys> keyChord = new(Bindable.IsModifier);
+    private readonly ChordRecorder<Buttons> buttonChord = new();
 
     private bool closing;
     private bool counted;
@@ -55,6 +57,10 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
     private Keybind<TSettings> recordingKeybind;
     private bool recordingKeyboard;
     private float timeout;
+
+    // The chord drawn on the overlay, rebuilt only when it grows.
+    private List<object> chordIcons = new();
+    private int chordIconsFor;
 
     /// <summary>True while the screen is waiting for the key or button to record.</summary>
     internal bool Recording => recording;
@@ -159,16 +165,25 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         recordingKeyboard = keyboard;
         timeout = RecordSeconds;
         Focused = false;
+        chordIcons = new List<object>();
+        chordIconsFor = 0;
+        if (keyboard) keyChord.Start(Bindable.BindableKeys(MInput.Keyboard.CurrentState.GetPressedKeys()));
+        else buttonChord.Start(Bindable.HeldButtons(MInput.GamePads[Input.Gamepad].CurrentState));
     }
 
-    private void Record<T>(List<T> inputs, T input) {
-        recording = false;
-        refocusDelay = RefocusDelay;
-        if (!Bindable.Toggle(inputs, input)) {
-            Audio.Play(InvalidSound);
-            return;
+    private void Step<T>(ChordRecorder<T> chord, List<T> held, List<T> binding) where T : struct {
+        switch (chord.Update(held)) {
+            case ChordStep.Refused:
+                Audio.Play(InvalidSound);
+                break;
+            case ChordStep.Done:
+                recording = false;
+                refocusDelay = RefocusDelay;
+                binding.Clear();
+                binding.AddRange(chord.Inputs);
+                Changed();
+                break;
         }
-        Changed();
     }
 
     // Clearing a whole row is the Journal action — vanilla's own gesture, wired the same way
@@ -220,14 +235,12 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
                 recording = false;
                 Focused = true;
             } else if (recordingKeyboard) {
-                Bindable.KeyPress press = Bindable.ReadKeyPress(
-                    MInput.Keyboard.CurrentState.GetPressedKeys(), MInput.Keyboard.Pressed, out Keys key);
-                if (press == Bindable.KeyPress.Bindable) Record(recordingKeybind.Binding(Settings).Keys, key);
-                else if (press == Bindable.KeyPress.Refused) Audio.Play(InvalidSound);
+                Keys[] held = MInput.Keyboard.CurrentState.GetPressedKeys();
+                if (Bindable.RefusedKeyWentDown(held, MInput.Keyboard.Pressed)) Audio.Play(InvalidSound);
+                Step(keyChord, Bindable.BindableKeys(held), recordingKeybind.Binding(Settings).Keys);
             } else {
-                Buttons? button = Bindable.NewlyPressedButton(
-                    MInput.GamePads[Input.Gamepad].CurrentState, MInput.GamePads[Input.Gamepad].PreviousState);
-                if (button.HasValue) Record(recordingKeybind.Binding(Settings).Buttons, button.Value);
+                Step(buttonChord, Bindable.HeldButtons(MInput.GamePads[Input.Gamepad].CurrentState),
+                     recordingKeybind.Binding(Settings).Buttons);
             }
             timeout -= Engine.RawDeltaTime;
         }
@@ -362,5 +375,46 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         float belowLabel = 8f + ActiveFont.LineHeight * labelScale + 8f;
         ActiveFont.Draw(string.Format(Dialog.Get(text.TimeoutFormatId), (int) Math.Ceiling(Math.Max(0f, timeout))),
                         centre + new Vector2(0f, belowLabel), new Vector2(0.5f, 0f), Vector2.One * 0.7f, grey);
+
+        // Below the countdown rather than above it, so the countdown does not move when the first input
+        // goes down.
+        float belowCountdown = belowLabel + ActiveFont.LineHeight * 0.7f + 16f;
+        DrawChord(centre + new Vector2(0f, belowCountdown + ActiveFont.LineHeight * 0.5f), Ease.CubeIn(recordingEase));
     }
+
+    // The inputs held so far, drawn the way a row draws its binding, so the player sees what letting go
+    // will save. At most MaxComboInputs of them, which fit well within MaxLineWidth.
+    private void DrawChord(Vector2 middle, float alpha) {
+        int count = recordingKeyboard ? keyChord.Inputs.Count : buttonChord.Inputs.Count;
+        if (count == 0) return;
+        if (count != chordIconsFor) {
+            // Setting builds the icons, or the names where the game has no icon, from a list.
+            chordIcons = recordingKeyboard
+                ? new Setting("", new List<Keys>(keyChord.Inputs)).Values
+                : new Setting("", new List<Buttons>(buttonChord.Inputs)).Values;
+            chordIconsFor = count;
+        }
+
+        float width = 0f;
+        foreach (object value in chordIcons) width += IconWidth(value);
+
+        Color stroke = Color.Black * (alpha * alpha * alpha);
+        float x = middle.X - width * 0.5f;
+        foreach (object value in chordIcons) {
+            if (value is MTexture texture) {
+                texture.DrawJustified(new Vector2(x, middle.Y), new Vector2(0f, 0.5f), Color.White * alpha, 1f);
+            } else if (value is string name) {
+                ActiveFont.DrawOutline(name, new Vector2(x + IconWidth(value) * 0.5f, middle.Y), new Vector2(0.5f, 0.5f),
+                                       Vector2.One * 0.7f, Color.LightGray * alpha, 2f, stroke);
+            }
+            x += IconWidth(value);
+        }
+    }
+
+    // Setting's own measure: an icon's width, or a name at 0.7 plus 16.
+    private static float IconWidth(object value) => value switch {
+        MTexture texture => texture.Width,
+        string name => ActiveFont.Measure(name).X * 0.7f + 16f,
+        _ => 0f,
+    };
 }

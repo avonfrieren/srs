@@ -40,16 +40,6 @@ internal sealed class ComboHotkey {
 
     public bool Pressed { get; private set; }
 
-    /// <summary>The modifiers a binding has to name before it may fire while one of them is held.</summary>
-    // Modifiers only — never "nothing else is held". These hotkeys are pressed mid-run with movement,
-    // jump and dash down, so a rule about every held key would switch them off in exactly the
-    // situation they exist for.
-    private static readonly Keys[] Modifiers = {
-        Keys.LeftShift, Keys.RightShift,
-        Keys.LeftControl, Keys.RightControl,
-        Keys.LeftAlt, Keys.RightAlt,
-    };
-
     /// <summary>Advances one frame.</summary>
     /// <param name="paused">
     ///     True while something other than gameplay owns the input. The held state is still tracked,
@@ -119,9 +109,14 @@ internal sealed class ComboHotkey {
     /// <summary>False when a modifier is held that this binding does not name.</summary>
     // What keeps F from firing on Ctrl+F — including when Ctrl+F belongs to another mod, which
     // SuppressSubsetPresses below cannot see.
+    //
+    // Modifiers only — never "nothing else is held". These hotkeys are pressed mid-run with movement,
+    // jump and dash down, so a rule about every held key would switch them off in exactly the
+    // situation they exist for.
     private static bool NoUnboundModifier(List<Keys> keys, in KeyboardState keyboard) {
-        for (int i = 0; i < Modifiers.Length; i++) {
-            if (keyboard.IsKeyDown(Modifiers[i]) && !keys.Contains(Modifiers[i])) return false;
+        Keys[] modifiers = Bindable.Modifiers;
+        for (int i = 0; i < modifiers.Length; i++) {
+            if (keyboard.IsKeyDown(modifiers[i]) && !keys.Contains(modifiers[i])) return false;
         }
         return true;
     }
