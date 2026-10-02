@@ -121,14 +121,7 @@ public static class TierComparison {
             return;
         }
 
-        for (int i = 0; i < segment.Times.Count && i < block.Columns.Count; i++) {
-            if (segment.Times[i] is { } threshold && threshold > TimeSpan.Zero && time <= threshold) {
-                SetTier(time, block.Columns[i]);
-                return;
-            }
-        }
-
-        SetTier(time, "Unranked");
+        SetTier(time, SheetData.TierOf(block.Columns, segment.Times, time));
     }
 
     // Format matches what SpeedrunTool displayed during the run (see TimeFormat.FromTicks).

@@ -79,6 +79,21 @@ public class SheetData {
 
     public int SegmentCount => CheckpointBlock?.Segments.Count ?? 0;
 
+    /// The tier a time reaches: the first column, in sheet order, whose
+    /// threshold the time is at or under, and "Unranked" past every one.
+    /// Sheet order, not the fastest threshold: where a stale WR is slower than
+    /// Gold, a time under the WR reads WR. A zero threshold (Hidden, and some
+    /// WR cells) and an empty cell never match.
+    internal static string TierOf(List<string> columns, List<TimeSpan?> thresholds, TimeSpan time) {
+        for (int i = 0; i < thresholds.Count && i < columns.Count; i++) {
+            if (thresholds[i] is { } threshold && threshold > TimeSpan.Zero && time <= threshold) {
+                return columns[i];
+            }
+        }
+
+        return "Unranked";
+    }
+
     // raw (chapter, checkpoint) of the sheet -> (chapter, name) of the mod.
     // Deliberately a hardcoded allowlist, no name normalization (owner decision
     // 2026-07-18, renewed 2026-08-05 for the new sheet): only the checkpoints
