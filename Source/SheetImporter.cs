@@ -34,14 +34,6 @@ public static class SheetImporter {
 
     public static void Load() {
         try {
-            // pre-2.0.0 single-tab cache: the old prototype sheet's CSV, which
-            // the current parser has no rows for — clean it up
-            File.Delete(Path.Combine(Everest.PathSettings, "srs", "sheet.csv"));
-        } catch (Exception) {
-            // fine, it just was not there (or is unreadable — harmless either way)
-        }
-
-        try {
             string aSides = File.Exists(ACachePath) ? File.ReadAllText(ACachePath) : null;
             string bSides = File.Exists(BCachePath) ? File.ReadAllText(BCachePath) : null;
             string farewell = File.Exists(FarewellCachePath) ? File.ReadAllText(FarewellCachePath) : null;

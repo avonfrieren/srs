@@ -24,8 +24,7 @@ public class SrsSettings : EverestModuleSettings {
     // them); not editable in-game — change them in the settings file to read
     // another workbook. These are stored values: a player who has saved
     // settings keeps theirs, which is why SrsModule migrates the id of the
-    // workbook srs read before 2026-08-28 (SheetUrls). The pre-2.0.0 single
-    // SheetUrl (old prototype sheet) is simply dropped by the deserializer
+    // workbook srs read before 2026-08-28 (SheetUrls)
     [SettingIgnore]
     public string ASidesUrl { get; set; } = DefaultASidesUrl;
 

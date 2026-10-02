@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using System.Reflection;
-using System.IO;
 using FMOD.Studio;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -87,15 +86,6 @@ public class SrsModule : EverestModule {
     }
 
     public override void LoadSettings() {
-        // mod name changed from "srs" to "Speedrun Sheet" in v1.0.0; if the new
-        // settings file doesn't exist but the old one does, load from the old path
-        var oldPath = Path.Combine(Everest.PathSettings, "modsettings-srs.celeste");
-        var newPath = Path.Combine(Everest.PathSettings, $"modsettings-{Metadata.Name}.celeste");
-        if (!File.Exists(newPath) && File.Exists(oldPath)) {
-            // copy the old file to the new location before loading, so base.LoadSettings reads it
-            File.Copy(oldPath, newPath);
-        }
-
         base.LoadSettings();
 
         // the tab URLs are stored settings, so the defaults above reach nobody
