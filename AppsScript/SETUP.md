@@ -72,7 +72,8 @@ to be shared with anyone.
 write over them. Keep it to yourself:
 
 - Never write it inside the sheet: not in a cell, a comment or the description.
-- Don't paste it when asking for help.
+- Don't paste it when asking for help. srs keeps it in `Saves/srs/export-url.txt`, not in its
+  settings file, so a settings file you share does not carry it; don't share that one.
 - If it leaks, revoke it: **Deploy > Manage deployments >** archive the deployment, create a
   new one, and set the new URL in Mod Options.
 

@@ -87,5 +87,5 @@ Branche `feature/<nom>` ou `fix/<nom>` depuis `dev`, PR vers `dev`, release = me
 
 ## Écarté définitivement
 
-- **Sheets privées en *lecture* (OAuth / service account)** — API lourde et fragile, et un flux d'autorisation Google à la charge du joueur. Le fallback de l'import reste le dépôt manuel de CSV dans `Saves/srs/`. L'*écriture* passe par une autre voie et n'est pas concernée : un Web App Apps Script déployé par le joueur sur sa propre copie, dont l'URL `/exec` est le seul credential (`SrsSettings.ExportUrl`, jamais loggée ni affichée).
+- **Sheets privées en *lecture* (OAuth / service account)** — API lourde et fragile, et un flux d'autorisation Google à la charge du joueur. Le fallback de l'import reste le dépôt manuel de CSV dans `Saves/srs/`. L'*écriture* passe par une autre voie et n'est pas concernée : un Web App Apps Script déployé par le joueur sur sa propre copie, dont l'URL `/exec` est le seul credential (`ExportTarget`, dans `Saves/srs/export-url.txt`, jamais loggée ni affichée).
 - **Lister à la main les rooms du jeu** (~800) et le comptage de rooms en général — fragile à la route et incapable de distinguer les catégories ; remplacé par les conditions de fin déclaratives.
