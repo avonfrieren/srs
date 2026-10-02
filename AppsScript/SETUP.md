@@ -9,14 +9,6 @@ paste in: you only deploy it.
 Nothing in it runs until you deploy. It adds no trigger, and its two entry points are
 reachable only through a deployment URL, so an undeployed copy behaves exactly as before.
 
-## What it reads and writes
-
-It writes times to `A Sides`, `B+C Sides` and `Farewell`, the three tabs the sheet expects you
-to fill. It never touches a category tab: those read from the three above, and writing into one
-would turn the cell manual and break its auto-fill.
-
-It reads those same three tabs and nothing else.
-
 ## Deploy
 
 1. Open your copy of the sheet, then **Extensions > Apps Script**.
@@ -52,23 +44,18 @@ you are authorising is yours, not somebody else's. Click **Advanced**, then **Go
 **The permission list.** It names Google Sheets, and it is worth reading precisely, because
 it asks for more than this endpoint uses:
 
-- *See, edit, create, and delete all your Google Sheets spreadsheets.* This one is the
+- *See, edit, create, and delete all your Google Sheets spreadsheets.* This one is for the
   **sheet's own** scripts, not srs. They read the shared reference workbook to refresh your
-  standards, which is a second document, and they write formatting through an interface that
-  cannot be narrowed to one file. That is where the breadth comes from, and it was already
-  there before this endpoint existed.
+  standards, and *Import from old sheet* reads another, both second documents, and they write formatting through an interface that
+  cannot be narrowed to one file.
 - *Display and run third-party web content in prompts and sidebars.* The sheet's own menus
   and dialogs.
 
-If the screen shows a checkbox next to each line, **leave them all ticked**. Unticking the
-Sheets one does not trim this endpoint down to what it uses: permissions are granted per
-project, and that single line is the one it runs on too, so the export would fail with a
-permission error that names nothing you would recognise.
-
-Permissions in Apps Script are granted per project, never per function, so this endpoint
-inherits the list rather than adding to it. What **it** actually touches is the document it
-lives in: `SpreadsheetApp.getActive()`, and nothing else. It opens no other spreadsheet, and
-it makes no outbound request of any kind.
+If the screen shows a checkbox next to each line, **leave them all ticked**. Apps Script
+grants permissions per project, never per function, so this endpoint runs on that same
+Sheets line: untick it and the export fails with a permission error that names nothing you
+would recognise. What the endpoint itself touches is the document it lives in, and nothing
+else. It opens no other spreadsheet, and it makes no outbound request of any kind.
 
 ## "Who has access" must be "Anyone"
 
@@ -76,46 +63,60 @@ it makes no outbound request of any kind.
 Google then demands an OAuth token on every call and answers a plain HTTP request with a
 login page, so every sync fails. Only "Anyone" makes the URL itself sufficient.
 
-Note that "Execute as: Me" means the script writes with *your* permissions - the sheet
-itself never has to be shared with anyone.
+"Execute as: Me" means the script writes with *your* permissions: the sheet itself never has
+to be shared with anyone.
 
-## Your /exec URL is a password
+## Keeping it safe
 
-It grants read and write access to this sheet, with your permissions, to anyone holding
-it. **Never write it inside the sheet itself** - not in a cell, not in a comment, not in
-the description. It belongs only in the mod's settings.
+**Your `/exec` URL is a password.** Anyone who has it can read the times in your sheet and
+write over them. Keep it to yourself:
 
-Making your copy of the sheet publicly viewable is safe: deployment URLs are not exposed
-through the sheet's sharing settings. Revoking a leaked URL means creating a new
-deployment (**Deploy > Manage deployments >** archive the old one) and pasting the new URL
-into the mod.
+- Never write it inside the sheet: not in a cell, a comment or the description.
+- Don't paste it when asking for help.
+- If it leaks, revoke it: **Deploy > Manage deployments >** archive the deployment, create a
+  new one, and set the new URL in Mod Options.
 
-## What the script is allowed to touch
+**Edit access to your sheet is access to its script.** Anyone with Edit access can change the
+script, and changed code can run with your Google permissions, which cover all your Google
+Sheets, the next time you use the sheet's menu or update the deployment. Give Edit access only
+to people you would trust with your Google account.
 
-Only three tabs: **A Sides**, **B+C Sides** and **Farewell**. Every other tab is
-formula-driven and reads from those three, so writing into one would turn its cells manual
-and break the sheet's auto-fill.
+**View access is safe to share.** It lets people read the sheet, but not open its script or its
+deployment from it. A viewer who makes their own copy gets a copy of the script, but no
+deployment and no URL: deployments are never copied.
 
-Before writing, it checks that the Time cell still holds what srs read when the export screen
-opened. If you changed it in the browser meanwhile, the row is reported as *sheet changed* and
-left alone; the rest of the export goes through.
+## What the script reads and writes
 
-On a matched row the script writes the **Time** and **Date** cells, and clears any note on the
-Time cell. That note is your sheet's own doing: it marks a time that is not a whole number of
-frames, and it is added by an `onEdit` trigger, which Google does not run for a write made through
-the API. Left alone it would describe a value that is no longer in the cell.
+**Which tabs.** It works only on the entry tabs your sheet's **Config** tab names, in cells C6,
+C7 and C9: on the template, `A Sides`, `B+C Sides`, `Farewell` and `ARB/Full Clear`, the tabs you
+fill in. srs itself only knows rows on the first three today. The script never writes a category
+tab: those read from the entry tabs, and writing into one would turn its cells manual and break
+its auto-fill. The tab list is read from those three cells on every call: a tab they stop naming
+is no longer written, and if they name none, for example because a copy moved them, every call
+fails with an error.
 
-Nothing else is written. The
-**Standard** column is a formula and is never written; the Date is stamped by the script
-because the sheet's own auto-fill only reacts to edits made by hand.
+**Which rows.** Rows are found by their labels, never by position, in each table of a tab,
+starting from its `Time` header. Inserting rows above or inside a table is fine. Renaming a
+tab, a checkpoint, or a table's `Time`, `Standard` or `Date` header is not: srs then reports the
+rows as not found and leaves them alone.
 
-The script keeps its last answer for five minutes rather than reading your sheet again on every
-open, and throws that answer away the moment srs writes a row. So an export is never read back
-stale; an edit you make by hand in the browser can take up to five minutes to appear.
+**What it writes.** On a matched row, the **Time** cell, and the **Date** cell when Config's
+*Auto-fill dates* is Yes. Nothing else: the **Standard** column is a formula and is never
+touched, and a Time cell holding a formula is refused.
 
-Rows are found by their labels, not by position: inserting rows above a table is fine, and
-so is inserting rows inside it. Renaming a tab, renaming a checkpoint, or renaming the
-headers is not: srs then reports the affected rows as not found and leaves them alone.
-The headers it looks for are `Chapter` and `Checkpoint` on the two side tabs, `CP` on
-Farewell, and `Time` and `Date` on all three. Times already in the sheet are overwritten
-without asking, so review the ticked rows before confirming.
+**What it checks first.** Before writing, it compares the Time cell with what srs read when
+the export screen opened. If you changed it in the browser meanwhile, the row comes back as
+*sheet changed* and is left alone, and the rest of the export goes through. A row that already
+holds the time being exported is left untouched, date included.
+
+**Frame check.** If Config's *Check time validity* is Yes and the time is not a whole number of
+frames, the script marks the cell exactly as typing it would: struck through, bold, with a note
+giving the two nearest valid times, which replaces any note there. When the time is valid it
+removes only its own mark, and a note you wrote stays.
+
+**Its cache.** The script keeps its last answer for five minutes rather than reading your sheet
+again on every open, and throws it away after every export. An export is never read
+back stale, but an edit you make by hand in the browser can take up to five minutes to appear.
+
+**Review before confirming.** A time already in the sheet is overwritten by the ticked row
+without asking.
