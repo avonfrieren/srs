@@ -83,12 +83,6 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public bool AutoDetect { get; set; } = true;
 
-    // the player's Apps Script Web App URL. The URL *is* the credential — the
-    // Web App has no auth of its own — so it is never logged or displayed;
-    // ExportUrlMenu sets it through an always-empty field
-    [SettingIgnore]
-    public string ExportUrl { get; set; } = "";
-
     // local date the URL was last set, "yyyy-MM-dd". Display only: it lets the
     // status line say "set <date>" without showing the URL
     [SettingIgnore]

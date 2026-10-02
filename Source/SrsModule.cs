@@ -21,6 +21,8 @@ public class SrsModule : EverestModule {
         AdoptSpeedrunToolsTimeFormat();
 
         SheetImporter.Load();
+        // before ExportMenu.Load, which asks the sheet at launch
+        ExportTarget.Load();
         // Level.Update hook order matters: each later Load wraps the previous
         // hooks, so after orig the frame runs innermost-first — Hotkeys reads
         // the frame's input before anything consumes it, RunWatcher captures
