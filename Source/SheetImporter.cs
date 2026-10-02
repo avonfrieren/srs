@@ -123,9 +123,13 @@ public static class SheetImporter {
 
     private static async Task<bool> UpdateFromSheet() {
         try {
-            string aSides = await DownloadTab(SrsModule.Settings.ASidesUrl, "A Sides");
-            string bSides = await DownloadTab(SrsModule.Settings.BSidesUrl, "B Sides");
-            string farewell = await DownloadTab(SrsModule.Settings.FarewellUrl, "Farewell");
+            // the three at once: each is a round trip to Google, and none
+            // depends on another
+            Task<string> aTask = DownloadTab(SrsModule.Settings.ASidesUrl, "A Sides");
+            Task<string> bTask = DownloadTab(SrsModule.Settings.BSidesUrl, "B Sides");
+            Task<string> farewellTask = DownloadTab(SrsModule.Settings.FarewellUrl, "Farewell");
+            string[] tabs = await Task.WhenAll(aTask, bTask, farewellTask);
+            string aSides = tabs[0], bSides = tabs[1], farewell = tabs[2];
             // all or nothing: a half-updated cache would silently drop whole
             // chapters from the sliders
             if (aSides == null || bSides == null || farewell == null) {
