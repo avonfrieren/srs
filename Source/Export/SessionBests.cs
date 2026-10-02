@@ -1,21 +1,12 @@
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// The best time of the checkpoint being practiced right now, and nothing else:
-/// moving to another checkpoint drops the previous one, one segment per export.
+/// The best time of the segment being practiced right now, and nothing else:
+/// running another segment drops the previous one, one segment per export.
 /// Fed by RunWatcher, only for a run that started at the segment's first room.
 internal static class SessionBests {
     private const string LogTag = "srs";
 
-    /// The game checkpoint the run started at, not the sheet row naming it: the
-    /// row changes with the category, which the export screen can change.
-    ///
-    /// ⚠️ Never an AreaKey here. Celeste's AreaKey.Equals returns false
-    /// unconditionally, and a record struct compares its fields through
-    /// EqualityComparer&lt;T&gt;.Default, so the key came out unequal to itself.
-    internal readonly record struct Key(string Scope, string Anchor);
-
-    private static Key? current;
-    private static long bestTicks;
+    private static readonly HeldRun held = new();
 
     public static void Load() {
         Everest.Events.Level.OnExit += OnExit;
@@ -38,7 +29,7 @@ internal static class SessionBests {
     // loading another chapter is leaving this one, whether or not an exit was
     // seen: a savestate can cross chapters without one
     private static void OnEnter(Session session, bool fromSaveData) {
-        if (session != null && current is { } held && held.Scope != SegmentAutoDetect.ScopeOf(session)) {
+        if (session != null && held.Current is { } run && run.Scope != SegmentAutoDetect.ScopeOf(session)) {
             Clear($"entered {SegmentAutoDetect.ScopeOf(session) ?? "an uncovered chapter"}");
         }
     }
@@ -46,67 +37,54 @@ internal static class SessionBests {
     // deliberately NOT registered with SpeedrunTool's save states: a time run
     // is a fact about the session, and a load must not take it back
     public static void Record(SheetSegment segment, long ticks, Session session) {
-        if (ticks <= 0 || !TryKeyOf(segment, session, out Key key)) {
+        string scope = session == null ? null : SegmentAutoDetect.ScopeOf(session);
+        // a segment with no game checkpoint in this scope was not run here
+        if (segment == null || scope == null || SegmentAutoDetect.GameNameOf(scope, segment.Name) == null) {
             return;
         }
 
-        // best of the active checkpoint, not the latest run of it: one bad
-        // attempt after a good one must not throw the good one away
-        if (current != key || ticks < bestTicks) {
+        HeldRun.Run? before = held.Current;
+        if (held.Offer(scope, segment.Chapter, segment.Name, ticks)) {
             Logger.Log(LogLevel.Info, LogTag,
-                $"session best {key.Scope}/{key.Anchor} {TimeFormat.FromTicks(ticks)}"
-                + (current == key ? $" (was {TimeFormat.FromTicks(bestTicks)})" : " (first run)"));
-            current = key;
-            bestTicks = ticks;
+                $"session best {scope}/{segment.Name} {TimeFormat.FromTicks(ticks)}"
+                + (before is { } was ? $" (was {was.Name} {TimeFormat.FromTicks(was.Ticks)})" : " (first run)"));
         }
     }
 
-    /// True for any row of the checkpoint the held run started at, whichever
-    /// category names it: that is what lets the screen re-label a run.
-    public static bool TryGet(SheetSegment segment, Session session, out long ticks) {
+    /// The segment the held run was made on, looked up by name in the sheet as
+    /// it is now: SheetImporter.Data is reassigned from a worker.
+    public static bool TryGet(out SheetSegment segment, out long ticks) {
+        segment = null;
         ticks = 0;
-        if (current is not { } held || !TryKeyOf(segment, session, out Key key) || held != key) {
+        SheetBlock block = SheetImporter.Data?.CheckpointBlock;
+        if (held.Current is not { } run || block == null) {
             return false;
         }
 
-        ticks = bestTicks;
-        return true;
+        segment = block.Segments.Find(s => s.Chapter == run.Chapter && s.Name == run.Name);
+        ticks = run.Ticks;
+        return segment != null;
     }
 
     public static void Clear(string reason = null) {
-        if (current is { } held) {
+        if (held.Current is { } run) {
             Logger.Log(LogLevel.Info, LogTag,
-                $"session best dropped ({reason ?? "on request"}): was {held.Scope}/{held.Anchor}");
+                $"session best dropped ({reason ?? "on request"}): was {run.Scope}/{run.Name}");
         }
 
-        current = null;
-        bestTicks = 0;
+        held.Clear();
     }
 
     /// Drops a run held in another chapter, checked where the run is read
     /// rather than polled: a debug-console load swaps the scene through neither
     /// LevelExit nor LevelEnter, so the events cannot be relied on alone.
     public static void DropIfElsewhere(Session session) {
-        if (session != null && current is { } held && held.Scope != SegmentAutoDetect.ScopeOf(session)) {
-            Clear($"held in {held.Scope}, now in {SegmentAutoDetect.ScopeOf(session) ?? "an uncovered chapter"}");
+        if (session != null && held.Current is { } run && run.Scope != SegmentAutoDetect.ScopeOf(session)) {
+            Clear($"held in {run.Scope}, now in {SegmentAutoDetect.ScopeOf(session) ?? "an uncovered chapter"}");
         }
     }
 
     /// what is held, for the log: never a time the player has not run
     public static string Describe() =>
-        current is { } held ? $"{held.Scope}/{held.Anchor} {TimeFormat.FromTicks(bestTicks)}" : "nothing";
-
-    private static bool TryKeyOf(SheetSegment segment, Session session, out Key key) {
-        key = default;
-        string scope = session == null ? null : SegmentAutoDetect.ScopeOf(session);
-        string anchor = segment == null || scope == null
-            ? null
-            : SegmentAutoDetect.GameNameOf(scope, segment.Name);
-        if (anchor == null) {
-            return false;
-        }
-
-        key = new Key(scope, anchor);
-        return true;
-    }
+        held.Current is { } run ? $"{run.Scope}/{run.Name} {TimeFormat.FromTicks(run.Ticks)}" : "nothing";
 }
