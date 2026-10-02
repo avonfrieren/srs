@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Celeste.Mod.CelesteHotkeys;
 using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -7,7 +8,7 @@ namespace Celeste.Mod.SpeedrunSheet;
 // generate the toggles: the master switch has to hide every other entry, which
 // means holding them all in one list. Nothing is auto-generated any more, so
 // the key bindings Everest would append are gone too — they are combos now,
-// and KeybindConfigUi owns them
+// bound from CelesteHotkeys' screen
 internal static class ModMenu {
     internal static void CreateMenu(TextMenu menu, bool inGame) {
         SrsSettings settings = SrsModule.Settings;
@@ -52,14 +53,10 @@ internal static class ModMenu {
             menu.Add(openExport);
         }
 
-        TextMenu.Button keybinds = new(Dialog.Clean("SRS_KEYBINDS"));
-        keybinds.Pressed(() => {
-            menu.Focused = false;
-            KeybindConfigUi ui = new() { OnClose = () => menu.Focused = true };
-            Engine.Scene.Add(ui);
-            Engine.Scene.OnEndOfFrame += () => Engine.Scene.Entities.UpdateLists();
-        });
-        menu.Add(keybinds);
+        // the only way to bind the [SettingIgnore] hotkeys: last, at the root of
+        // the section and inside the range the master switch hides. Never in a
+        // submenu, which keeps reading input under the screen it opens
+        menu.Add(HotkeyMenu.OpenButton(menu, Hotkeys.Set, Hotkeys.Text, SrsModule.Instance.SaveSettings));
 
         // taken as a range rather than listed entry by entry: SegmentSelector
         // adds nothing at all when no sheet data is loaded, so the list cannot

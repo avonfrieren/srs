@@ -464,7 +464,7 @@ internal static class ExportMenu {
 
         // Hotkeys holds the combo at rest behind the pause menu but not behind
         // this screen's own pause: one press opens, the next closes
-        if (Hotkeys.OpenExportMenu.Pressed) {
+        if (Hotkeys.Pressed(Hotkeys.OpenExportMenu)) {
             if (menu != null) {
                 Close();
             } else {

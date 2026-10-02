@@ -20,6 +20,12 @@
         <Compile Remove="Tests/**" />
     </ItemGroup>
 
+    <!-- CelesteHotkeys/src is compiled by the SDK's default glob, like Source/. -->
+    <Target Name="CheckCelesteHotkeys" BeforeTargets="BeforeBuild">
+        <Error Condition="!Exists('$(MSBuildThisFileDirectory)CelesteHotkeys/src')"
+               Text="CelesteHotkeys/src is missing. It is committed in this repository; restore it from git." />
+    </Target>
+
     <ItemDefinitionGroup>
         <Reference>
             <Private>False</Private>

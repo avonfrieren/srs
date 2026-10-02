@@ -1,40 +1,40 @@
-using System.Collections.Generic;
-using Microsoft.Xna.Framework.Input;
-using Monocle;
+using Celeste.Mod.CelesteHotkeys;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// the four rebindable hotkeys, updated once per frame from a single input
-// snapshot. Bound through KeybindConfigUi rather than Everest's key config
-// screen: the bindings are combos here, and Everest's screen has no way to
-// say so
+// the four rebindable hotkeys, as a CelesteHotkeys table polled once per
+// frame. The module reads a binding as a combo, which Everest's key config
+// screen cannot express: every binding is [SettingIgnore] and bound from the
+// module's own screen (ModMenu)
 public static class Hotkeys {
-    internal static ComboHotkey CycleCategory { get; private set; }
-    internal static ComboHotkey ToggleShowTier { get; private set; }
-    internal static ComboHotkey ToggleShowSelection { get; private set; }
-    internal static ComboHotkey OpenExportMenu { get; private set; }
+    internal static readonly Keybind<SrsSettings> CycleCategory =
+        new("MODOPTIONS_SRS_CYCLECATEGORY", nameof(SrsSettings.CycleCategory));
+    internal static readonly Keybind<SrsSettings> ToggleShowTier =
+        new("MODOPTIONS_SRS_TOGGLESHOWTIER", nameof(SrsSettings.ToggleShowTier));
+    internal static readonly Keybind<SrsSettings> ToggleShowSelection =
+        new("MODOPTIONS_SRS_TOGGLESHOWSELECTION", nameof(SrsSettings.ToggleShowSelection));
+    internal static readonly Keybind<SrsSettings> OpenExportMenu =
+        new("MODOPTIONS_SRS_OPENEXPORTMENU", nameof(SrsSettings.OpenExportMenu));
 
-    private static ComboHotkey[] all = [];
+    internal static readonly Keybind<SrsSettings>[] All =
+        [CycleCategory, ToggleShowTier, ToggleShowSelection, OpenExportMenu];
+
+    internal static readonly HotkeySet<SrsSettings> Set = new(() => SrsModule.Settings, All);
+
+    internal static readonly KeybindScreenText Text = new() {
+        HeaderId = "SRS_KEYBINDS",
+        ComboHintId = "SRS_KEYBIND_COMBO_HINT",
+        ClearHintId = "SRS_KEYBIND_CLEAR_HINT",
+        TimeoutFormatId = "SRS_KEYBIND_TIMEOUT",
+    };
+
+    private static bool levelPaused;
 
     public static void Load() {
-        SrsSettings settings = SrsModule.Settings;
-
-        // Keys.None must not survive into a hotkey. FNA hands it back for a key
-        // absent from its SDL -> XNA table, then reports it held like a real
-        // key, so a binding carrying it fires on every unmappable key of the
-        // layout. Everest filters it out of [DefaultButtonBinding], but not out
-        // of its own rebind screen (vanilla KeyboardConfigUI.AddRemap takes the
-        // pressed key unfiltered) — and that screen is where srs's bindings
-        // used to be set, so strip what is already on disk rather than trust it
-        foreach (ButtonBinding binding in Bindings(settings)) {
-            binding.Keys.RemoveAll(key => key == Keys.None);
-        }
-
-        CycleCategory = new ComboHotkey(settings.CycleCategory);
-        ToggleShowTier = new ComboHotkey(settings.ToggleShowTier);
-        ToggleShowSelection = new ComboHotkey(settings.ToggleShowSelection);
-        OpenExportMenu = new ComboHotkey(settings.OpenExportMenu);
-        all = [CycleCategory, ToggleShowTier, ToggleShowSelection, OpenExportMenu];
+        // Keys.None out of what is already on disk: FNA reports it held for
+        // every key absent from its SDL -> XNA table, and Everest's own rebind
+        // screen, where these used to be set, records it unfiltered
+        Bindable.Sanitize(SrsModule.Settings);
 
         // loaded first, so this hook is the innermost one: after orig the
         // hotkeys are updated before RunWatcher, TierComparison,
@@ -44,58 +44,24 @@ public static class Hotkeys {
 
     public static void Unload() {
         On.Celeste.Level.Update -= LevelOnUpdate;
-        all = [];
     }
 
-    internal static IEnumerable<ButtonBinding> Bindings(SrsSettings settings) {
-        yield return settings.CycleCategory;
-        yield return settings.ToggleShowTier;
-        yield return settings.ToggleShowSelection;
-        yield return settings.OpenExportMenu;
-    }
-
-    // marks whatever is held right now as already consumed. Called when the mod
-    // is switched back on and after a rebind: the key that was just bound is
-    // still down when the screen hands focus back, and without this it would
-    // fire the hotkey it was bound to on that very frame
-    internal static void Resync() {
-        InputSnapshot input = InputSnapshot.Current();
-        foreach (ComboHotkey hotkey in all) {
-            hotkey.Resync(input);
-        }
-    }
+    /// Whether the hotkey fired this frame. While the level is paused only the
+    /// export screen's own hotkey answers, and only behind the pause that
+    /// screen holds, or the combo that opened it could not close it. The other
+    /// three move the selection, which is what the open screen is a view of.
+    /// Polled through the pause rather than skipped, so a combo held across it
+    /// does not fire when it ends.
+    internal static bool Pressed(Keybind<SrsSettings> keybind) =>
+        Set.Pressed(keybind)
+        && (!levelPaused || (keybind == OpenExportMenu && ExportMenu.HoldsThePause));
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         orig(self);
 
-        // held at rest instead of simply skipped: a combo held across a pause,
-        // a console session or a disabled stretch would otherwise be a rising
-        // edge on the frame that stretch ends. The pause case covers Mod
-        // Options and KeybindConfigUi, which are both reached through it
-        if (!SrsModule.Settings.Enabled || Engine.Commands.Open) {
-            Resync();
-            return;
-        }
-
-        InputSnapshot input = InputSnapshot.Current();
-        if (self.Paused) {
-            // the export screen pauses the level itself, so its own hotkey has
-            // to keep reading behind that pause or the combo that opened the
-            // screen could not close it. The other three stay at rest: they
-            // move the selection, which is what the open screen is a view of
-            foreach (ComboHotkey hotkey in all) {
-                if (ExportMenu.HoldsThePause && hotkey == OpenExportMenu) {
-                    hotkey.Update(input);
-                } else {
-                    hotkey.Resync(input);
-                }
-            }
-
-            return;
-        }
-
-        foreach (ComboHotkey hotkey in all) {
-            hotkey.Update(input);
-        }
+        levelPaused = self.Paused;
+        // the module counts the master switch, the debug console, an
+        // unfocused window and any open remap screen as a pause
+        Set.Update(SrsModule.Settings.Enabled);
     }
 }

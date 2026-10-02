@@ -51,8 +51,8 @@ public class SrsSettings : EverestModuleSettings {
     // handled in SegmentAutoDetect — switching category is a mid-practice
     // gesture (any% run, then the cassette variant of the same checkpoint).
     // [SettingIgnore] keeps it out of Everest's key config screen: srs's
-    // hotkeys are read as combos (Hotkeys/ComboHotkey), which that screen has
-    // no way to express, and KeybindConfigUi binds them instead
+    // hotkeys are read as combos (CelesteHotkeys), which that screen has no
+    // way to express, and the module's own screen binds them instead
     [SettingIgnore]
     public ButtonBinding CycleCategory { get; set; } = new();
 
