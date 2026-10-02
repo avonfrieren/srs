@@ -24,7 +24,7 @@
         <Compile Include="../Source/Export/HeldRun.cs" Link="Source/Export/HeldRun.cs" />
     </ItemGroup>
 
-    <!-- snapshots of the two imported tabs; refreshing them is how a change in
+    <!-- snapshots of the three imported tabs; refreshing them is how a change in
          the sheet gets noticed (see SheetConsistencyTests) -->
     <ItemGroup>
         <None Include="Fixtures/*.csv" CopyToOutputDirectory="PreserveNewest" />
