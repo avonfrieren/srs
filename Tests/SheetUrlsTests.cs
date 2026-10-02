@@ -64,4 +64,23 @@ public class SheetUrlsTests {
         Assert.NotNull(once);
         Assert.Null(SheetUrls.Migrate(once));
     }
+
+    [Theory]
+    [InlineData("https://docs.google.com/spreadsheets/d/AbC-1_x/edit?gid=42", "42")]
+    [InlineData("https://docs.google.com/spreadsheets/d/AbC-1_x/edit#gid=42", "42")]
+    [InlineData("https://docs.google.com/spreadsheets/d/AbC-1_x/edit?usp=sharing&gid=42", "42")]
+    [InlineData("https://docs.google.com/spreadsheets/d/AbC-1_x/edit", "0")]
+    public void TheCsvUrlKeepsTheIdAndTheTab(string editUrl, string gid) {
+        Assert.Equal($"https://docs.google.com/spreadsheets/d/AbC-1_x/export?format=csv&gid={gid}",
+            SheetUrls.CsvUrlOf(editUrl));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("   ")]
+    [InlineData("AbC-1_x")]
+    [InlineData("https://example.com/no-sheet-here")]
+    public void NoSheetIdMeansNoCsvUrl(string sheetUrl) {
+        Assert.Null(SheetUrls.CsvUrlOf(sheetUrl));
+    }
 }

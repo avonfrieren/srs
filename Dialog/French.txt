@@ -48,7 +48,7 @@ SRS_EXPORT_URL_CHECKING=      Interrogation de la sheet...
 SRS_EXPORT_URL_CHECK_OK=      La sheet a répondu.
 SRS_EXPORT_URL_CHECK_FAILED=      La sheet n'a pas répondu :
 SRS_EXPORT_URL_CHECK_NOT_SHEET=      Quelque chose a répondu, mais pas le script d'export. Vérifier le déploiement.
-SRS_EXPORT_URL_DETAIL=      se termine par .../exec · définie le
+SRS_EXPORT_URL_DETAIL=      se termine par .../exec, définie le
 
 # Erreurs. Pas de placeholders {0} : ce qui porte une valeur est composé en code.
 SRS_EXPORT_ERR_NO_URL=      Aucune URL de sheet configurée. Voir les options du mod.

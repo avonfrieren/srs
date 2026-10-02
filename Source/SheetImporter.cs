@@ -2,7 +2,6 @@ using System;
 using System.Linq;
 using System.IO;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -168,7 +167,7 @@ public static class SheetImporter {
     }
 
     private static async Task<string> DownloadTab(string sheetUrl, string label) {
-        string url = ExportUrl(sheetUrl);
+        string url = SheetUrls.CsvUrlOf(sheetUrl);
         if (url == null) {
             Logger.Log(LogLevel.Warn, LogTag, $"Could not extract a spreadsheet id from the {label} url: {sheetUrl}");
             return null;
@@ -211,18 +210,4 @@ public static class SheetImporter {
         return latest;
     }
 
-    // accepts a full edit URL (or just an id) and builds the no-auth CSV export URL
-    public static string ExportUrl(string sheetUrl) {
-        if (string.IsNullOrWhiteSpace(sheetUrl)) {
-            return null;
-        }
-
-        Match id = Regex.Match(sheetUrl, @"/d/([\w-]+)");
-        if (!id.Success) {
-            return null;
-        }
-
-        Match gid = Regex.Match(sheetUrl, @"[?#&]gid=(\d+)");
-        return $"https://docs.google.com/spreadsheets/d/{id.Groups[1].Value}/export?format=csv&gid={(gid.Success ? gid.Groups[1].Value : "0")}";
-    }
 }
