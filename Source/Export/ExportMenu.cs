@@ -44,6 +44,7 @@ internal sealed class UpdateRow : TextMenu.Item {
 
     public override void ConfirmPressed() {
         Update.Selected = !Update.Selected;
+        Audio.Play(Update.Selected ? "event:/ui/main/button_toggle_on" : "event:/ui/main/button_toggle_off");
     }
 
     // auto-detect cannot tell two segments sharing a start room apart; left and
@@ -496,6 +497,11 @@ internal static class ExportMenu {
             return;
         }
 
+        if (!ExportUrlMenu.HasUrl) {
+            PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NEEDS_URL"), null);
+            return;
+        }
+
         List<PendingUpdate> updates = ExportSource.Collect(level.Session);
         Logger.Log(LogLevel.Info, LogTag,
             $"export: scope={SegmentAutoDetect.ScopeOf(level.Session)}"
@@ -686,7 +692,7 @@ internal static class ExportMenu {
 
         List<PendingUpdate> selected = updates.Where(u => u.Selected).ToList();
         if (selected.Count == 0) {
-            PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NOTHING"), null);
+            PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NONE_TICKED"), null);
             return;
         }
 
@@ -798,11 +804,29 @@ internal static class ExportMenu {
 
     // a line-per-row summary of the result plus a Close button; reached only
     // from OnLevelUpdate, on the game thread
+    // a SubHeader draws on one line and never wraps. The script's own
+    // reasons are long English sentences; the full text is in log.txt
+    private const float SummaryMaxWidth = 1600f;
+
+    private static string FitOnScreen(string line) {
+        const float scale = TextMenu.SubHeader.Scale;
+        if (ActiveFont.Measure(line).X * scale <= SummaryMaxWidth) {
+            return line;
+        }
+
+        int keep = line.Length;
+        while (keep > 0 && ActiveFont.Measure(line[..keep] + "...").X * scale > SummaryMaxWidth) {
+            keep--;
+        }
+
+        return line[..keep].TrimEnd() + "...";
+    }
+
     private static void ShowSummary(Level level, List<string> lines) {
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_DONE")));
         foreach (string line in lines) {
-            newMenu.Add(new TextMenu.SubHeader(line, topPadding: false));
+            newMenu.Add(new TextMenu.SubHeader(FitOnScreen(line), topPadding: false));
         }
 
         // not "Cancel": the rows above are already written, and offering to
