@@ -44,6 +44,35 @@ public class ExportProtocolTests {
         Assert.StartsWith("no row matching", response.Results[0].Reason);
     }
 
+    [Fact]
+    public void ANullResultsListReadsAsNoResults() {
+        Assert.True(ExportProtocol.TryParseResponse("""{"results":null}""", out var response, out _));
+        Assert.Empty(response.Results);
+    }
+
+    [Fact]
+    public void NullFieldsOfAResultReadAsEmpty() {
+        Assert.True(ExportProtocol.TryParseResponse(
+            """{"results":[{"tab":null,"chapter":null,"cp":null,"status":null,"reason":null}]}""",
+            out var response, out _));
+
+        ExportResult r = Assert.Single(response.Results);
+        Assert.Equal(("", "", "", "", ""), (r.Tab, r.Chapter, r.Cp, r.Status, r.Reason));
+    }
+
+    [Fact]
+    public void NullEntriesAreDroppedFromBothAnswers() {
+        Assert.True(ExportProtocol.TryParseResponse(
+            """{"results":[null,{"tab":"A Sides","chapter":"1a","cp":"Crossing","status":"written"}]}""",
+            out var response, out _));
+        Assert.Equal("written", Assert.Single(response.Results).Status);
+
+        Assert.True(ExportProtocol.TryParseRows(
+            """{"rows":[null,{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.948"}]}""",
+            out var rows, out _));
+        Assert.Equal("21.948", Assert.Single(rows).Time);
+    }
+
     // the write path answers with results or with error, never both, and both
     // parse entry points treat error the same way: a failed parse carrying the
     // script's message, not a response the caller has to inspect for one

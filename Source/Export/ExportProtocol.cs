@@ -104,6 +104,18 @@ public static class ExportProtocol {
             response = null;
             return false;
         }
+        // an explicit null overrides the property's default, for the list, an
+        // entry or a field alike, and the caller walks the list inside a
+        // continuation, where a throw is swallowed and leaves the screen on
+        // "Writing to the sheet..." for good
+        response.Results = response.Results?.FindAll(r => r != null) ?? [];
+        foreach (ExportResult r in response.Results) {
+            r.Tab ??= "";
+            r.Chapter ??= "";
+            r.Cp ??= "";
+            r.Status ??= "";
+            r.Reason ??= "";
+        }
         error = null;
         return true;
     }
@@ -137,7 +149,8 @@ public static class ExportProtocol {
             error = Localize("SRS_EXPORT_ERR_NO_ROWS");
             return false;
         }
-        rows = wrapper.Rows;
+        // same reason as Results: Accept runs inside a continuation
+        rows = wrapper.Rows.FindAll(r => r != null);
         scriptTiming = wrapper.Ms is { } ms
             ? $"{ms} ms in the script{(wrapper.Cached ? ", cached" : "")}"
             : "script timing unknown";

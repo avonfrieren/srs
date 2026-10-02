@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Celeste.Mod.SpeedrunTool.Message;
 using Microsoft.Xna.Framework;
 using Monocle;
@@ -289,9 +290,18 @@ internal static class ExportMenu {
     // landing. Read from a worker by Refresh, which must not start one behind it
     private static volatile bool awaitingRows;
 
-    // a background refresh is in flight. Only one at a time: they exist to have
-    // an answer ready, and a second in the queue brings that no sooner
-    private static volatile bool refreshing;
+    // a background refresh is in flight. Only one at a time; one asked for
+    // meanwhile is kept and run when it lands, because the one after a write
+    // is the only one asking for the cells as they are now. Both under
+    // refreshGate: they are handed over between the game thread and a worker
+    private static readonly object refreshGate = new();
+    private static bool refreshing;
+    private static string refreshAgain;
+
+    // bumped when a POST answers. A read started before that may hold the
+    // cells as they were, and taking it in would show the row as an
+    // improvement again, for the write to refuse it as changed
+    private static int writes;
 
     // how stale a held answer has to be before opening the screen asks again
     private static readonly TimeSpan AskAgainAfter = TimeSpan.FromSeconds(60);
@@ -312,7 +322,10 @@ internal static class ExportMenu {
     private static volatile int generation;
 
     public static void Load() {
-        ExportProtocol.Localize = key => Dialog.Clean(key);
+        // Dialog loads after the mods do, and the launch refresh below can be
+        // answered before it: Dialog.Clean then throws on a null Language, which
+        // turned a plain 404 at boot into an exception. The key is logged instead
+        ExportProtocol.Localize = key => Dialog.Language == null ? key : Dialog.Clean(key);
 
         On.Celeste.Level.Update += OnLevelUpdate;
 
@@ -328,15 +341,30 @@ internal static class ExportMenu {
     /// against (ExportUpdate.Expect).
     internal static void Refresh(string why) {
         string url = SrsModule.Settings.ExportUrl;
-        if (!SrsModule.Settings.Enabled || refreshing || awaitingRows
-            || string.IsNullOrWhiteSpace(url)) {
+        if (!SrsModule.Settings.Enabled || awaitingRows || string.IsNullOrWhiteSpace(url)) {
             return;
         }
 
-        refreshing = true;
+        lock (refreshGate) {
+            if (refreshing) {
+                refreshAgain = why;
+                return;
+            }
+
+            refreshing = true;
+        }
+
+        int writesBefore = Volatile.Read(ref writes);
         Logger.Log(LogLevel.Info, LogTag, "refreshing the sheet in the background: " + why);
         _ = ExportClient.FetchAsync(url).ContinueWith(task => {
+            string again = null;
             try {
+                if (writesBefore != Volatile.Read(ref writes)) {
+                    Logger.Log(LogLevel.Info, LogTag,
+                        "a background refresh read the sheet before the latest export; dropped");
+                    return;
+                }
+
                 // repointed or forgotten from Mod Options while this was out:
                 // taking it in would resolve RemoteBests against another sheet
                 if (url != SrsModule.Settings.ExportUrl) {
@@ -353,7 +381,17 @@ internal static class ExportMenu {
             } finally {
                 // never in the body: cleared nowhere else, so a throw skipping
                 // it would silently kill every later refresh of the session
-                refreshing = false;
+                lock (refreshGate) {
+                    refreshing = false;
+                    again = refreshAgain;
+                    refreshAgain = null;
+                }
+
+                // here and not after the block: the dropped answer returns
+                // early, and that is the case with a refresh waiting
+                if (again != null) {
+                    Refresh(again);
+                }
             }
         });
     }
@@ -678,6 +716,13 @@ internal static class ExportMenu {
         ShowWorking(level);
 
         _ = ExportClient.PostAsync(url, json).ContinueWith(task => {
+            // first, before the screen check: a refresh out now read the
+            // sheet before this write, whether or not its screen is still up
+            Interlocked.Increment(ref writes);
+            // on every answer, failed or orphaned too: the count just dropped
+            // any refresh out, and a failed POST may still have written (a
+            // timeout). Queued behind one already out, run when it lands
+            Refresh("an export answered");
             if (submission != generation) {
                 // the write happened and its outcome is in the log; nobody is
                 // left to show it to, and clearing `submitting` here would open
@@ -716,9 +761,6 @@ internal static class ExportMenu {
                 lines.Add(Dialog.Clean("SRS_EXPORT_DONE"));
             }
             QueueSummary(lines);
-            // the write emptied the script's own cache, so the next read costs
-            // full price: pay it now rather than at the next open
-            Refresh("an export was just written");
         });
     }
 
