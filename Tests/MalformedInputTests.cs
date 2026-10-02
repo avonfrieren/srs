@@ -123,7 +123,7 @@ public class MalformedInputTests {
     }
 }
 
-// the three tabs as they were exported on 2026-08-17; refreshing them is how a
+// the three tabs as they were last exported; refreshing them is how a
 // change in the sheet becomes a failing test (see SheetConsistencyTests)
 internal static class Fixtures {
     public static string ASides { get; } = Read("asides.csv");

@@ -136,9 +136,8 @@ public class SheetData {
         [("5a CP", "5a Start")] = ("5a/b", "5a Start"),
         [("5a CP", "Depths")] = ("5a/b", "Depths"),
         [("5a CP", "Depths 📼 RTM")] = ("5a/b", "Depths Tape"),
-        // 5A past the mirror (v3.6.0). The sheet's "Wake Up" row between Depths
-        // and Unravelling stays out on purpose: it times the wake-up animation,
-        // which is always the same 2.533s — there is nothing to compare
+        // 5A past the mirror. The sheet's "Wake Up" row between Depths and
+        // Unravelling stays out on purpose
         [("5a CP", "Unravelling")] = ("5a/b", "Unravelling"),
         [("5a CP", "Search")] = ("5a/b", "Search"),
         [("5a CP", "Rescue")] = ("5a/b", "Rescue"),
@@ -284,10 +283,11 @@ public class SheetData {
         return name.Contains("💙") ? SegmentCategory.TrueEnding : SegmentCategory.AnyPercent;
     }
 
-    // the end of the run is in the raw name too, and "RTM" is the only thing
-    // that ends one early: it is the sheet's marker for "collect and reset",
-    // and the community convention is that the segment stops at the collect
-    // (the menuing after it is not gameplay and is never timed). Every other
+    // the end of the run is in the raw name too, and "RTM" and "RC" are the
+    // only things that end one early: the sheet's markers for "collect, then
+    // return to map" or "restart the chapter", and the community convention is
+    // that the segment stops at the collect (the menuing after it is not
+    // gameplay and is never timed). Every other
     // row runs to the end of its segment — the next in-game checkpoint, or
     // the chapter itself when there is none, which RunWatcher resolves at
     // runtime with no help from here.
