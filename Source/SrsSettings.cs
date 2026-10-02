@@ -10,7 +10,7 @@ public class SrsSettings : EverestModuleSettings {
 
     // the imported tabs of the practice sheet: "A Sides Standards" (all the
     // A-side checkpoints) and "B Sides Standards" (the any% route's 5B/6B
-    // checkpoints) since v2.0.0, plus "Farewell Standards" since v3.4.0
+    // checkpoints), plus "Farewell Standards"
     public const string DefaultASidesUrl =
         SheetUrls.EditUrlPrefix + "1796170425";
 
@@ -46,7 +46,7 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public SegmentCategory Category { get; set; } = SegmentCategory.AnyPercent;
 
-    // rebindable hotkey cycling Category without opening Mod Options (v3.1.0),
+    // rebindable hotkey cycling Category without opening Mod Options,
     // handled in SegmentAutoDetect — switching category is a mid-practice
     // gesture (any% run, then the cassette variant of the same checkpoint).
     // [SettingIgnore] keeps it out of Everest's key config screen: srs's
@@ -66,7 +66,7 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public ButtonBinding ToggleShowTier { get; set; } = new();
 
-    // discreet "category - checkpoint" row under the tier row (v3.3.0): what
+    // discreet "category - checkpoint" row under the tier row: what
     // the next run will be compared against, readable at a glance without
     // opening Mod Options. Same shape as ShowTier — menu toggle + rebindable
     // hotkey, both handled in TierComparison

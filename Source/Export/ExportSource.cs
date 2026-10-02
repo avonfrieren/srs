@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace Celeste.Mod.SpeedrunSheet;
 
 /// Turns this session's segment best into the reviewable row of the export
-/// screen. Not SpeedrunTool's PbTimes: srs has not set NumberOfRooms since
-/// v3.0.0, so those are cut on the player's setting and describe no sheet segment.
+/// screen. Not SpeedrunTool's PbTimes: srs never sets NumberOfRooms, so those
+/// are cut on the player's setting and describe no sheet segment.
 internal static class ExportSource {
     /// The one row there is to export: the segment this session holds a run
     /// of, whatever the selection has moved to since. The selection is not

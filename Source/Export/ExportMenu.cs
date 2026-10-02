@@ -150,8 +150,8 @@ internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
 /// is anchored on that: text justifies at y = 0.5, bands and rules are centred.
 ///
 /// ⚠️ Widths are measured across a list even though SessionBests holds exactly
-/// one segment. Do not collapse the geometry to a single row: a review proposed
-/// it on 2026-08-28 and the answer was no, the list is what the next feature needs.
+/// one segment. Do not collapse the geometry to a single row: the list is what
+/// the next feature needs (owner decision).
 internal sealed class ExportColumns {
     public const float Gap = 18f;
 
@@ -277,8 +277,8 @@ internal static class ExportMenu {
     // the Level the screen is open on, and whether it was already paused before
     // Open() forced it, so Close() restores the prior state.
     //
-    // ⚠️ Holding a Level across frames is the exception CLAUDE.md forbids.
-    // Nothing replaces it while the screen is up, and that guarantee is
+    // ⚠️ A Level is normally never held across frames: the scene can be
+    // replaced between two of them. Nothing replaces it while the screen is up, and that guarantee is
     // SpeedrunTool's rather than ours; OnLevelUpdate closes on menu.Scene != self
     private static Level openLevel;
     private static bool pausedBeforeOpen;

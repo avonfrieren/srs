@@ -23,14 +23,13 @@ public enum SegmentCategory {
 // game-free like the rest of this file: a test checks the table still covers
 // every enum value
 public static class SegmentCategories {
-    // indexed by SegmentCategory. "Any% Cassettes" (v3.2.0, renamed from
-    // "Cassette"): the 5A and 6A cassettes are part of the any% run, so the
+    // indexed by SegmentCategory. "Any% Cassettes": the 5A and 6A cassettes are part of the any% run, so the
     // name says which run these segments belong to rather than pretending to
     // be a category of its own. The rule the split enforces is that no
     // category ever holds two segments starting at the same in-game
     // checkpoint — wider categories are described by what they *add*, and
     // fall back to the any% row everywhere they add nothing: "True Ending"
-    // (v3.4.0) only names the 3A and 4A hearts, since Core and Farewell start
+    // only names the hearts, since Core and Farewell start
     // at checkpoints no other category has a segment for. "True Ending DTS"
     // is that same run with the double-dash skip, which the sheet times
     // separately from Farewell's Start to Determination. The enum member
@@ -46,7 +45,7 @@ public static class SegmentCategories {
         (SegmentCategory)(((int)category + 1) % Enum.GetValues(typeof(SegmentCategory)).Length);
 }
 
-// what finishes a run of the segment (phase 6): derived from the sheet's own
+// what finishes a run of the segment: derived from the sheet's own
 // naming vocabulary, evaluated by RunWatcher — SpeedrunTool's Number of Rooms
 // plays no part anymore.
 public enum EndCondition {
@@ -62,8 +61,8 @@ public enum EndCondition {
 }
 
 // parsed practice sheet: one block of checkpoint segments merged from the
-// three imported tabs ("A Sides Standards", "B Sides Standards" and, since
-// v3.4.0, "Farewell Standards"), with a header of tier columns ("Hidden",
+// three imported tabs ("A Sides Standards", "B Sides Standards" and
+// "Farewell Standards"), with a header of tier columns ("Hidden",
 // "WR", "Gold", "Pink", "Purple 1", ... "Unranked")
 public class SheetData {
     /// The one block Parse builds, checkpoint segments of all three tabs
@@ -95,8 +94,8 @@ public class SheetData {
     }
 
     // raw (chapter, checkpoint) of the sheet -> (chapter, name) of the mod.
-    // Deliberately a hardcoded allowlist, no name normalization (owner decision
-    // 2026-07-18, renewed 2026-08-05 for the new sheet): only the checkpoints
+    // Deliberately a hardcoded allowlist, no name normalization (owner
+    // decision): only the checkpoints
     // the mod supports are imported — the remaining emoji variants and the IL
     // rows are for later. The emoji rows kept so far are the ones the any% and
     // True Ending routes actually run: the two cassettes ("Depths 📼 RTM",
@@ -151,7 +150,7 @@ public class SheetData {
         [("7a CP", "2000m")] = ("7a", "2000m"),
         [("7a CP", "2500m")] = ("7a", "2500m"),
         [("7a CP", "3000m")] = ("7a", "3000m"),
-        // 8a CP (v3.4.0): the sheet cuts the game's single "Heart of the
+        // 8a CP: the sheet cuts the game's single "Heart of the
         // Mountain" checkpoint in two, the vertical climb then the horizontal
         // chase — SegmentAutoDetect.SplitCheckpoints anchors the second half
         [("8a CP", "8a Start")] = ("8a", "Start"),
@@ -168,7 +167,7 @@ public class SheetData {
         [("6b", "Falling")] = ("6a/b", "Falling"),
         [("6b", "Rock Bottom")] = ("6a/b", "6b Rock Bottom"),
         [("6b", "Reprieve")] = ("6a/b", "Reprieve"),
-        // Farewell Standards (v3.4.0): the tab has no Chapter column, its rows
+        // Farewell Standards: the tab has no Chapter column, its rows
         // are read under the implicit "Farewell" chapter (see Parse). Every
         // row is kept except the four SoB/IL totals at the bottom. "DTS" rows
         // are the double-dash skip's version of the first six segments — same
@@ -291,7 +290,7 @@ public class SheetData {
     // Trail and Cliff Face (78s of run after it), and the sheet's own chapter
     // totals go up by exactly what the heart detour costs that one segment.
     // It means "collect it and keep going", as opposed to the "Shrine 💙 RTM"
-    // row next to it (owner confirmed 2026-08-17).
+    // row next to it (owner confirmed).
     // Combined "💙+📼" RTM rows default to Cassette until they are actually
     // imported and their route settles which comes last
     internal static EndCondition EndConditionOf(string rawName) {

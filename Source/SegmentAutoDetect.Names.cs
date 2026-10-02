@@ -8,8 +8,8 @@ namespace Celeste.Mod.SpeedrunSheet;
 // can check every name it points at still exists in the imported sheet.
 public static partial class SegmentAutoDetect {
     // (side or chapter, game checkpoint name) -> sheet checkpoint name.
-    // Deliberately a hardcoded table, no name normalization (owner decision
-    // 2026-07-18, kept for the v2.0.0 sheet). "Start" stands for the
+    // Deliberately a hardcoded table, no name normalization (owner
+    // decision). "Start" stands for the
     // session's first room (which has no CheckpointData). Game checkpoints
     // not imported from the sheet are simply not listed — reaching them
     // leaves the selection where it was. The
@@ -89,8 +89,9 @@ public static partial class SegmentAutoDetect {
         CategoryVariants = new() {
             [(SegmentCategory.Cassette, "5a/b", "Depths")] = "Depths Tape",
             [(SegmentCategory.Cassette, "6a/b", "Hollows")] = "Hollows Tape",
-            // the 3A and 4A hearts are collected by both True Ending variants:
-            // DTS is a Farewell skip, it changes nothing before it
+            // the 3A and 4A hearts are collected on every True Ending route, and
+            // 2A's on the 6a route only: srs cannot tell 6a from 6b at 2A, so it
+            // assumes 6a. DTS is a Farewell skip, it changes nothing before it
             [(SegmentCategory.TrueEnding, "2a", "Start")] = "Start Heart RC",
             [(SegmentCategory.TrueEndingDts, "2a", "Start")] = "Start Heart RC",
             [(SegmentCategory.TrueEnding, "3a", "Huge Mess")] = "Huge Mess Heart",
@@ -122,7 +123,7 @@ public static partial class SegmentAutoDetect {
 
     // (scope, game checkpoint name) -> the room a run of that checkpoint's
     // segment really starts in, for the segments the sheet does not time from
-    // the checkpoint's own room (v3.2.0). Keyed by *game* name, not sheet
+    // the checkpoint's own room. Keyed by *game* name, not sheet
     // name, so both ends of a segment read the same entry: a segment ends
     // exactly where the next one starts, so an override moves the previous
     // segment's finish line with it, and the two never overlap. Variants

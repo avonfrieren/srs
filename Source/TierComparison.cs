@@ -8,14 +8,14 @@ using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// Phase 4 (reshaped by phase 6): when RunWatcher captures a finished run of
+// When RunWatcher captures a finished run of
 // the selected segment, compare the final time against the segment's sheet
 // tiers and draw the time + the reached tier's name in the tier's color under
 // the timer, like srta's delta row. srs is the holder of the reference time —
 // SpeedrunTool's own display keeps obeying its Number of Rooms setting, which
 // srs no longer touches.
 // Owner of every row srs adds to the timer stack: the tier row and, under it,
-// the greyed selection row (v3.3.0). They share the same slot geometry and the
+// the greyed selection row. They share the same slot geometry and the
 // same visibility gate, so they are drawn from one hook rather than two.
 public static class TierComparison {
     private static SrsSettings Settings => SrsModule.Settings;
@@ -27,7 +27,7 @@ public static class TierComparison {
     private static string rowText = "";
     private static Color tierColor = Color.White;
 
-    // "category - checkpoint" of the armed comparison (v3.3.0), recomputed the
+    // "category - checkpoint" of the armed comparison, recomputed the
     // same way — auto-detection moves the selection from under it constantly
     private static string selectionText = "";
 
@@ -218,8 +218,8 @@ public static class TierComparison {
             y += rowHeight + 1f;
         }
 
-        // SpeedrunTool's own PB-row width heuristic, read off 3.27.17 and copied
-        // here in srs v3.1.0, not the measured text width: the background is a
+        // SpeedrunTool's own PB-row width heuristic, read off 3.27.17, not the
+        // measured text width: the background is a
         // 288px strip that fades out to the right, and every row of the stack is
         // meant to end *inside* the text, letting the tail sit over the fade.
         // Measuring the text put the whole fade past the last character instead,

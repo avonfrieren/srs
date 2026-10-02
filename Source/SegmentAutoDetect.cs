@@ -5,7 +5,7 @@ using MonoMod.ModInterop;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// Phase 4bis: while playing, the checkpoint being practiced drives the
+// While playing, the checkpoint being practiced drives the
 // selection instead of the Mod Options sliders. The current checkpoint is the
 // last checkpoint room entered (or the session's own start), tracked across
 // transitions and registered with SpeedrunTool's save states, so loading a
@@ -79,11 +79,11 @@ public static partial class SegmentAutoDetect {
         checkpointRoom = session.StartCheckpoint;
     }
 
-    // rooms that carry a game checkpoint, plus (v3.2.0) the rooms a segment is
+    // rooms that carry a game checkpoint, plus the rooms a segment is
     // timed from when the sheet does not start it at its checkpoint: being in
     // 2A's end_0 is being in the Awake segment, three rooms before the game
     // says so.
-    // Polled on Session.Level rather than caught on transition (v3.5.1): the
+    // Polled on Session.Level rather than caught on transition: the
     // game enters some of these rooms without one. Every "wake up" of the run
     // is a cutscene assigning Session.Level and reloading the level — 2A's
     // dream into end_0, 5A's mirror into c-00 (Unraveling), 5B's into c-00
@@ -136,7 +136,7 @@ public static partial class SegmentAutoDetect {
             return;
         }
 
-        // hotkey (v3.1.0): cycle the practiced category without leaving the
+        // hotkey: cycle the practiced category without leaving the
         // game — the natural gesture between an any% run of a checkpoint and
         // the cassette variant of the same one. Handled here rather than in
         // TierComparison because the category only feeds the detection right

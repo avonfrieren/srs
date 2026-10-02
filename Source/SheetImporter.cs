@@ -26,8 +26,8 @@ public static class SheetImporter {
 
     // the caches double as the manual-import fallback: dropping hand-exported
     // CSVs of the tabs at these paths is equivalent to pressing the update
-    // button once. A cache from before v3.4.0 simply has no farewell.csv —
-    // everything else still loads, Farewell appears on the next update
+    // button once. A cache missing farewell.csv still loads everything else,
+    // and Farewell appears on the next update
     public static string ACachePath => Path.Combine(Everest.PathSettings, "srs", "asides.csv");
     public static string BCachePath => Path.Combine(Everest.PathSettings, "srs", "bsides.csv");
     public static string FarewellCachePath => Path.Combine(Everest.PathSettings, "srs", "farewell.csv");
@@ -56,7 +56,7 @@ public static class SheetImporter {
             Logger.Log(LogLevel.Warn, LogTag, $"Failed to load sheet cache: {e}");
         } finally {
             // the sheet is retimed and extended regularly, so every launch
-            // refreshes it in the background (v3.5.0). The cache above is
+            // refreshes it in the background. The cache above is
             // already serving by then, and a failed download leaves it
             // untouched — offline play is unaffected, and a first launch with
             // no cache at all still ends up with data. Skipped while the mod is
