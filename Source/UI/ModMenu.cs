@@ -50,6 +50,10 @@ internal static class ModMenu {
                 level.Unpause();
                 Engine.Scene.OnEndOfFrame += () => ExportMenu.Open(level);
             });
+            // nothing to open without a sheet: shown once a URL is set, which can
+            // happen during this visit. OnUpdate runs for hidden items too, and
+            // the master switch is read here so it is not undone the next frame
+            openExport.OnUpdate = () => openExport.Visible = settings.Enabled && ExportUrlMenu.HasUrl;
             menu.Add(openExport);
         }
 
