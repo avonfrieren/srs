@@ -150,8 +150,8 @@ internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
 /// is anchored on that: text justifies at y = 0.5, bands and rules are centred.
 ///
 /// ⚠️ Widths are measured across a list even though SessionBests holds exactly
-/// one segment. Do not collapse the geometry to a single row: a review proposed
-/// it on 2026-08-28 and the answer was no, the list is what the next feature needs.
+/// one segment. Do not collapse the geometry to a single row: the list is what
+/// the next feature needs (owner decision).
 internal sealed class ExportColumns {
     public const float Gap = 18f;
 
@@ -277,8 +277,8 @@ internal static class ExportMenu {
     // the Level the screen is open on, and whether it was already paused before
     // Open() forced it, so Close() restores the prior state.
     //
-    // ⚠️ Holding a Level across frames is the exception CLAUDE.md forbids.
-    // Nothing replaces it while the screen is up, and that guarantee is
+    // ⚠️ A Level is normally never held across frames: the scene can be
+    // replaced between two of them. Nothing replaces it while the screen is up, and that guarantee is
     // SpeedrunTool's rather than ours; OnLevelUpdate closes on menu.Scene != self
     private static Level openLevel;
     private static bool pausedBeforeOpen;
@@ -341,7 +341,7 @@ internal static class ExportMenu {
     /// which holds the rows it was built from and the values a write compares
     /// against (ExportUpdate.Expect).
     internal static void Refresh(string why) {
-        string url = SrsModule.Settings.ExportUrl;
+        string url = ExportTarget.Url;
         if (!SrsModule.Settings.Enabled || awaitingRows || string.IsNullOrWhiteSpace(url)) {
             return;
         }
@@ -368,7 +368,7 @@ internal static class ExportMenu {
 
                 // repointed or forgotten from Mod Options while this was out:
                 // taking it in would resolve RemoteBests against another sheet
-                if (url != SrsModule.Settings.ExportUrl) {
+                if (url != ExportTarget.Url) {
                     Logger.Log(LogLevel.Info, LogTag,
                         "a background refresh answered for a sheet URL that is no longer the one set; dropped");
                     return;
@@ -536,7 +536,7 @@ internal static class ExportMenu {
         // nothing held: the first open of a session that launched offline, or
         // one whose refresh has not landed yet
         RemoteBests.BeginFetch();
-        string url = SrsModule.Settings.ExportUrl;
+        string url = ExportTarget.Url;
         _ = ExportClient.FetchAsync(url).ContinueWith(task => {
             if (fetch != generation) {
                 // an older answer would overwrite a newer one. Logged for the
@@ -549,7 +549,7 @@ internal static class ExportMenu {
             // repointed from Mod Options with no screen up: closing and
             // forgetting the URL leaves the generation where it was, and this
             // answer would resolve RemoteBests against a sheet nobody points at
-            if (url != SrsModule.Settings.ExportUrl) {
+            if (url != ExportTarget.Url) {
                 Logger.Log(LogLevel.Info, LogTag,
                     "a fetch resolved for a sheet URL that is no longer the one set; discarded");
                 return;
@@ -712,7 +712,7 @@ internal static class ExportMenu {
             }).ToList(),
         };
         string json = ExportProtocol.SerializeRequest(request);
-        string url = SrsModule.Settings.ExportUrl;
+        string url = ExportTarget.Url;
 
         Logger.Log(LogLevel.Info, LogTag,
             $"exporting {request.Updates.Count} row(s)");

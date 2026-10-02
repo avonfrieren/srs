@@ -5,7 +5,7 @@ using SDL2;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// Mod Options entries for the export target (ExportUrl). The URL is a bearer
+// Mod Options entries for the export target (ExportTarget). The URL is a bearer
 // credential (no auth on the Apps Script Web App side), so it must never be
 // shown, logged, or pre-filled: it is read from the clipboard and never
 // rendered back.
@@ -13,7 +13,7 @@ public static class ExportUrlMenu {
     private const string LogTag = "srs";
 
     // condition behind the Visible of the entries returned by CreateMenuEntries
-    internal static bool HasUrl => !string.IsNullOrEmpty(SrsModule.Settings.ExportUrl);
+    internal static bool HasUrl => ExportTarget.IsSet;
 
     // written from the ping's continuation (a thread-pool thread) and read on
     // the game thread in setButton.OnUpdate, which is the only place either is
@@ -75,7 +75,7 @@ public static class ExportUrlMenu {
                 return;
             }
 
-            settings.ExportUrl = pasted;
+            ExportTarget.Set(pasted);
             settings.ExportUrlSetOn = DateTime.Now.ToString("yyyy-MM-dd");
             RemoteBests.Reset();
             SrsModule.Instance.SaveSettings();
@@ -103,7 +103,7 @@ public static class ExportUrlMenu {
                 return;
             }
 
-            settings.ExportUrl = "";
+            ExportTarget.Forget();
             settings.ExportUrlSetOn = "";
             RemoteBests.Reset();
             SrsModule.Instance.SaveSettings();
@@ -166,7 +166,7 @@ public static class ExportUrlMenu {
     // the label is the action, not the state: the state is the line below it,
     // which only appears once there is one
     private static string StatusLabel(SrsSettings settings) =>
-        Dialog.Clean(string.IsNullOrEmpty(settings.ExportUrl)
+        Dialog.Clean(!ExportTarget.IsSet
             ? "SRS_EXPORT_URL_FROM_CLIPBOARD"
             : "SRS_EXPORT_URL_REPLACE_FROM_CLIPBOARD");
 

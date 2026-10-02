@@ -4,7 +4,7 @@ using MonoMod.ModInterop;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// Phase 6 (v3.0.0): srs decides itself when a run of the selected segment is
+// srs decides itself when a run of the selected segment is
 // finished, from the segment's declarative EndCondition — entering the next
 // checkpoint's room, completing the chapter, or collecting the cassette/heart.
 // SpeedrunTool is only the stopwatch: GetRoomTime() is captured on the frame
@@ -106,8 +106,8 @@ public static class RunWatcher {
             return;
         }
 
-        // the room timer as it stands *before* this frame is added to it
-        // (v3.2.0). SpeedrunTool runs inside orig — srs loads after it, so its
+        // the room timer as it stands *before* this frame is added to it.
+        // SpeedrunTool runs inside orig — srs loads after it, so its
         // hook is the inner one — and on the frame a room condition fires it
         // does exactly this: RoomTimerManager.Timing() freezes the displayed
         // time first (UpdateTimerState), then adds the frame's delta. Reading

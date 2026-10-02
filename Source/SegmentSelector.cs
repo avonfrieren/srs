@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace Celeste.Mod.SpeedrunSheet;
 
 // Mod Options selection of the checkpoint whose sheet tiers the room timer
-// will be compared against (phase 4). Checkpoints come from the imported
+// will be compared against. Checkpoints come from the imported
 // sheet's checkpoint block, grouped by chapter; the selection is persisted by
 // (chapter, checkpoint) name — checkpoint names alone repeat across chapters
 // ("Start" in nearly all of them).

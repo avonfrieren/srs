@@ -10,7 +10,7 @@ public class SrsSettings : EverestModuleSettings {
 
     // the imported tabs of the practice sheet: "A Sides Standards" (all the
     // A-side checkpoints) and "B Sides Standards" (the any% route's 5B/6B
-    // checkpoints) since v2.0.0, plus "Farewell Standards" since v3.4.0
+    // checkpoints), plus "Farewell Standards"
     public const string DefaultASidesUrl =
         SheetUrls.EditUrlPrefix + "1796170425";
 
@@ -24,8 +24,7 @@ public class SrsSettings : EverestModuleSettings {
     // them); not editable in-game — change them in the settings file to read
     // another workbook. These are stored values: a player who has saved
     // settings keeps theirs, which is why SrsModule migrates the id of the
-    // workbook srs read before 2026-08-28 (SheetUrls). The pre-2.0.0 single
-    // SheetUrl (old prototype sheet) is simply dropped by the deserializer
+    // workbook srs read before 2026-08-28 (SheetUrls)
     [SettingIgnore]
     public string ASidesUrl { get; set; } = DefaultASidesUrl;
 
@@ -47,7 +46,7 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public SegmentCategory Category { get; set; } = SegmentCategory.AnyPercent;
 
-    // rebindable hotkey cycling Category without opening Mod Options (v3.1.0),
+    // rebindable hotkey cycling Category without opening Mod Options,
     // handled in SegmentAutoDetect — switching category is a mid-practice
     // gesture (any% run, then the cassette variant of the same checkpoint).
     // [SettingIgnore] keeps it out of Everest's key config screen: srs's
@@ -67,7 +66,7 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public ButtonBinding ToggleShowTier { get; set; } = new();
 
-    // discreet "category - checkpoint" row under the tier row (v3.3.0): what
+    // discreet "category - checkpoint" row under the tier row: what
     // the next run will be compared against, readable at a glance without
     // opening Mod Options. Same shape as ShowTier — menu toggle + rebindable
     // hotkey, both handled in TierComparison
@@ -82,12 +81,6 @@ public class SrsSettings : EverestModuleSettings {
     // SegmentSelector builds the toggle itself so it can grey out the sliders
     [SettingIgnore]
     public bool AutoDetect { get; set; } = true;
-
-    // the player's Apps Script Web App URL. The URL *is* the credential — the
-    // Web App has no auth of its own — so it is never logged or displayed;
-    // ExportUrlMenu sets it through an always-empty field
-    [SettingIgnore]
-    public string ExportUrl { get; set; } = "";
 
     // local date the URL was last set, "yyyy-MM-dd". Display only: it lets the
     // status line say "set <date>" without showing the URL

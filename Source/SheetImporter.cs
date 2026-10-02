@@ -26,21 +26,13 @@ public static class SheetImporter {
 
     // the caches double as the manual-import fallback: dropping hand-exported
     // CSVs of the tabs at these paths is equivalent to pressing the update
-    // button once. A cache from before v3.4.0 simply has no farewell.csv —
-    // everything else still loads, Farewell appears on the next update
+    // button once. A cache missing farewell.csv still loads everything else,
+    // and Farewell appears on the next update
     public static string ACachePath => Path.Combine(Everest.PathSettings, "srs", "asides.csv");
     public static string BCachePath => Path.Combine(Everest.PathSettings, "srs", "bsides.csv");
     public static string FarewellCachePath => Path.Combine(Everest.PathSettings, "srs", "farewell.csv");
 
     public static void Load() {
-        try {
-            // pre-2.0.0 single-tab cache: the old prototype sheet's CSV, which
-            // the current parser has no rows for — clean it up
-            File.Delete(Path.Combine(Everest.PathSettings, "srs", "sheet.csv"));
-        } catch (Exception) {
-            // fine, it just was not there (or is unreadable — harmless either way)
-        }
-
         try {
             string aSides = File.Exists(ACachePath) ? File.ReadAllText(ACachePath) : null;
             string bSides = File.Exists(BCachePath) ? File.ReadAllText(BCachePath) : null;
@@ -64,7 +56,7 @@ public static class SheetImporter {
             Logger.Log(LogLevel.Warn, LogTag, $"Failed to load sheet cache: {e}");
         } finally {
             // the sheet is retimed and extended regularly, so every launch
-            // refreshes it in the background (v3.5.0). The cache above is
+            // refreshes it in the background. The cache above is
             // already serving by then, and a failed download leaves it
             // untouched — offline play is unaffected, and a first launch with
             // no cache at all still ends up with data. Skipped while the mod is
@@ -131,9 +123,13 @@ public static class SheetImporter {
 
     private static async Task<bool> UpdateFromSheet() {
         try {
-            string aSides = await DownloadTab(SrsModule.Settings.ASidesUrl, "A Sides");
-            string bSides = await DownloadTab(SrsModule.Settings.BSidesUrl, "B Sides");
-            string farewell = await DownloadTab(SrsModule.Settings.FarewellUrl, "Farewell");
+            // the three at once: each is a round trip to Google, and none
+            // depends on another
+            Task<string> aTask = DownloadTab(SrsModule.Settings.ASidesUrl, "A Sides");
+            Task<string> bTask = DownloadTab(SrsModule.Settings.BSidesUrl, "B Sides");
+            Task<string> farewellTask = DownloadTab(SrsModule.Settings.FarewellUrl, "Farewell");
+            string[] tabs = await Task.WhenAll(aTask, bTask, farewellTask);
+            string aSides = tabs[0], bSides = tabs[1], farewell = tabs[2];
             // all or nothing: a half-updated cache would silently drop whole
             // chapters from the sliders
             if (aSides == null || bSides == null || farewell == null) {
