@@ -46,7 +46,7 @@
 
     <Target Name="ExtractSpeedrunToolDll" BeforeTargets="ResolveAssemblyReferences" Condition="Exists('$(SpeedrunToolZip)') Or !Exists('$(CelestePrefix)/SpeedrunTool.dll')">
         <Error Condition="!Exists('$(SpeedrunToolZip)')"
-               Text="SpeedrunTool.zip introuvable ($(SpeedrunToolZip)) — passer -p:CelestePrefix=&lt;dossier Celeste&gt;" />
+               Text="SpeedrunTool.zip not found ($(SpeedrunToolZip)): pass -p:CelestePrefix=&lt;Celeste folder&gt;" />
         <Unzip SourceFiles="$(SpeedrunToolZip)" DestinationFolder="$(SpeedrunToolRefDir)" OverwriteReadOnlyFiles="true" />
     </Target>
 

@@ -65,9 +65,9 @@ public class SheetLabelsTests {
         }
 
         Assert.Equal(["A Sides", "B+C Sides", "Farewell"], tabs);
-        Assert.Equal("A Sides", SheetLabels.TAB_A_SIDES);
-        Assert.Equal("B+C Sides", SheetLabels.TAB_B_C_SIDES);
-        Assert.Equal("Farewell", SheetLabels.TAB_FAREWELL);
+        Assert.Equal("A Sides", SheetLabels.TabASides);
+        Assert.Equal("B+C Sides", SheetLabels.TabBCSides);
+        Assert.Equal("Farewell", SheetLabels.TabFarewell);
     }
 
     // the chapter echo srs strips from its own names is back on the sheet
