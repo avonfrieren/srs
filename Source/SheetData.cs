@@ -66,7 +66,9 @@ public enum EndCondition {
 // v3.4.0, "Farewell Standards"), with a header of tier columns ("Hidden",
 // "WR", "Gold", "Pink", "Purple 1", ... "Unranked")
 public class SheetData {
-    public readonly List<SheetBlock> Blocks = [];
+    /// The one block Parse builds, checkpoint segments of all three tabs
+    /// merged under one header; null when nothing parsed.
+    public SheetBlock CheckpointBlock { get; private set; }
 
     /// The Import keys none of the parsed tabs had. A row the
     /// sheet renamed misses the allowlist without a sound and drops out of the
@@ -75,29 +77,7 @@ public class SheetData {
     /// are all here.
     public readonly List<(string Chapter, string Name)> MissingRows = [];
 
-    public int SegmentCount {
-        get {
-            int count = 0;
-            foreach (SheetBlock block in Blocks) {
-                count += block.Segments.Count;
-            }
-
-            return count;
-        }
-    }
-
-    // the block whose segments are individual checkpoints (the selectable ones)
-    public SheetBlock CheckpointBlock {
-        get {
-            foreach (SheetBlock block in Blocks) {
-                if (block.HasCheckpoints) {
-                    return block;
-                }
-            }
-
-            return Blocks.Count > 0 ? Blocks[0] : null;
-        }
-    }
+    public int SegmentCount => CheckpointBlock?.Segments.Count ?? 0;
 
     // raw (chapter, checkpoint) of the sheet -> (chapter, name) of the mod.
     // Deliberately a hardcoded allowlist, no name normalization (owner decision
@@ -224,7 +204,7 @@ public class SheetData {
                 if (merged == null) {
                     merged = new SheetBlock("Checkpoints", raw.TierStart, hasCheckpoints: true);
                     merged.Columns.AddRange(raw.Columns);
-                    data.Blocks.Add(merged);
+                    data.CheckpointBlock = merged;
                 }
 
                 foreach (SheetSegment segment in raw.Segments) {
@@ -493,7 +473,8 @@ public class SheetSegment(string chapter, string name, List<TimeSpan?> times = n
     // aligned with the owning block's Columns; null = empty or unparseable cell
     public readonly List<TimeSpan?> Times = times ?? [];
     // derived from the raw sheet name's marker at import (raw blocks keep the
-    // defaults: their names still carry the marker itself)
+    // defaults: their names still carry the marker itself). Only the tests read
+    // Category: the mod picks a variant through CategoryVariants, not this
     public readonly SegmentCategory Category = category;
     public readonly EndCondition End = end;
 }
