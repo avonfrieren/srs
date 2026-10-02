@@ -50,7 +50,7 @@ public class SrsSettings : EverestModuleSettings {
     // rebindable hotkey cycling Category without opening Mod Options (v3.1.0),
     // handled in SegmentAutoDetect — switching category is a mid-practice
     // gesture (any% run, then the cassette variant of the same checkpoint).
-    // [SettingIgnore] keeps it out of Everest's key config screen: the three
+    // [SettingIgnore] keeps it out of Everest's key config screen: srs's
     // hotkeys are read as combos (Hotkeys/ComboHotkey), which that screen has
     // no way to express, and KeybindConfigUi binds them instead
     [SettingIgnore]
@@ -82,4 +82,21 @@ public class SrsSettings : EverestModuleSettings {
     // SegmentSelector builds the toggle itself so it can grey out the sliders
     [SettingIgnore]
     public bool AutoDetect { get; set; } = true;
+
+    // the player's Apps Script Web App URL. The URL *is* the credential — the
+    // Web App has no auth of its own — so it is never logged or displayed;
+    // ExportUrlMenu sets it through an always-empty field
+    [SettingIgnore]
+    public string ExportUrl { get; set; } = "";
+
+    // local date the URL was last set, "yyyy-MM-dd". Display only: it lets the
+    // status line say "set <date>" without showing the URL
+    [SettingIgnore]
+    public string ExportUrlSetOn { get; set; } = "";
+
+    // opens the export review screen; unbound by default. [SettingIgnore] and
+    // read as a combo like the other three — see CycleCategory
+    [SettingIgnore]
+    public ButtonBinding OpenExportMenu { get; set; } = new();
+
 }

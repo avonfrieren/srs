@@ -103,6 +103,15 @@ public static partial class SegmentAutoDetect {
         }
     }
 
+    // the sheet chapter the session is in, folded sides included ("6a/b").
+    // Derived from the game rather than read from Settings.SelectedChapter:
+    // that one only moves when a checkpoint is reached, so a chapter entered
+    // from the debug console leaves it naming the previous one
+    internal static string ChapterOf(Session session) =>
+        ChapterMap.TryGetValue((session.Area.ID, session.Area.Mode), out (string Chapter, string Side) area)
+            ? area.Chapter
+            : null;
+
     // the scope a chapter's name tables are keyed by: the side for the folded
     // chapters (5a/b, 6a/b), the chapter itself otherwise. Null outside the
     // chapters the sheet covers

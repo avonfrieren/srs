@@ -8,15 +8,16 @@ MODOPTIONS_SRS_TOGGLESHOWTIER= Toggle Tier Display
 MODOPTIONS_SRS_SHOWSELECTION= Show Selection
 MODOPTIONS_SRS_TOGGLESHOWSELECTION= Toggle Selection Display
 MODOPTIONS_SRS_CYCLECATEGORY= Switch Category
+MODOPTIONS_SRS_OPENEXPORTMENU= Open Sheet Export
 SRS_CATEGORY=             Category
 SRS_AUTO_DETECT=          Auto-Detect Checkpoint
 SRS_CHAPTER=              Chapter
 SRS_CHECKPOINT=           Checkpoint
-SRS_UPDATE_SHEET=         Update Sheet Data
+SRS_UPDATE_STANDARDS=     Update Standards
 SRS_UPDATING=             Updating...
-SRS_UPDATE_OK=            Sheet updated
+SRS_UPDATE_OK=            Standards updated
 SRS_UPDATE_FAIL=          Update failed (see log.txt)
-SRS_STATUS_NONE=          No sheet data yet — update to download it
+SRS_STATUS_NONE=          No standards yet, update to download them
 SRS_STATUS_LOADED=        Segments loaded
 
 # Keybinds
@@ -30,3 +31,48 @@ SRS_KEYBIND_COMBO_HINT=   Hold several keys at once to bind a combo
 SRS_KEYBIND_PRESS_KEY=    PRESS A KEY FOR
 SRS_KEYBIND_PRESS_BUTTON= PRESS A BUTTON FOR
 SRS_KEYBIND_NO_CONTROLLER= No controller connected
+# Sheet export
+SRS_EXPORT_TITLE=Export To Practice Sheet
+SRS_EXPORT_NOTHING=Nothing to export: no segment run this session
+SRS_EXPORT_LOADING=Loading sheet data...
+SRS_EXPORT_WRITING=Writing to the sheet...
+SRS_EXPORT_UNREAD=Could not read the sheet.
+SRS_EXPORT_CONFIRM=Export Selected
+SRS_EXPORT_CANCEL=Cancel
+SRS_EXPORT_CLOSE=          Close
+SRS_EXPORT_DONE=Export finished
+SRS_EXPORT_URL_FORGET=Forget Sheet URL
+SRS_EXPORT_URL_FROM_CLIPBOARD=Set Sheet URL from clipboard
+SRS_EXPORT_URL_REPLACE_FROM_CLIPBOARD=Replace Sheet URL from clipboard
+SRS_EXPORT_URL_CLIPBOARD_EMPTY=      Clipboard is empty. Copy the /exec URL first.
+SRS_EXPORT_URL_CLIPBOARD_INVALID=      That is not a web app URL. It must start with https and end in /exec.
+SRS_EXPORT_URL_CHECKING=      Asking the sheet...
+SRS_EXPORT_URL_CHECK_OK=      The sheet answered. Rows it can write:
+SRS_EXPORT_URL_CHECK_FAILED=      The sheet did not answer:
+SRS_EXPORT_URL_CHECK_NOT_SHEET=      Something answered, but not the export script. Check the deployment.
+
+# Sheet export - errors. No {0} placeholders: Celeste may eat the braces, so
+# anything carrying a value is composed in code from these prefixes.
+SRS_EXPORT_ERR_NO_URL=      No sheet URL configured. See Mod Options.
+SRS_EXPORT_ERR_STATUS=      The sheet answered with error
+SRS_EXPORT_ERR_TIMEOUT=     No answer after 60 seconds. The sheet may still have been written, so check it before retrying.
+SRS_EXPORT_ERR_UNREACHABLE= Could not reach the sheet:
+SRS_EXPORT_ERR_UNREADABLE=  Unreadable response from the sheet:
+SRS_EXPORT_ERR_EMPTY=       Empty response from the sheet.
+SRS_EXPORT_ERR_NO_ROWS=     The sheet returned no rows.
+SRS_EXPORT_ERR_LOGIN_PAGE=  Got a web page instead of data. Check your deployment's access level: it must be "Anyone".
+
+# Column titles. SESSION is this game session's best, not a SpeedrunTool PB;
+# DELTA is the word the speedrunning vocabulary uses in either language.
+SRS_EXPORT_COL_SHEET=       SHEET
+SRS_EXPORT_COL_LOCAL=       SESSION
+SRS_EXPORT_COL_DELTA=       DELTA
+
+# Per-row outcomes, mapped from the Apps Script's status field
+SRS_EXPORT_STATUS_WRITTEN=  written
+SRS_EXPORT_STATUS_NOTFOUND= row not found
+SRS_EXPORT_STATUS_AMBIGUOUS= several rows match
+SRS_EXPORT_STATUS_REFUSED=  refused
+SRS_EXPORT_STATUS_CHANGED=  sheet changed, not written
+
+SRS_EXPORT_URL_DETAIL=      ends in .../exec · set

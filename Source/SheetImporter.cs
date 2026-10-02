@@ -79,7 +79,7 @@ public static class SheetImporter {
 
     public static void CreateMenuEntries(TextMenu menu) {
         TextMenu.SubHeader status = new(StatusText(), topPadding: false);
-        TextMenu.Button update = new(Dialog.Clean("SRS_UPDATE_SHEET"));
+        TextMenu.Button update = new(Dialog.Clean("SRS_UPDATE_STANDARDS"));
         update.Pressed(() => {
             update.Label = Dialog.Clean("SRS_UPDATING");
             // menu items just read these strings each frame, so mutating them

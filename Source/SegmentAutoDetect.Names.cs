@@ -55,7 +55,7 @@ public static partial class SegmentAutoDetect {
         [("6b", "Reflection")] = "Falling", // the sheet's name for 6B Reflection
         [("6b", "Rock Bottom")] = "6b Rock Bottom",
         [("6b", "Reprieve")] = "Reprieve",
-        [("7a", "Start")] = "0m", // the new sheet's name for 7a Start
+        [("7a", "Start")] = "7a Start",
         [("7a", "500 M")] = "500m",
         [("7a", "1000 M")] = "1000m",
         [("7a", "1500 M")] = "1500m",
@@ -91,6 +91,8 @@ public static partial class SegmentAutoDetect {
             [(SegmentCategory.Cassette, "6a/b", "Hollows")] = "Hollows Tape",
             // the 3A and 4A hearts are collected by both True Ending variants:
             // DTS is a Farewell skip, it changes nothing before it
+            [(SegmentCategory.TrueEnding, "2a", "Start")] = "Start Heart RC",
+            [(SegmentCategory.TrueEndingDts, "2a", "Start")] = "Start Heart RC",
             [(SegmentCategory.TrueEnding, "3a", "Huge Mess")] = "Huge Mess Heart",
             [(SegmentCategory.TrueEnding, "4a", "Shrine")] = "Shrine Heart",
             [(SegmentCategory.TrueEndingDts, "3a", "Huge Mess")] = "Huge Mess Heart",
@@ -146,7 +148,7 @@ public static partial class SegmentAutoDetect {
 
     // (scope, game checkpoint name) -> the head of the segment srs does not
     // time, added back to the captured time so the tier is read off the same
-    // number the sheet's thresholds describe. Only 7A's 0m so far: the sheet
+    // number the sheet's thresholds describe. Only 7A Start so far: the sheet
     // starts it at a-00 (see StartRoomOverrides) and adds a fixed 5.508s
     // afterwards for the intro room plus Madeline's landing animation. The
     // mod cannot time that part — the run is practiced from a savestate

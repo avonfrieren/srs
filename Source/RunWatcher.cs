@@ -195,12 +195,18 @@ public static class RunWatcher {
         // first room
         hasCapture = startRoom != null && startRoom == ExpectedStartRoom(segment, session);
 
-        // add back the head of the segment srs does not time (7A's 0m), so
+        // add back the head of the segment srs does not time (7A Start), so
         // the frozen time is the one the sheet's thresholds describe. Only
         // for a run that did start at the segment's start room: a time that
         // earns no tier is not a segment time, and padding it would only
         // make the greyed row lie about what the timer showed
         capturedTicks = time + (hasCapture ? UntimedHeadOf(segment, session).Ticks : 0L);
+
+        // only a run that started at the segment's first room is a segment
+        // time, so only that one is worth exporting
+        if (hasCapture) {
+            SessionBests.Record(segment, capturedTicks, session);
+        }
     }
 
     private static TimeSpan UntimedHeadOf(SheetSegment segment, Session session) {
@@ -236,7 +242,7 @@ public static class RunWatcher {
 
     // the room a run anchored at this game checkpoint is timed from: the
     // override when the sheet does not start the segment at the checkpoint's
-    // own room (2A Awake, 7A 0m), the map's first room for "Start" — which is
+    // own room (2A Awake, 7A Start), the map's first room for "Start" — which is
     // the only anchor with no CheckpointData — the checkpoint's room otherwise
     private static string StartRoomOf(string gameName, Session session) {
         if (SegmentAutoDetect.StartRoomOverrides.TryGetValue(
