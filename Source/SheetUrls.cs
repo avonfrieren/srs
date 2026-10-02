@@ -40,4 +40,21 @@ public static class SheetUrls {
         string migrated = Regex.Replace(url, "(?<=/d/)" + FrozenId + "(?![-\\w])", ReferenceId);
         return migrated == url ? null : migrated;
     }
+
+    /// The no-auth CSV export URL of the tab an edit URL names, its gid taken
+    /// from ?gid=, #gid= or &gid= (tab 0 when none). Null for anything without
+    /// a /d/<id> segment, a bare id included: settings hold full edit URLs.
+    public static string CsvUrlOf(string sheetUrl) {
+        if (string.IsNullOrWhiteSpace(sheetUrl)) {
+            return null;
+        }
+
+        Match id = Regex.Match(sheetUrl, @"/d/([\w-]+)");
+        if (!id.Success) {
+            return null;
+        }
+
+        Match gid = Regex.Match(sheetUrl, @"[?#&]gid=(\d+)");
+        return $"https://docs.google.com/spreadsheets/d/{id.Groups[1].Value}/export?format=csv&gid={(gid.Success ? gid.Groups[1].Value : "0")}";
+    }
 }
