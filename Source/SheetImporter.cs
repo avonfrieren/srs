@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.IO;
 using System.Net.Http;
 using System.Text.RegularExpressions;
@@ -53,6 +54,9 @@ public static class SheetImporter {
                 Data = data;
                 CacheTime = LatestCacheTime();
                 Logger.Log(LogLevel.Info, LogTag, $"Loaded {data.SegmentCount} segments from cache ({CachePaths})");
+                // here too, not only after a download: offline, the cache is
+                // all a player ever runs on
+                LogMissingRows(data, "the cached sheet");
             } else {
                 Logger.Log(LogLevel.Warn, LogTag, $"Cache files have no usable segments ({CachePaths})");
             }
@@ -144,10 +148,21 @@ public static class SheetImporter {
             Data = data;
             CacheTime = DateTime.Now;
             Logger.Log(LogLevel.Info, LogTag, $"Sheet updated: {data.SegmentCount} segments");
+            LogMissingRows(data, "the sheet");
             return true;
         } catch (Exception e) {
             Logger.Log(LogLevel.Warn, LogTag, $"Sheet update failed: {e}");
             return false;
+        }
+    }
+
+    // the log only, never the menu: a row the sheet renamed is the
+    // maintainer's to fix, and the player can do nothing about it
+    private static void LogMissingRows(SheetData data, string where) {
+        if (data.MissingRows.Count > 0) {
+            Logger.Log(LogLevel.Warn, LogTag,
+                $"{data.MissingRows.Count} imported row(s) not in {where}: "
+                + string.Join(", ", data.MissingRows.Select(row => $"{row.Chapter} / {row.Name}")));
         }
     }
 

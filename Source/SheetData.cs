@@ -68,6 +68,13 @@ public enum EndCondition {
 public class SheetData {
     public readonly List<SheetBlock> Blocks = [];
 
+    /// The Import keys none of the parsed tabs had. A row the
+    /// sheet renamed misses the allowlist without a sound and drops out of the
+    /// sliders, the tier and auto-detection; this is how it gets noticed.
+    /// Covers only what was given: parse two tabs, and the third one's rows
+    /// are all here.
+    public readonly List<(string Chapter, string Name)> MissingRows = [];
+
     public int SegmentCount {
         get {
             int count = 0;
@@ -199,6 +206,7 @@ public class SheetData {
     public static SheetData Parse(string aSidesCsv, string bSidesCsv, string farewellCsv = null) {
         SheetData data = new();
         SheetBlock merged = null;
+        HashSet<(string, string)> imported = [];
 
         foreach ((string csv, string implicitChapter) in
                  new[] { (aSidesCsv, null), (bSidesCsv, null), (farewellCsv, "Farewell") }) {
@@ -221,11 +229,18 @@ public class SheetData {
 
                 foreach (SheetSegment segment in raw.Segments) {
                     if (Import.TryGetValue((segment.Chapter, segment.Name), out (string Chapter, string Name) target)) {
+                        imported.Add((segment.Chapter, segment.Name));
                         merged.Segments.Add(new SheetSegment(target.Chapter, target.Name,
                             Realigned(segment.Times, merged.Columns.Count),
                             CategoryOf(segment.Name), EndConditionOf(segment.Name)));
                     }
                 }
+            }
+        }
+
+        foreach ((string, string) key in Import.Keys) {
+            if (!imported.Contains(key)) {
+                data.MissingRows.Add(key);
             }
         }
 
@@ -401,9 +416,14 @@ public class SheetData {
             return null;
         }
 
+        // past the leading field, each one counts minutes or seconds and stays
+        // under 60 ("1:75" is a typo, not 2:15); only the seconds carry a fraction
         double totalSeconds = 0;
-        foreach (string part in parts) {
-            if (!double.TryParse(part, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out double value) || value < 0) {
+        for (int i = 0; i < parts.Length; i++) {
+            bool last = i == parts.Length - 1;
+            NumberStyles style = last ? NumberStyles.AllowDecimalPoint : NumberStyles.None;
+            if (!double.TryParse(parts[i], style, CultureInfo.InvariantCulture, out double value)
+                || value < 0 || (i > 0 && value >= 60)) {
                 return null;
             }
 
