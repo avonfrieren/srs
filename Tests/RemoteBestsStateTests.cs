@@ -32,13 +32,14 @@ public class RemoteBestsStateTests {
     }
 
     [Fact]
-    public void LookupIsCaseAndEmojiInsensitiveOnTheCpLabel() {
+    public void LookupIgnoresCaseAndSpacingButNotTheEmoji() {
         RemoteBests.Reset();
         RemoteBests.Accept([
-            new RemoteRow { Tab = "A Sides", Chapter = "6a", Cp = "Hollows \U0001F4FC", Time = "8.704" },
+            new RemoteRow { Tab = "a sides", Chapter = "6A", Cp = "  HOLLOWS   \U0001F4FC ", Time = "8.704" },
         ]);
 
         Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "6a", "Hollows \U0001F4FC"), out _));
+        Assert.False(RemoteBests.TryGet(new SheetRowRef("A Sides", "6a", "Hollows"), out _));
     }
 
     [Fact]
@@ -49,7 +50,7 @@ public class RemoteBestsStateTests {
         // SheetLabels, no variation selector) must still find this row.
         RemoteBests.Reset();
         RemoteBests.Accept([
-            new RemoteRow { Tab = "A Sides", Chapter = "6a", Cp = "Hollows \U0001F4FC️", Time = "8.704" },
+            new RemoteRow { Tab = "A Sides", Chapter = "6a", Cp = "Hollows \U0001F4FC\uFE0F", Time = "8.704" },
         ]);
 
         Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "6a", "Hollows \U0001F4FC"), out _));

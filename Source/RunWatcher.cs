@@ -53,7 +53,7 @@ public static class RunWatcher {
             SheetBlock block = SheetImporter.Data?.CheckpointBlock;
             return !completed || block == null
                 ? null
-                : block.Segments.Find(s => s.Chapter == capturedChapter && s.Name == capturedName);
+                : block.Find(capturedChapter, capturedName);
         }
     }
 

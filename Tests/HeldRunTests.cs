@@ -69,6 +69,15 @@ public class HeldRunTests {
         Assert.Equal(["Huge Mess", "Huge Mess Heart"], names);
     }
 
+    // "Start" exists in nearly every chapter: the chapter is part of the address
+    [Fact]
+    public void FindAddressesASegmentByChapterAndName() {
+        SheetBlock block = Fixtures.Parsed.CheckpointBlock;
+
+        Assert.Equal("2a", block.Find("2a", "Start")?.Chapter);
+        Assert.Null(block.Find("2a", "Hollows"));
+    }
+
     private static SheetSegment Imported(string chapter, string name) =>
         Fixtures.Imported.Single(s => s.Chapter == chapter && s.Name == name);
 }

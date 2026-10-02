@@ -12,7 +12,7 @@ public class PendingUpdateTests {
 
     [Fact]
     public void AFasterLocalTimeIsAnImprovementAndIsPreselected() {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "6b", "Falling"), "6b Falling",
+        var update = PendingUpdate.Create(new SheetRowRef("B+C Sides", "6b", "Falling"), "6b Falling",
             Ticks(67.915), "69.412");
 
         Assert.True(update.WillImprove);
@@ -22,7 +22,7 @@ public class PendingUpdateTests {
 
     [Fact]
     public void ASlowerLocalTimeIsShownUnselected() {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "6b", "6b Rock Bottom"), "6b Rock Bottom",
+        var update = PendingUpdate.Create(new SheetRowRef("B+C Sides", "6b", "Rock Bottom"), "6b Rock Bottom",
             Ticks(52.479), "51.980");
 
         Assert.False(update.WillImprove);
@@ -108,11 +108,13 @@ public class PendingUpdateTests {
     }
 
     [Fact]
-    public void LocalTextUsesTheSpeedrunToolFormat() {
+    // what the format looks like is SpeedrunTool's business and only the
+    // stand-in's here: assert the route, never the string
+    public void LocalTextGoesThroughTheTimeFormat() {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "2a", "Awake"), "2a Awake",
             Ticks(14.722), null);
 
-        Assert.Equal("14.722", update.LocalText);
+        Assert.Equal(TimeFormat.FromTicks(Ticks(14.722)), update.LocalText);
     }
     // the cell is kept as the sheet displayed it, beside the parsed value. The
     // write compares against this one: the sheet writes some times short, and
@@ -123,7 +125,7 @@ public class PendingUpdateTests {
             "2a Intervention", Ticks(90.0), "1:36.9");
 
         Assert.Equal("1:36.9", update.RemoteCell);
-        Assert.Equal("1:36.900", update.RemoteText);
+        Assert.Equal(TimeFormat.FromTicks(TimeSpan.FromMilliseconds(96_900).Ticks), update.RemoteText);
     }
 
     [Fact]

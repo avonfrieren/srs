@@ -460,6 +460,19 @@ public class SheetBlock(string name, int tierStart, bool hasCheckpoints) {
 
     // checkpoint names repeat across chapters ("Start" in nearly all of
     // them), so checkpoints are always addressed by (chapter, name)
+    /// The segment of that chapter and name, or null. Callers address segments
+    /// by name, never by reference: SheetImporter.Data is reassigned from a
+    /// worker, and the new instances are not equal to the old ones.
+    public SheetSegment Find(string chapter, string name) {
+        foreach (SheetSegment segment in Segments) {
+            if (segment.Chapter == chapter && segment.Name == name) {
+                return segment;
+            }
+        }
+
+        return null;
+    }
+
     public List<SheetSegment> Checkpoints(string chapter) {
         List<SheetSegment> checkpoints = [];
         foreach (SheetSegment segment in Segments) {

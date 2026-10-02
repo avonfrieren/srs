@@ -61,7 +61,7 @@ internal static class SessionBests {
             return false;
         }
 
-        segment = block.Segments.Find(s => s.Chapter == run.Chapter && s.Name == run.Name);
+        segment = block.Find(run.Chapter, run.Name);
         ticks = run.Ticks;
         return segment != null;
     }
