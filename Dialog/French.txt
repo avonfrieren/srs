@@ -24,7 +24,7 @@ SRS_KEYBINDS=             Raccourcis
 SRS_KEYBIND_CLEAR_HINT=   Journal ou Suppr pour effacer la ligne choisie
 # {0} is the seconds left. CelesteHotkeys reads this line raw, so the placeholder survives
 SRS_KEYBIND_TIMEOUT=      Annulation dans {0}s - Échap pour annuler maintenant
-SRS_KEYBIND_COMBO_HINT=   Chaque touche liée rejoint la combinaison (toutes tenues) ; la rappuyer la retire
+SRS_KEYBIND_COMBO_HINT=   Maintenir toute la combinaison, puis relâcher pour la lier (4 touches max)
 
 # Export vers la sheet
 MODOPTIONS_SRS_OPENEXPORTMENU= Ouvrir l'export vers la sheet
