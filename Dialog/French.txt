@@ -21,15 +21,10 @@ SRS_STATUS_LOADED=        Segments chargés
 
 # Keybinds
 SRS_KEYBINDS=             Raccourcis
-SRS_KEYBIND_COMBO_SUB=    Lier plusieurs touches crée une combinaison : toutes doivent être tenues
-SRS_KEYBIND_CLEAR_HINT=   Suppr pour effacer un raccourci
-SRS_KEYBIND_KEYBOARD=     Clavier
-SRS_KEYBIND_CONTROLLER=   Manette
-SRS_KEYBIND_RESET=        Effacer tous les raccourcis
-SRS_KEYBIND_COMBO_HINT=   Maintenir plusieurs touches pour une combinaison
-SRS_KEYBIND_PRESS_KEY=    APPUYER SUR UNE TOUCHE POUR
-SRS_KEYBIND_PRESS_BUTTON= APPUYER SUR UN BOUTON POUR
-SRS_KEYBIND_NO_CONTROLLER= Aucune manette connectée
+SRS_KEYBIND_CLEAR_HINT=   Journal ou Suppr pour effacer la ligne choisie
+# {0} is the seconds left. CelesteHotkeys reads this line raw, so the placeholder survives
+SRS_KEYBIND_TIMEOUT=      Annulation dans {0}s - Échap pour annuler maintenant
+SRS_KEYBIND_COMBO_HINT=   Chaque touche liée rejoint la combinaison (toutes tenues) ; la rappuyer la retire
 
 # Export vers la sheet
 MODOPTIONS_SRS_OPENEXPORTMENU= Ouvrir l'export vers la sheet

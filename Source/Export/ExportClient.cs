@@ -9,6 +9,8 @@ namespace Celeste.Mod.SpeedrunSheet;
 
 /// Talks to the player's Apps Script Web App. Never runs on the game thread and
 /// never throws: failures come back as a message in the second tuple slot.
+/// Messages go through ExportProtocol.Localize, which is safe before the game's
+/// dialog has loaded; the launch refresh can be answered that early.
 internal static class ExportClient {
     private const string LogTag = "srs";
 
@@ -23,7 +25,7 @@ internal static class ExportClient {
     private static Task<(string body, string error)> SendAsync(string url, string json) =>
         Task.Run(async () => {
             if (string.IsNullOrWhiteSpace(url)) {
-                return (null, Dialog.Clean("SRS_EXPORT_ERR_NO_URL"));
+                return (null, ExportProtocol.Localize("SRS_EXPORT_ERR_NO_URL"));
             }
             // the round trip is the whole of the wait the player sees, and
             // nothing measured it: an Apps Script cold start and an oversized
@@ -42,7 +44,7 @@ internal static class ExportClient {
                 if (!response.IsSuccessStatusCode) {
                     // never log the URL: it is a secret
                     Logger.Log(LogLevel.Warn, LogTag, $"export request failed: {(int) response.StatusCode}");
-                    return (null, $"{Dialog.Clean("SRS_EXPORT_ERR_STATUS")} {(int) response.StatusCode}.");
+                    return (null, $"{ExportProtocol.Localize("SRS_EXPORT_ERR_STATUS")} {(int) response.StatusCode}.");
                 }
                 return (body, (string) null);
             } catch (TaskCanceledException) {
@@ -50,11 +52,11 @@ internal static class ExportClient {
                     $"export request timed out after {clock.ElapsedMilliseconds} ms");
                 // the script may have run to completion server-side: a timeout
                 // says nothing about whether the sheet was written
-                return (null, Dialog.Clean("SRS_EXPORT_ERR_TIMEOUT"));
+                return (null, ExportProtocol.Localize("SRS_EXPORT_ERR_TIMEOUT"));
             } catch (Exception e) {
                 Logger.Log(LogLevel.Warn, LogTag,
                     $"export request failed after {clock.ElapsedMilliseconds} ms: " + e.Message);
-                return (null, Dialog.Clean("SRS_EXPORT_ERR_UNREACHABLE") + " " + e.Message);
+                return (null, ExportProtocol.Localize("SRS_EXPORT_ERR_UNREACHABLE") + " " + e.Message);
             }
         });
 }

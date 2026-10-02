@@ -35,6 +35,23 @@ public class SheetConsistencyTests {
         Assert.Empty(missing);
     }
 
+    // the same check as 1, run by the mod itself on every download, where no
+    // one has to refresh a fixture for it to fire
+    [Fact]
+    public void TheFixturesMissNoImportedRow() {
+        Assert.Empty(Fixtures.Parsed.MissingRows);
+    }
+
+    // the 5A row that sat unimported for 20 days, spelled the way srs used to
+    [Fact]
+    public void ARowTheSheetRenamedIsReportedByItsImportKey() {
+        string renamed = Fixtures.ASides.Replace(",Unravelling,", ",Unraveling,");
+
+        SheetData data = SheetData.Parse(renamed, Fixtures.BSides, Fixtures.Farewell);
+
+        Assert.Equal([("5a CP", "Unravelling")], data.MissingRows);
+    }
+
     // 2. every imported segment carries the end condition its raw sheet name
     // declares. Only a row that ends in RTM or RC stops at what it collects:
     // the two 📼 RTM rows at the cassette, "2a Start 💙 RC" at the heart. The

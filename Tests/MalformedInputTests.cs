@@ -107,7 +107,7 @@ public class MalformedInputTests {
     // reach the parser
     [Fact]
     public void SurvivesAByteOrderMark() {
-        SheetData data = SheetData.Parse("﻿" + Header + "1a CP,1a Start,0:00.000,13.906,14.5", null);
+        SheetData data = SheetData.Parse("\uFEFF" + Header + "1a CP,1a Start,0:00.000,13.906,14.5", null);
 
         Assert.Equal(1, data.SegmentCount);
     }

@@ -18,13 +18,7 @@ public static class SegmentSelector {
             }
 
             SrsSettings settings = SrsModule.Settings;
-            foreach (SheetSegment segment in block.Segments) {
-                if (segment.Chapter == settings.SelectedChapter && segment.Name == settings.SelectedCheckpoint) {
-                    return segment;
-                }
-            }
-
-            return null;
+            return block.Find(settings.SelectedChapter, settings.SelectedCheckpoint);
         }
     }
 

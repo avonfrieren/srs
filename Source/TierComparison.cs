@@ -62,14 +62,14 @@ public static class TierComparison {
         // popup, so the row can be hidden without leaving the game. Hotkeys
         // already answers false while paused, so the rows cannot be toggled
         // from behind the pause menu
-        if (Hotkeys.ToggleShowTier.Pressed) {
+        if (Hotkeys.Pressed(Hotkeys.ToggleShowTier)) {
             Settings.ShowTier = !Settings.ShowTier;
             SrsModule.Instance.SaveSettings();
             PopupMessageUtils.ShowOptionState(Dialog.Clean("MODOPTIONS_SRS_SHOWTIER"),
                 Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
         }
 
-        if (Hotkeys.ToggleShowSelection.Pressed) {
+        if (Hotkeys.Pressed(Hotkeys.ToggleShowSelection)) {
             Settings.ShowSelection = !Settings.ShowSelection;
             SrsModule.Instance.SaveSettings();
             PopupMessageUtils.ShowOptionState(Dialog.Clean("MODOPTIONS_SRS_SHOWSELECTION"),
@@ -116,7 +116,7 @@ public static class TierComparison {
         }
 
         SheetBlock block = SheetImporter.Data?.CheckpointBlock;
-        SheetSegment segment = SegmentSelector.Current;
+        SheetSegment segment = RunWatcher.CapturedSegment;
         if (block == null || segment == null) {
             return;
         }

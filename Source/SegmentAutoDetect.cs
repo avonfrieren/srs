@@ -141,7 +141,7 @@ public static partial class SegmentAutoDetect {
         // the cassette variant of the same one. Handled here rather than in
         // TierComparison because the category only feeds the detection right
         // below, which picks the new variant up on this very frame
-        if (Hotkeys.CycleCategory.Pressed) {
+        if (Hotkeys.Pressed(Hotkeys.CycleCategory)) {
             Settings.Category = SegmentCategories.Next(Settings.Category);
             SrsModule.Instance.SaveSettings();
             PopupMessageUtils.ShowOptionState(Dialog.Clean("SRS_CATEGORY"),
@@ -177,10 +177,10 @@ public static partial class SegmentAutoDetect {
         // the imported sheet actually has are selectable
         SheetSegment target = null;
         if (CategoryVariants.TryGetValue((Settings.Category, chapter.Chapter, sheetName), out string variant)) {
-            target = Find(block, chapter.Chapter, variant);
+            target = block.Find(chapter.Chapter, variant);
         }
 
-        target ??= Find(block, chapter.Chapter, sheetName);
+        target ??= block.Find(chapter.Chapter, sheetName);
         if (target == null
             || (Settings.SelectedChapter == chapter.Chapter && Settings.SelectedCheckpoint == target.Name)) {
             return;
@@ -188,16 +188,6 @@ public static partial class SegmentAutoDetect {
 
         Settings.SelectedChapter = chapter.Chapter;
         Settings.SelectedCheckpoint = target.Name;
-    }
-
-    private static SheetSegment Find(SheetBlock block, string chapter, string name) {
-        foreach (SheetSegment segment in block.Checkpoints(chapter)) {
-            if (segment.Name == name) {
-                return segment;
-            }
-        }
-
-        return null;
     }
 
     // resolve the tracked checkpoint room to the game's checkpoint name; null

@@ -62,6 +62,10 @@ public class TimeParsingTests {
     [InlineData("-5")]
     [InlineData("1:-30")]
     [InlineData(":")]
+    [InlineData("1:75")]
+    [InlineData("1:60")]
+    [InlineData("1:00:60")]
+    [InlineData("1.5:30")]
     public void ReturnsNullForUnparseableCells(string cell) {
         Assert.Null(SheetData.TryParseTime(cell));
     }
