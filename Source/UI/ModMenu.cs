@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Celeste.Mod.CelesteHotkeys;
 using Monocle;
@@ -28,7 +29,7 @@ internal static class ModMenu {
         menu.Add(showSelection);
 
         SegmentSelector.CreateMenuEntries(menu);
-        SheetImporter.CreateMenuEntries(menu);
+        Action updateStandards = SheetImporter.CreateMenuEntries(menu);
 
         // ExportUrlMenu keeps these two hidden until an export URL is set
         List<TextMenu.Item> urlDependent = ExportUrlMenu.CreateMenuEntries(menu);
@@ -72,8 +73,9 @@ internal static class ModMenu {
             ShowSubOptions(subOptions, urlDependent, on);
             if (on) {
                 // the startup refresh is skipped while the mod is off, so this
-                // is the first chance to pick up a sheet retimed in the meantime
-                SheetImporter.BeginUpdate(null);
+                // is the first chance to pick up a sheet retimed in the meantime.
+                // Run as the button would be, so the status line follows it
+                updateStandards();
                 ExportMenu.Refresh("the mod was switched back on");
             }
         });

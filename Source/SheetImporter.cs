@@ -81,10 +81,12 @@ public static class SheetImporter {
         CacheTime = null;
     }
 
-    public static void CreateMenuEntries(TextMenu menu) {
+    /// Returns what pressing Update Standards does, for the master switch to
+    /// run when the mod comes back on: the same refresh, shown the same way.
+    public static Action CreateMenuEntries(TextMenu menu) {
         TextMenu.SubHeader status = new(StatusText(), topPadding: false);
         TextMenu.Button update = new(Dialog.Clean("SRS_UPDATE_STANDARDS"));
-        update.Pressed(() => {
+        void Refresh() {
             update.Label = Dialog.Clean("SRS_UPDATING");
             // menu items just read these strings each frame, so mutating them
             // from the worker thread is safe
@@ -92,9 +94,12 @@ public static class SheetImporter {
                 update.Label = Dialog.Clean(ok ? "SRS_UPDATE_OK" : "SRS_UPDATE_FAIL");
                 status.Title = StatusText();
             });
-        });
+        }
+
+        update.Pressed(Refresh);
         menu.Add(update);
         menu.Add(status);
+        return Refresh;
     }
 
     // starts a refresh unless one is already running, and reports its outcome
