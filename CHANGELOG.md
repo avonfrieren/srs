@@ -21,6 +21,7 @@
 - **The reference sheet moved, and srs follows it.** srs reads the new document, and repoints your settings on launch if they still name the old one. A tab you pointed elsewhere on purpose is left alone.
 - **The Keybinds screen is the one AxiomeVI's other mods share, and records a combo in one pass.** Press Confirm on a row, hold the whole combo (up to four keys or buttons) and let go. A key already held when recording starts counts only once pressed again, and **Journal** or **Delete** clears a row. With `T` and `Shift+T` bound to two hotkeys, `Shift+T` fires only its own. Hotkeys stay quiet while the window is unfocused or another mod's Keybinds screen is open. The *Clear all bindings* button is gone.
 - **A file or settings write that fails no longer crashes the game.** Setting or forgetting the sheet URL says when the file could not be written or deleted.
+- **Tier colours follow the sheet's current palette.** Each tier is drawn in its cell colour on the sheet; Gold is drawn in its gold text colour, WR in white, Unranked in grey.
 
 ## v3.7.0 — 2026-08-27 by Axiome
 

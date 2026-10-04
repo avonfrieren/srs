@@ -70,43 +70,43 @@ public static class TierComparison {
     private static string FormatTime(TimeSpan time) =>
         TimeFormat.FromTicks(time.Ticks);
 
-    // tier colors: each sheet column name maps to its exact palette hex. Unlike
-    // XNA's named colors, the "1"-"3" rank suffix is significant here, so
-    // Purple 1/2/3 (and the other ranked tiers) are three distinct shades.
-    // WR/Hidden are white; Unranked stays grey; unknown columns fall back white
+    // tier colors, copied from the sheet: each tier's cell fill, keyed by the
+    // full column name (the rank suffix is significant). Gold takes its ink,
+    // since its fill is near black; WR is white; Unranked is grey, as on the
+    // sheet. Hidden never matches (its thresholds are zero) and, like any
+    // unknown column, falls back white
     private static readonly Dictionary<string, Color> TierColors =
         new(StringComparer.OrdinalIgnoreCase) {
             ["WR"] = Calc.HexToColor("ffffff"),
-            ["Hidden"] = Calc.HexToColor("ffffff"),
             ["Gold"] = Calc.HexToColor("ffbf00"),
-            ["Pink"] = Calc.HexToColor("c27ba0"),
-            ["Purple 1"] = Calc.HexToColor("8e7cc3"),
-            ["Purple 2"] = Calc.HexToColor("b4a7d6"),
-            ["Purple 3"] = Calc.HexToColor("d9d2e9"),
-            ["Indigo 1"] = Calc.HexToColor("7980f7"),
-            ["Indigo 2"] = Calc.HexToColor("a2a7fe"),
-            ["Indigo 3"] = Calc.HexToColor("bbbfff"),
-            ["Blue 1"] = Calc.HexToColor("6fa8dc"),
-            ["Blue 2"] = Calc.HexToColor("9fc5e8"),
-            ["Blue 3"] = Calc.HexToColor("cfe2f3"),
-            ["Cyan 1"] = Calc.HexToColor("76a5af"),
-            ["Cyan 2"] = Calc.HexToColor("a2c4c9"),
-            ["Cyan 3"] = Calc.HexToColor("d0e0e3"),
-            ["Green 1"] = Calc.HexToColor("93c47d"),
-            ["Green 2"] = Calc.HexToColor("b6d7a8"),
-            ["Green 3"] = Calc.HexToColor("d9ead3"),
-            ["Olive 1"] = Calc.HexToColor("afc47d"),
-            ["Olive 2"] = Calc.HexToColor("cbde9e"),
-            ["Olive 3"] = Calc.HexToColor("e6f9ba"),
-            ["Yellow 1"] = Calc.HexToColor("ffd966"),
-            ["Yellow 2"] = Calc.HexToColor("ffe599"),
-            ["Yellow 3"] = Calc.HexToColor("fff2cc"),
-            ["Orange 1"] = Calc.HexToColor("f6b26b"),
-            ["Orange 2"] = Calc.HexToColor("f9cb9c"),
-            ["Orange 3"] = Calc.HexToColor("fce5cd"),
-            ["Red 1"] = Calc.HexToColor("e06666"),
-            ["Red 2"] = Calc.HexToColor("ea9999"),
-            ["Red 3"] = Calc.HexToColor("f4cccc"),
+            ["Pink"] = Calc.HexToColor("a64d79"),
+            ["Purple 1"] = Calc.HexToColor("351c75"),
+            ["Purple 2"] = Calc.HexToColor("674ea7"),
+            ["Purple 3"] = Calc.HexToColor("8e7cc3"),
+            ["Indigo 1"] = Calc.HexToColor("4d31bf"),
+            ["Indigo 2"] = Calc.HexToColor("7980f7"),
+            ["Indigo 3"] = Calc.HexToColor("a2a7fe"),
+            ["Blue 1"] = Calc.HexToColor("073763"),
+            ["Blue 2"] = Calc.HexToColor("0b5394"),
+            ["Blue 3"] = Calc.HexToColor("3d85c6"),
+            ["Cyan 1"] = Calc.HexToColor("003d3b"),
+            ["Cyan 2"] = Calc.HexToColor("105755"),
+            ["Cyan 3"] = Calc.HexToColor("458e8c"),
+            ["Green 1"] = Calc.HexToColor("274e13"),
+            ["Green 2"] = Calc.HexToColor("38761d"),
+            ["Green 3"] = Calc.HexToColor("6aa84f"),
+            ["Olive 1"] = Calc.HexToColor("88995f"),
+            ["Olive 2"] = Calc.HexToColor("a0b275"),
+            ["Olive 3"] = Calc.HexToColor("bacc85"),
+            ["Yellow 1"] = Calc.HexToColor("bf9000"),
+            ["Yellow 2"] = Calc.HexToColor("dcac18"),
+            ["Yellow 3"] = Calc.HexToColor("f1c232"),
+            ["Orange 1"] = Calc.HexToColor("b45f06"),
+            ["Orange 2"] = Calc.HexToColor("d17618"),
+            ["Orange 3"] = Calc.HexToColor("e69138"),
+            ["Red 1"] = Calc.HexToColor("990000"),
+            ["Red 2"] = Calc.HexToColor("cc0000"),
+            ["Red 3"] = Calc.HexToColor("e06666"),
         };
 
     private static void SetTier(TimeSpan time, string column) {
