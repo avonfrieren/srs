@@ -225,7 +225,7 @@ public static class RunWatcher {
         // only a run that started at the segment's first room is a segment
         // time, so only that one is worth exporting
         if (hasCapture) {
-            SessionBests.Record(segment, capturedTicks, session);
+            SessionBests.Record([new SegmentRecord(SegmentRules.Find(segment.Chapter, segment.Name), capturedTicks)], session);
         }
     }
 

@@ -7,8 +7,8 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// screen. Not SpeedrunTool's PbTimes: srs never sets NumberOfRooms, so those
 /// are cut on the player's setting and describe no sheet segment.
 internal static class ExportSource {
-    /// The one row there is to export: the segment this session holds a run
-    /// of, whatever the selection has moved to since. The selection is not
+    /// The one row there is to export: the row whose session best improved
+    /// last, whatever the selection has moved to since. The selection is not
     /// the run: a category switch after a Hollows Tape run would label the
     /// cassette time Hollows.
     public static List<PendingUpdate> Collect(Session session) {
@@ -28,18 +28,9 @@ internal static class ExportSource {
         return updates;
     }
 
-    /// What the arrows retarget onto: HeldRun.CandidatesAmong, against the
-    /// sheet as it is now.
-    public static List<SheetSegment> CandidatesFor(SheetSegment segment, Session session) {
-        SheetBlock block = SheetImporter.Data?.CheckpointBlock;
-        return block == null
-            ? []
-            : HeldRun.CandidatesAmong(block.Segments, segment, SegmentAutoDetect.ScopeOf(session));
-    }
-
     /// srs folds 6A and 6B into "6a/b" and re-prefixes the names both sides
     /// share ("6a Rock Bottom"). On screen that prefix is noise, and dropping it
-    /// collides with nothing: CandidatesFor anchors on the current scope.
+    /// collides with nothing within a single scope.
     public static string DisplayName(SheetSegment segment, Session session) {
         string side = SegmentAutoDetect.ScopeOf(session);
         return side != null && segment.Name.StartsWith(side + " ", StringComparison.Ordinal)

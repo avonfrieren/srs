@@ -16,28 +16,17 @@ internal sealed class UpdateRow : TextMenu.Item {
 
     private readonly ExportColumns columns;
     private readonly bool odd;
-    // the list Submit reads: retargeting replaces this row's entry in it, so
-    // reading through the list is what keeps the two in step
+    // the list Submit reads
     private readonly List<PendingUpdate> slot;
     private readonly int index;
 
-    private readonly List<SheetSegment> candidates;
-    private readonly Session session;
-    private int candidate;
-
     public PendingUpdate Update => slot[index];
 
-    public UpdateRow(List<PendingUpdate> slot, int index, ExportColumns columns, bool odd, Session session) {
+    public UpdateRow(List<PendingUpdate> slot, int index, ExportColumns columns, bool odd) {
         this.slot = slot;
         this.index = index;
         this.columns = columns;
         this.odd = odd;
-        this.session = session;
-        candidates = ExportSource.CandidatesFor(slot[index].Segment, session);
-        // by name, not by reference: SheetImporter.Data is reassigned from a
-        // worker, and the fresh SheetSegment instances have no Equals, so
-        // IndexOf would return -1 and left/right would die without a word
-        candidate = candidates.FindIndex(other => other.Name == slot[index].Segment?.Name);
         // false on the base item: without it the cursor never lands on the row
         Selectable = true;
     }
@@ -45,31 +34,6 @@ internal sealed class UpdateRow : TextMenu.Item {
     public override void ConfirmPressed() {
         Update.Selected = !Update.Selected;
         Audio.Play(Update.Selected ? "event:/ui/main/button_toggle_on" : "event:/ui/main/button_toggle_off");
-    }
-
-    // auto-detect cannot tell two segments sharing a start room apart; left and
-    // right move the time onto another row anchored on the same checkpoint
-    public override void LeftPressed() => Retarget(-1);
-    public override void RightPressed() => Retarget(1);
-
-    private bool CanRetarget => candidates.Count > 1 && candidate >= 0;
-
-    private void Retarget(int direction) {
-        if (!CanRetarget) {
-            return;
-        }
-
-        candidate = (candidate + direction + candidates.Count) % candidates.Count;
-        SheetSegment segment = candidates[candidate];
-        if (!SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)) {
-            return;
-        }
-
-        PendingUpdate next = ExportSource.Build(row, segment, Update.LocalTicks, session);
-        // carry the tick over, never onto a row it would not improve
-        next.Selected = Update.Selected && next.WillImprove;
-        slot[index] = next;
-        Audio.Play(direction < 0 ? "event:/ui/main/rollover_up" : "event:/ui/main/rollover_down");
     }
 
     public override float LeftWidth() => columns.TotalWidth;
@@ -90,10 +54,6 @@ internal sealed class UpdateRow : TextMenu.Item {
 
         Color text = Color.White * alpha;
         ExportColumns.Text(update.Label, position, columns.LabelX, text, alpha, left: true);
-        if (CanRetarget && highlighted) {
-            ExportColumns.Arrows(position, columns, update.Label, text, alpha);
-        }
-
         ExportColumns.Text(update.RemoteText, position, columns.RemoteX, Color.Gray * alpha, alpha);
         ExportColumns.Text(update.LocalText, position, columns.LocalX, text, alpha);
         ExportColumns.Text(update.DeltaText, position, columns.DeltaX, DeltaColor(update) * alpha, alpha);
@@ -149,8 +109,8 @@ internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
 /// TextMenu hands an item the vertical CENTRE of its slot, so everything here
 /// is anchored on that: text justifies at y = 0.5, bands and rules are centred.
 ///
-/// ⚠️ Widths are measured across a list even though SessionBests holds exactly
-/// one segment. Do not collapse the geometry to a single row: the list is what
+/// ⚠️ Widths are measured across a list even though the screen shows one row
+/// for now. Do not collapse the geometry to a single row: the list is what
 /// the next feature needs (owner decision).
 internal sealed class ExportColumns {
     public const float Gap = 18f;
@@ -205,27 +165,12 @@ internal sealed class ExportColumns {
         }
     }
 
-    private static float ArrowWidth => Width("<");
-
-    /// The "< label >" affordance vanilla's Option draws, on the label cell.
-    /// Both are drawn from their left edge, so the left one is pulled back by
-    /// its own width to leave a real gap rather than butt against the checkbox.
-    public static void Arrows(Vector2 position, ExportColumns columns, string label, Color color, float alpha) {
-        Text("<", position, columns.LabelX - Gap - ArrowWidth, color, alpha, left: true);
-        Text(">", position, columns.LabelX + Width(label) + Gap, color, alpha, left: true);
-    }
-
     private static float Width(string text) => ActiveFont.Measure(text).X * Scale;
 
-    public static ExportColumns Measure(List<PendingUpdate> updates, Session session) {
+    public static ExportColumns Measure(List<PendingUpdate> updates) {
         List<string> labels = [];
         foreach (PendingUpdate u in updates) {
             labels.Add(u.Label);
-            // every row the arrows can reach, so the column does not resize
-            // under a retarget
-            foreach (SheetSegment other in ExportSource.CandidatesFor(u.Segment, session)) {
-                labels.Add(ExportSource.DisplayName(other, session));
-            }
         }
 
         // floors, so a column does not resize when the fetch lands and the
@@ -242,15 +187,12 @@ internal sealed class ExportColumns {
             label = Math.Max(label, Width(text));
         }
 
-        // the trailing arrow lives inside the label column, so the times never
-        // move when it appears; the leading one is budgeted in labelX below
-        label += Gap + ArrowWidth;
         foreach (PendingUpdate u in updates) {
             remote = Math.Max(remote, Width(u.RemoteText));
             local = Math.Max(local, Width(u.LocalText));
             delta = Math.Max(delta, Width(u.DeltaText));
         }
-        float labelX = Pad + RowHeight * BoxRatio + Gap + ArrowWidth + Gap;
+        float labelX = Pad + RowHeight * BoxRatio + Gap;
         float remoteX = labelX + label + Gap + remote;   // right edge
         float localX = remoteX + Gap + local;            // right edge
         return new ExportColumns {
@@ -609,7 +551,7 @@ internal static class ExportMenu {
     /// the table's shape alone. Without one the screen opens on the run itself.
     private static void Build(Level level, List<PendingUpdate> updates) {
         awaitingRows = false;
-        ExportColumns columns = ExportColumns.Measure(updates, level.Session);
+        ExportColumns columns = ExportColumns.Measure(updates);
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
         newMenu.Add(new TextMenu.SubHeader(StatusLine()));
@@ -624,7 +566,7 @@ internal static class ExportMenu {
                 newMenu.Add(new GroupRow(columns, group));
             }
 
-            newMenu.Add(new UpdateRow(updates, i, columns, odd, level.Session));
+            newMenu.Add(new UpdateRow(updates, i, columns, odd));
             odd = !odd;
         }
 

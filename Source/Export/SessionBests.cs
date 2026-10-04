@@ -1,12 +1,13 @@
+using System.Collections.Generic;
+
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// The best time of the segment being practiced right now, and nothing else:
-/// running another segment drops the previous one, one segment per export.
-/// Fed by RunWatcher, only for a run that started at the segment's first room.
+/// The best of every row run this session, fed by RunWatcher and dropped on
+/// leaving the chapter.
 internal static class SessionBests {
     private const string LogTag = "srs";
 
-    private static readonly HeldRun held = new();
+    private static readonly RunBook book = new();
 
     public static void Load() {
         Everest.Events.Level.OnExit += OnExit;
@@ -29,35 +30,34 @@ internal static class SessionBests {
     // loading another chapter is leaving this one, whether or not an exit was
     // seen: a savestate can cross chapters without one
     private static void OnEnter(Session session, bool fromSaveData) {
-        if (session != null && held.Current is { } run && run.Scope != SegmentAutoDetect.ScopeOf(session)) {
+        if (session != null && book.Scope is { } scope && scope != SegmentAutoDetect.ScopeOf(session)) {
             Clear($"entered {SegmentAutoDetect.ScopeOf(session) ?? "an uncovered chapter"}");
         }
     }
 
     // deliberately NOT registered with SpeedrunTool's save states: a time run
     // is a fact about the session, and a load must not take it back
-    public static void Record(SheetSegment segment, long ticks, Session session) {
+    public static void Record(IReadOnlyList<SegmentRecord> records, Session session) {
         string scope = session == null ? null : SegmentAutoDetect.ScopeOf(session);
-        // a segment with no game checkpoint in this scope was not run here
-        if (segment == null || scope == null || SegmentAutoDetect.GameNameOf(scope, segment.Name) == null) {
-            return;
+        List<SegmentRecord> here = [];
+        foreach (SegmentRecord record in records) {
+            if (record.Rule.Scope == scope) {
+                here.Add(record);
+            }
         }
 
-        HeldRun.Run? before = held.Current;
-        if (held.Offer(scope, segment.Chapter, segment.Name, ticks)) {
-            Logger.Log(LogLevel.Info, LogTag,
-                $"session best {scope}/{segment.Name} {TimeFormat.FromTicks(ticks)}"
-                + (before is { } was ? $" (was {was.Name} {TimeFormat.FromTicks(was.Ticks)})" : " (first run)"));
+        foreach (RunBook.Run run in book.Offer(here)) {
+            Logger.Log(LogLevel.Info, LogTag, $"session best {run.Scope}/{run.Name} {TimeFormat.FromTicks(run.Ticks)}");
         }
     }
 
-    /// The segment the held run was made on, looked up by name in the sheet as
-    /// it is now: SheetImporter.Data is reassigned from a worker.
+    /// The row whose best improved last, looked up by name in the sheet as it
+    /// is now: SheetImporter.Data is reassigned from a worker.
     public static bool TryGet(out SheetSegment segment, out long ticks) {
         segment = null;
         ticks = 0;
         SheetBlock block = SheetImporter.Data?.CheckpointBlock;
-        if (held.Current is not { } run || block == null) {
+        if (book.LastImproved is not { } run || block == null) {
             return false;
         }
 
@@ -67,24 +67,26 @@ internal static class SessionBests {
     }
 
     public static void Clear(string reason = null) {
-        if (held.Current is { } run) {
+        if (book.Scope is { } scope) {
             Logger.Log(LogLevel.Info, LogTag,
-                $"session best dropped ({reason ?? "on request"}): was {run.Scope}/{run.Name}");
+                $"session bests dropped ({reason ?? "on request"}): {book.All.Count} rows of {scope}");
         }
 
-        held.Clear();
+        book.Clear();
     }
 
-    /// Drops a run held in another chapter, checked where the run is read
-    /// rather than polled: a debug-console load swaps the scene through neither
+    /// Drops what is held in another chapter, checked where it is read rather
+    /// than polled: a debug-console load swaps the scene through neither
     /// LevelExit nor LevelEnter, so the events cannot be relied on alone.
     public static void DropIfElsewhere(Session session) {
-        if (session != null && held.Current is { } run && run.Scope != SegmentAutoDetect.ScopeOf(session)) {
-            Clear($"held in {run.Scope}, now in {SegmentAutoDetect.ScopeOf(session) ?? "an uncovered chapter"}");
+        if (session != null && book.Scope is { } scope && scope != SegmentAutoDetect.ScopeOf(session)) {
+            Clear($"held in {scope}, now in {SegmentAutoDetect.ScopeOf(session) ?? "an uncovered chapter"}");
         }
     }
 
-    /// what is held, for the log: never a time the player has not run
+    /// What is held, for the log: never a time the player has not run.
     public static string Describe() =>
-        held.Current is { } run ? $"{run.Scope}/{run.Name} {TimeFormat.FromTicks(run.Ticks)}" : "nothing";
+        book.LastImproved is { } run
+            ? $"{book.All.Count} rows, last {run.Scope}/{run.Name} {TimeFormat.FromTicks(run.Ticks)}"
+            : "nothing";
 }
