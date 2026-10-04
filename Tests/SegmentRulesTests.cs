@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 
@@ -8,6 +9,49 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 public class SegmentRulesTests {
     private static SegmentRule Rule(string chapter, string name) =>
         SegmentRules.Find(chapter, name) ?? throw new Exception($"no rule for {chapter}/{name}");
+
+    private static readonly HashSet<string> ExpectedCurrentRoomRows = [
+        "Prologue/Granny",
+        "1a/Start",
+        "2a/Start",
+        "2a/Start Heart RC",
+        "2a/Awake",
+        "3a/Start",
+        "4a/Start",
+        "5a/b/5a Start",
+        "5a/b/Unravelling",
+        "5a/b/5b Start",
+        "5a/b/Through the Mirror",
+        "6a/b/6a Start",
+        "6a/b/6b Start",
+        "7a/7a Start",
+        "8a/Start",
+        "Farewell/Start",
+        "Farewell/Start DTS",
+    ];
+
+    [Fact]
+    public void CurrentRoomRowsAreTheChapterStartsAndTheWakeUps() {
+        foreach (SegmentRule rule in SegmentRules.All) {
+            bool expected = rule.Anchor == "Start"
+                            || SegmentAutoDetect.CurrentRoomStarts.Contains((rule.Scope, rule.Anchor));
+            Assert.True(expected == (rule.Setup == StartSetup.CurrentRoom), $"{rule.Chapter}/{rule.Name}");
+        }
+
+        Assert.Equal(StartSetup.CurrentRoom, Rule("Prologue", "Granny").Setup);
+        // spec §12.2: a new Start-anchored row shows up here as a diff
+        HashSet<string> currentRoom = SegmentRules.All.Where(r => r.Setup == StartSetup.CurrentRoom)
+            .Select(r => $"{r.Chapter}/{r.Name}").ToHashSet();
+        Assert.Equal(ExpectedCurrentRoomRows, currentRoom);
+        Assert.Equal(StartSetup.CurrentRoom, Rule("2a", "Awake").Setup);
+        Assert.Equal(StartSetup.CurrentRoom, Rule("5a/b", "Unravelling").Setup);
+        Assert.Equal(StartSetup.CurrentRoom, Rule("5a/b", "Through the Mirror").Setup);
+        Assert.Equal(StartSetup.CurrentRoom, Rule("7a", "7a Start").Setup);
+        Assert.Equal(StartSetup.NextRoom, Rule("1a", "Crossing").Setup);
+        Assert.Equal(StartSetup.NextRoom, Rule("2a", "Intervention").Setup);
+        Assert.Equal(StartSetup.NextRoom, Rule("6a/b", "Lake").Setup);
+        Assert.Equal(StartSetup.NextRoom, Rule("7a", "500m").Setup);
+    }
 
     [Fact]
     public void OneRulePerImportedRow() {

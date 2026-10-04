@@ -13,10 +13,17 @@ internal enum Collectibles {
 }
 
 internal enum StartKind {
-    // entering the start room, or the timer starting there
+    // entering the start room, or a restart in it (RunTracker.Restart)
     Room,
     // once the launch (the intro jump) into the start room is over (SegmentAutoDetect.AfterLaunchStarts)
     AfterLaunch,
+}
+
+internal enum StartSetup {
+    // valid only when the first room is entered from the checkpoint before
+    NextRoom,
+    // valid from its start point: in a chain, or from a savestate at the start room's spawn
+    CurrentRoom,
 }
 
 internal enum EndKind {
@@ -33,7 +40,7 @@ internal enum EndKind {
 /// never in rooms: rooms come from AreaData, which only the game thread reads.
 internal sealed record SegmentRule(
     string Scope, string Chapter, string Name, string Anchor,
-    StartKind Start, EndKind End,
+    StartKind Start, StartSetup Setup, EndKind End,
     Collectibles EndsOn, Collectibles Requires, bool RequiresBerries,
     // 1 or 2 for Farewell's DTS twins, read at the end; null = no dash rule
     int? Dashes,

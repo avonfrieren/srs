@@ -76,4 +76,32 @@ public static partial class SegmentAutoDetect {
     internal static readonly HashSet<(string Scope, string GameName)> AfterLaunchStarts = [
         ("7a", "Start"),
     ];
+
+    // (scope, game checkpoint) of the segments valid from their start point
+    // rather than from the checkpoint before, beyond every chapter's "Start":
+    // the segments after a wake-up (owner, 2026-10-03)
+    internal static readonly HashSet<(string Scope, string GameName)> CurrentRoomStarts = [
+        ("2a", "Awake"),
+        ("5a", "Unravelling"),
+        ("5b", "Through the Mirror"),
+    ];
+
+    // (scope, game checkpoint) -> the spawn a wake-up puts the player on, in
+    // world coordinates (measured 2026-10-03): the only spawn a Current Room
+    // start that is not a chapter's "Start" opens from. The game's default
+    // spawn will not do: in 5A's and 5B's c-00 it is the bottom one, by the
+    // room's exit, while the wake-up and a chapter-select entry use the top one.
+    // A Current Room start missing here never opens on a restart
+    internal static readonly Dictionary<(string Scope, string GameName), (int X, int Y)> WakeUpSpawns = new() {
+        [("2a", "Awake")] = (144, 1880),
+        [("5a", "Unravelling")] = (-832, 1688),
+        [("5b", "Through the Mirror")] = (3680, -984),
+    };
+
+    // (scope, game checkpoint) -> where the player stands, relative to a spawn
+    // of the start room, on the first frame with control. Every other Current
+    // Room start measured is on the spawn (2026-10-03)
+    internal static readonly Dictionary<(string Scope, string GameName), (int X, int Y)> SpawnOffsets = new() {
+        [("Farewell", "Start")] = (8, 0),
+    };
 }

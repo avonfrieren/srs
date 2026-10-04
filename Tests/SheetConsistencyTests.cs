@@ -22,6 +22,26 @@ public class SheetConsistencyTests {
             .Select(segment => (segment.Chapter, segment.Name))
     ];
 
+    [Fact]
+    public void EveryStartSetupKeyIsAnImportedAnchor() {
+        HashSet<(string, string)> anchors = SheetRows.All.Select(r => (r.Scope, r.Anchor)).ToHashSet();
+        Assert.All(SegmentAutoDetect.CurrentRoomStarts, key => Assert.Contains(key, anchors));
+        Assert.All(SegmentAutoDetect.SpawnOffsets.Keys, key => Assert.Contains(key, anchors));
+    }
+
+    // a Current Room start that is not a chapter's "Start" opens on a restart
+    // only from its WakeUpSpawns entry: a new one left out would never open
+    [Fact]
+    public void EveryWakeUpStartHasASpawn() {
+        List<(string, string)> wakeUps = SegmentRules.All
+            .Where(rule => rule.Setup == StartSetup.CurrentRoom && rule.Anchor != "Start")
+            .Select(rule => (rule.Scope, rule.Anchor))
+            .Distinct().Order().ToList();
+        List<(string, string)> spawns = SegmentAutoDetect.WakeUpSpawns.Keys.Select(key => (key.Scope, key.GameName)).Order().ToList();
+        Assert.Equal(wakeUps, spawns);
+        Assert.Equal(SegmentAutoDetect.CurrentRoomStarts.Select(key => (key.Scope, key.GameName)).Order().ToList(), spawns);
+    }
+
     // the allowlist still matches the sheet. This is the test that catches a
     // rename on the sheet's side: refresh Tests/Fixtures/*.csv, and any row the
     // mod expects that no longer exists shows up here by name

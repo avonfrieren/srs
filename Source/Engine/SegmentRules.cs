@@ -40,6 +40,9 @@ internal static class SegmentRules {
             rules.Add(new SegmentRule(
                 row.Scope, row.Chapter, row.Name, row.Anchor,
                 SegmentAutoDetect.AfterLaunchStarts.Contains(anchor) ? StartKind.AfterLaunch : StartKind.Room,
+                row.Anchor == "Start" || SegmentAutoDetect.CurrentRoomStarts.Contains(anchor)
+                    ? StartSetup.CurrentRoom
+                    : StartSetup.NextRoom,
                 endsAtCollect ? EndKind.Collect : EndKind.NextStart,
                 endsAtCollect ? marked : Collectibles.None,
                 marked,

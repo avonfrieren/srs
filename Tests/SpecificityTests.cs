@@ -5,7 +5,7 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 // what the HUD and the export show when several rows close on one frame
 public class SpecificityTests {
     private static SegmentRule Rule(Collectibles requires, bool berries = false, int order = 0) =>
-        new("3a", "3a", $"r{order}", "Huge Mess", StartKind.Room, EndKind.NextStart,
+        new("3a", "3a", $"r{order}", "Huge Mess", StartKind.Room, StartSetup.NextRoom, EndKind.NextStart,
             Collectibles.None, requires, berries, null, 0, 0, order);
 
     [Fact]

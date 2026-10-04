@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -24,10 +25,10 @@ internal readonly record struct EndState(int Dashes, IReadOnlyCollection<string>
 /// A closed segment whose requirements the run met, with its time.
 internal readonly record struct SegmentRecord(SegmentRule Rule, long Ticks);
 
-/// Every segment that can be running, at once. RunWatcher feeds it the room
-/// timer's readings and the game's events; each event returns what it closed.
-/// A reading is an absolute value of SpeedrunTool's accumulator, so only
-/// differences between two of them are times.
+/// Every segment that can be running, at once. RunWatcher feeds it chapter-time
+/// readings and the game's events; each event returns what it closed.
+/// A reading is chapter time (`Session.Time` ticks), so only differences
+/// between two of them are times.
 internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap rooms) {
     private sealed class OpenSegment(SegmentRule rule, long start) {
         public readonly SegmentRule Rule = rule;
@@ -73,18 +74,31 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         pendingRoom = null;
     }
 
-    /// The timer moved from 0 in this room: a standalone run starts here.
-    public void TimerStarted(string scope, string room, long reading, bool control, bool launching) {
-        pending.Clear();
-        pendingRoom = null;
-        OpenAt(scope, room, reading, control, launching, standalone: true);
+    /// The start room of the last segment start room entered: the checkpoint
+    /// the player is in. RunWatcher saves it with each savestate and puts it
+    /// back on a load; null when unknown.
+    public string Checkpoint { get; set; }
+
+    /// A new attempt (a savestate load, a level from the loader, a room
+    /// teleport, a first-room reset): nothing open is recorded.
+    /// The Current Room segments starting in this room then open where atStart
+    /// says the player is at their start; nothing else does.
+    public void Restart(string scope, string room, long reading, bool control, bool launching,
+        Func<SegmentRule, bool> atStart) {
+        Drop();
+        if (IsStartRoom(scope, room)) {
+            Checkpoint = room;
+        }
+
+        OpenAt(scope, room, reading, control, launching, standalone: true,
+            rule => rule.Setup == StartSetup.CurrentRoom && atStart(rule));
     }
 
-    /// Session.Level changed with the timer running. Closes first, then opens:
-    /// the segment ending here is never the one starting here. A start opens
-    /// only when this entry closed a segment ending in the room (met or not):
-    /// a start room entered from inside its own segment, or again after the
-    /// segment closed, is the far side of that segment and not its start.
+    /// Session.Level changed. Closes first, then opens: the segment ending here
+    /// is never the one starting here. A start opens only when entered from the
+    /// checkpoint before it, or when this entry closed a segment ending here,
+    /// so a backtrack into a start room, or a return to the chapter's first
+    /// room, opens nothing.
     public List<SegmentRecord> RoomEntered(string scope, string room, long reading, bool control, bool launching,
         EndState end) {
         List<SegmentRecord> records = CloseWhere(
@@ -92,11 +106,43 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
             reading, end, out int closed);
         pending.Clear();
         pendingRoom = null;
-        if (closed > 0) {
-            OpenAt(scope, room, reading, control, launching, standalone: false);
+        if (IsStartRoom(scope, room)) {
+            string from = Checkpoint;
+            Checkpoint = room;
+            // closing a segment that ends here (met, unmet or disqualified) also
+            // opens: 6A's watched fall passes through Hollows' room 04 before
+            // Lake's 00, which moves the checkpoint off 6a Start's
+            if (closed > 0 || Follows(scope, from, room)) {
+                OpenAt(scope, room, reading, control, launching, standalone: false, _ => true);
+            }
         }
 
         return records;
+    }
+
+    private bool IsStartRoom(string scope, string room) {
+        foreach (SegmentRule rule in rules) {
+            if (rule.Scope == scope && Rooms.StartRoomOf(rule) == room) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // a segment of the checkpoint the player was in ends in this room
+    private bool Follows(string scope, string from, string room) {
+        if (from == null) {
+            return false;
+        }
+
+        foreach (SegmentRule rule in rules) {
+            if (rule.Scope == scope && Rooms.StartRoomOf(rule) == from && Rooms.EndRoomOf(rule) == room) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// Control came back in this room: a start reached without it opens now.
@@ -146,15 +192,16 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
                        || (segment.Rule.End == EndKind.NextStart && Rooms.EndRoomOf(segment.Rule) == null),
             reading, end, out _);
 
-    private void OpenAt(string scope, string room, long reading, bool control, bool launching, bool standalone) {
+    private void OpenAt(string scope, string room, long reading, bool control, bool launching, bool standalone,
+        Func<SegmentRule, bool> opens) {
         foreach (SegmentRule rule in rules) {
-            if (rule.Scope != scope || Rooms.StartRoomOf(rule) != room) {
+            if (rule.Scope != scope || Rooms.StartRoomOf(rule) != room || !opens(rule)) {
                 continue;
             }
 
             if (rule.Start == StartKind.AfterLaunch) {
-                // the launch's own end opens it (LaunchEnded); a timer started
-                // after the landing, from a savestate there, opens it here
+                // the launch's own end opens it (LaunchEnded); a load after the
+                // landing opens it here
                 if (standalone && control && !launching) {
                     OpenIfClosed(rule, reading);
                 }
