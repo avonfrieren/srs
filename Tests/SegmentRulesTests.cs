@@ -35,7 +35,7 @@ public class SegmentRulesTests {
             r => Assert.NotEqual(Collectibles.None, r.EndsOn));
     }
 
-    // RoomMap.BerriesOf answers nothing in stage A, which is only safe while this holds
+    // RoomMap.BerriesOf answers nothing for now, which is only safe while this holds
     [Fact]
     public void NoImportedRowRequiresBerriesYet() {
         Assert.DoesNotContain(SegmentRules.All, r => r.RequiresBerries);

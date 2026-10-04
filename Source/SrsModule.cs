@@ -30,7 +30,7 @@ public class SrsModule : EverestModule {
         Hotkeys.Load();
         RunWatcher.Load();
         TierComparison.Load();
-        // last: like every hook above it, this one reads Hotkeys on the frame
+        // last: like TierComparison, this one reads Hotkeys on the frame
         // Hotkeys updated it, so it must stay outside Hotkeys' hook. Nothing
         // else constrains it, it only reads what the others produced
         ExportMenu.Load();

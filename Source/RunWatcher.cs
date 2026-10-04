@@ -15,9 +15,11 @@ namespace Celeste.Mod.SpeedrunSheet;
 public static class RunWatcher {
     // the player has no control in these states (Player.cs:384-412): a start
     // reached in one waits for control in that room. Provisional, checked in
-    // game. ⚠️ StSummitLaunch must stay out: 500m to 3000m are entered in it
+    // game. ⚠️ StIntroJump must stay out: 7A's launches land in it (Dummy in the
+    // old room, IntroJump from the room change, Normal ~78 frames later), and
+    // 500m to 3000m are entered in it and open on the entry
     private static readonly HashSet<int> NoControlStates = [
-        Player.StDummy, Player.StIntroWalk, Player.StIntroJump, Player.StIntroRespawn,
+        Player.StDummy, Player.StIntroWalk, Player.StIntroRespawn,
         Player.StIntroWakeUp, Player.StBirdDashTutorial, Player.StFrozen, Player.StReflectionFall,
         Player.StTempleFall, Player.StIntroMoonJump, Player.StIntroThinkForABit,
     ];
@@ -100,7 +102,7 @@ public static class RunWatcher {
         string room = session.Level;
         int state = self.Tracker.GetEntity<Player>()?.StateMachine.State ?? -1;
         bool control = !self.InCutscene && !NoControlStates.Contains(state);
-        bool launching = state == Player.StSummitLaunch;
+        bool launching = state == Player.StIntroJump;
         bool stopped = self.TimerStopped || self.Completed;
         RoomTimerType timerType = SpeedrunToolSettings.Instance?.RoomTimerType ?? RoomTimerType.Off;
         tracker.Rooms = RoomMap.For(session);
@@ -115,17 +117,20 @@ public static class RunWatcher {
             tracker.Drop();
             Latest = null;
         } else if (state == Player.StReflectionFall && lastState != Player.StReflectionFall) {
-            // 6A's watched fall is not a run of 6a Start (owner, 2026-10-03)
-            tracker.Drop();
+            // 6A's watched fall is not a run of 6a Start (owner, 2026-10-03):
+            // disqualified, not dropped, so it still closes in Lake's start
+            // room and Lake opens there
+            tracker.Disqualify();
         }
 
-        // a start is inferred only from readings of one clock: a re-enabled
-        // switch or a timer-type change leaves lastReading from another frame
-        // or another accumulator
+        // a timer moving from 0 within this frame needs no history; a restart
+        // after a load is read off two readings, which must be of one clock:
+        // a re-enabled switch or a timer-type change leaves lastReading from
+        // another frame or another accumulator
         bool sameClock = fedLastFrame && typeBefore == timerType && timerType == lastTimerType;
 
         if (scope != null && after > 0 && timerType != RoomTimerType.Off) {
-            if (sameClock && (before == 0 || wentDown)) {
+            if (typeBefore == timerType && (before == 0 || (sameClock && wentDown))) {
                 // the timer starts on this frame, or restarted after a load: a
                 // standalone run, timed from the timer's own 0
                 tracker.TimerStarted(scope, room, wentDown ? 0 : before, control, launching);
@@ -143,7 +148,7 @@ public static class RunWatcher {
                 // the state changes during this frame's update, and a
                 // savestate saved at the end of this frame times from the next
                 // frame: the start reading is the one after it
-                if (lastState == Player.StSummitLaunch && !launching) {
+                if (lastState == Player.StIntroJump && !launching) {
                     tracker.LaunchEnded(scope, room, after);
                 }
 

@@ -34,7 +34,7 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public string FarewellUrl { get; set; } = DefaultFarewellUrl;
 
-    // tier row drawn under the room timer once it completes; menu toggle +
+    // tier row drawn under the room timer for the latest record; menu toggle +
     // rebindable hotkey, both handled in TierComparison
     [SettingIgnore]
     public bool ShowTier { get; set; } = true;

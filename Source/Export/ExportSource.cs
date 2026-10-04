@@ -13,8 +13,8 @@ internal static class ExportSource {
     public static List<PendingUpdate> Collect(Session session) {
         List<PendingUpdate> updates = [];
 
-        // the one place a held run is read, so the one place worth checking it
-        // still belongs to the chapter the player is in
+        // the one place the session's bests are read, so the one place worth
+        // checking they still belong to the chapter the player is in
         SessionBests.DropIfElsewhere(session);
 
         if (!SessionBests.TryGet(out SheetSegment segment, out long ticks)

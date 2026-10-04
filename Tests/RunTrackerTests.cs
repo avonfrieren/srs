@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-// the engine on synthetic rules: every situation the spec walks, event by event
+// the engine on synthetic rules: every situation the engine must handle, event by event
 public class RunTrackerTests {
     private sealed class Rooms : IRoomMap {
         public readonly Dictionary<string, (string Start, string End)> ByName = [];
@@ -33,6 +33,34 @@ public class RunTrackerTests {
 
     private static List<(string, long)> Of(List<SegmentRecord> records) =>
         records.Select(r => (r.Rule.Name, r.Ticks)).ToList();
+
+    [Fact]
+    public void ABacktrackIntoAStartRoomOpensNothing() {
+        Add("Crossing", "6", "9b");
+        RunTracker t = Tracker();
+
+        // a Current Room timer armed inside Crossing, then back to its start
+        t.TimerStarted("1a", "7", 0, true, false);
+        t.RoomEntered("1a", "6", 30, true, false, One);
+
+        Assert.Empty(t.RoomEntered("1a", "9b", 100, true, false, One));
+        Assert.Empty(t.Open);
+    }
+
+    [Fact]
+    public void ReturningToTheFirstRoomDoesNotReopenStart() {
+        Add("Start", "1", "6");
+        Add("Crossing", "6", "9b");
+        RunTracker t = Tracker();
+
+        t.TimerStarted("1a", "1", 0, true, false);
+        t.RoomEntered("1a", "2", 20, true, false, One);
+        t.RoomEntered("1a", "6", 100, true, false, One);
+        t.RoomEntered("1a", "2", 120, true, false, One);
+        t.RoomEntered("1a", "1", 140, true, false, One);
+
+        Assert.Equal(["Crossing"], t.Open.Select(r => r.Name));
+    }
 
     [Fact]
     public void AChainRecordsEverySegment() {
@@ -202,12 +230,19 @@ public class RunTrackerTests {
 
     [Fact]
     public void ControlReturningInAnotherRoomOpensNothing() {
+        Add("Before", "3", "end_0");
         Add("Awake", "end_0", null);
-        RunTracker t = Tracker();
 
+        // control case: the same steps, control back in the pending room, open it
+        RunTracker control = Tracker();
+        control.TimerStarted("1a", "3", 0, true, false);
+        control.RoomEntered("1a", "end_0", 100, false, false, One);
+        control.ControlReturned("end_0", 130);
+        Assert.Equal(["Awake"], control.Open.Select(r => r.Name));
+
+        RunTracker t = Tracker();
         t.TimerStarted("1a", "3", 0, true, false);
         t.RoomEntered("1a", "end_0", 100, false, false, One);
-        t.RoomEntered("1a", "end_1", 120, false, false, One);
         t.ControlReturned("end_1", 130);
 
         Assert.Empty(t.Open);
@@ -330,9 +365,17 @@ public class RunTrackerTests {
 
     [Fact]
     public void DropForgetsAPendingStart() {
+        Add("Before", "3", "end_0");
         Add("Awake", "end_0", null);
-        RunTracker t = Tracker();
 
+        // control case: without the drop, control returning opens it
+        RunTracker control = Tracker();
+        control.TimerStarted("1a", "3", 0, true, false);
+        control.RoomEntered("1a", "end_0", 100, false, false, One);
+        control.ControlReturned("end_0", 160);
+        Assert.Equal(["Awake"], control.Open.Select(r => r.Name));
+
+        RunTracker t = Tracker();
         t.TimerStarted("1a", "3", 0, true, false);
         t.RoomEntered("1a", "end_0", 100, false, false, One);
         t.Drop();
@@ -343,14 +386,64 @@ public class RunTrackerTests {
 
     [Fact]
     public void ATimerStartForgetsAPendingStartFromAnotherRoom() {
+        Add("Before", "w", "y");
         Add("FromY", "y", null);
         Add("FromX", "x", null);
         RunTracker t = Tracker();
 
+        // FromY is pending in y when the timer starts in x
+        t.TimerStarted("1a", "w", 0, true, false);
         t.RoomEntered("1a", "y", 100, false, false, One);
         t.TimerStarted("1a", "x", 0, false, false);
         t.ControlReturned("x", 60);
 
         Assert.Equal(["FromX"], t.Open.Select(r => r.Name));
+    }
+
+    [Fact]
+    public void ADisqualifiedSegmentRecordsNothingButStillChains() {
+        Add("6a Start", "start", "00");
+        Add("Lake", "00", "04");
+        Add("Hollows", "04", "x");
+        RunTracker t = Tracker();
+
+        t.TimerStarted("1a", "start", 0, true, false);
+        t.Disqualify();
+        // the fall passes Hollows' room: nothing closes, nothing opens
+        Assert.Empty(t.RoomEntered("1a", "04", 50, false, false, One));
+        Assert.Equal(["6a Start"], t.Open.Select(r => r.Name));
+        Assert.Empty(t.RoomEntered("1a", "00", 80, false, false, One));
+        t.ControlReturned("00", 100);
+
+        Assert.Equal([("Lake", 200L)], Of(t.RoomEntered("1a", "04", 300, true, false, One)));
+    }
+
+    [Fact]
+    public void ADisqualifiedSegmentRecordsNothingOnACollectOrAStop() {
+        Add("Hollows Tape", "04", null, requires: Collectibles.Cassette, endKind: EndKind.Collect,
+            endsOn: Collectibles.Cassette);
+        Add("Final", "04", null, endKind: EndKind.ChapterEnd);
+        RunTracker t = Tracker();
+
+        t.TimerStarted("1a", "04", 0, true, false);
+        t.Disqualify();
+        Assert.Empty(t.Collected(Collectibles.Cassette, 40, One));
+        Assert.Equal(["Final"], t.Open.Select(r => r.Name));
+        Assert.Empty(t.ChapterTimeStopped(90, One));
+        Assert.Empty(t.Open);
+    }
+
+    [Fact]
+    public void DisqualifyForgetsPendingStarts() {
+        Add("Before", "3", "end_0");
+        Add("Awake", "end_0", null);
+        RunTracker t = Tracker();
+
+        t.TimerStarted("1a", "3", 0, true, false);
+        t.RoomEntered("1a", "end_0", 100, false, false, One);
+        t.Disqualify();
+        t.ControlReturned("end_0", 160);
+
+        Assert.Empty(t.Open);
     }
 }

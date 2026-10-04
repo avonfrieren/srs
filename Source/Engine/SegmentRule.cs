@@ -15,7 +15,7 @@ internal enum Collectibles {
 internal enum StartKind {
     // entering the start room, or the timer starting there
     Room,
-    // once the summit launch into the start room is over (SegmentAutoDetect.AfterLaunchStarts)
+    // once the launch (the intro jump) into the start room is over (SegmentAutoDetect.AfterLaunchStarts)
     AfterLaunch,
 }
 

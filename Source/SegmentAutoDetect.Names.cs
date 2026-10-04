@@ -69,10 +69,10 @@ public static partial class SegmentAutoDetect {
         [("Prologue", "Start")] = new TimeSpan(0, 0, 0, 0, 561),
     };
 
-    // (scope, game checkpoint) of the segments that start once the summit
-    // launch into their room is over. 7A's intro launches Madeline from
-    // a-00-intro into a-00 with both clocks running, and the 5.508 s head
-    // already counts the landing: opening on the a-00 entry would count it twice
+    // (scope, game checkpoint) of the segments that start once the launch
+    // into their room is over. 7A's intro launches Madeline from
+    // a-00-intro and she lands in a-00 in the intro-jump state, with both
+    // clocks running, and the 5.508 s head already counts the landing: opening on the a-00 entry would count it twice
     internal static readonly HashSet<(string Scope, string GameName)> AfterLaunchStarts = [
         ("7a", "Start"),
     ];

@@ -34,6 +34,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         public readonly long Start = start;
         public Collectibles Collected;
         public readonly HashSet<string> Berries = [];
+        public bool Disqualified;
     }
 
     private readonly List<OpenSegment> open = [];
@@ -59,6 +60,19 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         pendingRoom = null;
     }
 
+    /// Everything open stays open but can no longer be recorded, and starts
+    /// waiting for control are forgotten. For a stretch the run did not play,
+    /// like 6A's watched fall: it must not be timed, yet the segment after it
+    /// must still open, which needs the disqualified one to close on its end.
+    public void Disqualify() {
+        foreach (OpenSegment segment in open) {
+            segment.Disqualified = true;
+        }
+
+        pending.Clear();
+        pendingRoom = null;
+    }
+
     /// The timer moved from 0 in this room: a standalone run starts here.
     public void TimerStarted(string scope, string room, long reading, bool control, bool launching) {
         pending.Clear();
@@ -67,15 +81,21 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
     }
 
     /// Session.Level changed with the timer running. Closes first, then opens:
-    /// the segment ending here is never the one starting here.
+    /// the segment ending here is never the one starting here. A start opens
+    /// only when this entry closed a segment ending in the room (met or not):
+    /// a start room entered from inside its own segment, or again after the
+    /// segment closed, is the far side of that segment and not its start.
     public List<SegmentRecord> RoomEntered(string scope, string room, long reading, bool control, bool launching,
         EndState end) {
         List<SegmentRecord> records = CloseWhere(
             segment => segment.Rule.End == EndKind.NextStart && Rooms.EndRoomOf(segment.Rule) == room,
-            reading, end);
+            reading, end, out int closed);
         pending.Clear();
         pendingRoom = null;
-        OpenAt(scope, room, reading, control, launching, standalone: false);
+        if (closed > 0) {
+            OpenAt(scope, room, reading, control, launching, standalone: false);
+        }
+
         return records;
     }
 
@@ -91,7 +111,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         pendingRoom = null;
     }
 
-    /// The summit launch ended in this room.
+    /// The launch ended in this room.
     public void LaunchEnded(string scope, string room, long reading) {
         foreach (SegmentRule rule in rules) {
             if (rule.Scope == scope && rule.Start == StartKind.AfterLaunch && Rooms.StartRoomOf(rule) == room) {
@@ -110,7 +130,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         return CloseWhere(
             segment => segment.Rule.End == EndKind.Collect
                        && (segment.Collected & segment.Rule.EndsOn) == segment.Rule.EndsOn,
-            reading, end);
+            reading, end, out _);
     }
 
     public void BerryCollected(string berry) {
@@ -124,7 +144,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         CloseWhere(
             segment => segment.Rule.End == EndKind.ChapterEnd
                        || (segment.Rule.End == EndKind.NextStart && Rooms.EndRoomOf(segment.Rule) == null),
-            reading, end);
+            reading, end, out _);
 
     private void OpenAt(string scope, string room, long reading, bool control, bool launching, bool standalone) {
         foreach (SegmentRule rule in rules) {
@@ -163,7 +183,9 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         open.Add(new OpenSegment(rule, reading));
     }
 
-    private List<SegmentRecord> CloseWhere(System.Predicate<OpenSegment> ends, long reading, EndState end) {
+    private List<SegmentRecord> CloseWhere(System.Predicate<OpenSegment> ends, long reading, EndState end,
+        out int removed) {
+        removed = 0;
         List<SegmentRecord> records = [];
         for (int i = 0; i < open.Count;) {
             OpenSegment segment = open[i];
@@ -173,7 +195,8 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
             }
 
             open.RemoveAt(i);
-            if (Met(segment, reading, end) is { } ticks) {
+            removed++;
+            if (!segment.Disqualified && Met(segment, reading, end) is { } ticks) {
                 records.Add(new SegmentRecord(segment.Rule, ticks));
             }
         }

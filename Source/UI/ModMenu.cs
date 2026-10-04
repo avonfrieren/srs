@@ -58,9 +58,9 @@ internal static class ModMenu {
         // submenu, which keeps reading input under the screen it opens
         menu.Add(HotkeyMenu.OpenButton(menu, Hotkeys.Set, Hotkeys.Text, SrsModule.Instance.SaveSettings));
 
-        // taken as a range rather than listed entry by entry: SheetImporter's
-        // entries depend on the data loaded, so the list cannot
-        // be written out by hand without going out of step with what is there
+        // taken as a range rather than listed entry by entry: the entries added
+        // since `first` come from several builders, and a hand-written list
+        // would go out of step with them
         List<TextMenu.Item> subOptions = menu.Items.GetRange(first, menu.Items.Count - first);
 
         enabled.Change(on => {
