@@ -7,10 +7,10 @@ using MonoMod.ModInterop;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// Feeds RunTracker from the game: chapter time, the room the session is in,
-// the player's control, the collects, and the frame chapter time stops. Where
-// a segment starts and ends is srs's (SegmentRules), and every row whose
-// requirements a run met gets the time.
+// Feeds RunTracker from the game: chapter time, the room the session is in and
+// how it got there, the player's control, the collects, the frame chapter time
+// stops and Restart Chapter. Where a segment starts and ends is srs's
+// (SegmentRules), and every row whose requirements a run met gets the time.
 public static class RunWatcher {
     // the player has no control in these states (Player.cs:384-412): a start
     // reached in one waits for control in that room. Provisional, checked in
@@ -27,33 +27,64 @@ public static class RunWatcher {
     // frame the load wipe ends on, which the level does not simulate and
     // Session.Time does not count (measured 2026-10-03: 1A 80 frames against
     // 81). With it On, the default, and on a TAS load, both resume together.
-    // The wipe is what tells them apart: a player load sets Level.Wipe in the
-    // same call, a TAS load sets none
+    // The wipe is what tells them apart: a player load starts a new Level.Wipe
+    // in the same call, a TAS load starts none, but it restores the wipe the
+    // state was saved under (1A's intro), which must not pass for the load's
     private static readonly long WipeEndFrame = TimeSpan.FromMilliseconds(17).Ticks;
+
+    // how the room was loaded since the last fed frame, read from LoadLevel;
+    // when several loads land in one gap, the strongest wins
+    private enum RoomLoad {
+        None,
+        // Respawn from Level.Reload: a death
+        Respawn,
+        // any intro but Respawn: a transition, or a room change the game makes
+        // in a cutscene
+        WalkIn,
+        // any other Respawn: Speed Run Tool's teleport, into another room or to
+        // a summit flag of this one
+        Teleport,
+        // a level from the loader: entering a chapter, a restart, console load,
+        // the debug map
+        Loader,
+    }
 
     private static RunTracker tracker;
 
-    // game state, saved and restored with each savestate: the checkpoint the
-    // player is in, and a stamp written on every fed frame. A load puts back an
-    // older stamp, which is how a load is seen
+    // game state, saved and restored with each savestate: a stamp written on
+    // every fed frame (a load puts back an older one, which is how a load is
+    // seen), the room the next walk-in comes from, and where the player last
+    // appeared, exactly, with whether they have moved since
     private static class Saved {
         public static long Stamp;
-        public static string Checkpoint;
+        public static string From;
+        public static Vector2 SpawnAt;
+        public static bool Moved = true;
     }
 
     private static object saveLoadAction;
+    private static object wipeAction;
+    // the wipe the last load restored with the level, before a player load
+    // starts its own; read and cleared on the next frame
+    private static ScreenWipe restoredWipe;
 
     // never saved: what a load is compared against. stamp only grows, so a
     // saved stamp differs from it once a frame has been fed since the save
     private static long stamp;
     private static string lastRoom;
-    private static AreaKey lastArea;
     private static int lastState = -1;
     private static bool lastControl = true;
     private static bool lastStopped;
-    private static bool loadedFromLoader;
-    private static bool teleported;
     private static bool fedLastFrame;
+    private static RoomLoad roomLoad;
+    // inside Level.Reload, the game's only LoadLevel(Respawn) (Level.cs:614)
+    private static bool reloading;
+
+    // Restart Chapter, seen when the new session is made: the old session's
+    // last chapter time, for the rows that end on it
+    private static bool chapterRestarted;
+    private static long restartedTime;
+    private static AreaKey restartedArea;
 
     // the frame being fed: a collect inside it is timed from its start, as
     // every other end is (Session.Time already counts the frame by then)
@@ -69,6 +100,12 @@ public static class RunWatcher {
     [ModImportName("SpeedrunTool.SaveLoad")]
     private static class SaveLoadImports {
         public static Func<Type, string[], object> RegisterStaticTypes;
+
+        // saveState, loadState, clearState, beforeSaveState, beforeLoadState, preCloneEntities
+        public static Func<Action<Dictionary<Type, Dictionary<string, object>>, Level>,
+            Action<Dictionary<Type, Dictionary<string, object>>, Level>, Action, Action<Level>, Action<Level>,
+            Action, object> RegisterSaveLoadAction;
+
         public static Action<object> Unregister;
     }
 #pragma warning restore CS0649
@@ -78,17 +115,25 @@ public static class RunWatcher {
         // so after orig the frame's records are settled when the tier computes
         On.Celeste.Level.Update += LevelOnUpdate;
         On.Celeste.Level.LoadLevel += LevelOnLoadLevel;
+        On.Celeste.Level.Reload += LevelOnReload;
+        On.Celeste.Session.Restart += SessionOnRestart;
         On.Celeste.SaveData.RegisterCassette += OnRegisterCassette;
         On.Celeste.HeartGem.RegisterAsCollected += OnRegisterHeart;
 
         typeof(SaveLoadImports).ModInterop();
         saveLoadAction = SaveLoadImports.RegisterStaticTypes?.Invoke(typeof(Saved),
-            [nameof(Saved.Stamp), nameof(Saved.Checkpoint)]);
+            [nameof(Saved.Stamp), nameof(Saved.From), nameof(Saved.SpawnAt), nameof(Saved.Moved)]);
         if (saveLoadAction == null) {
             // loads would go unseen, and chapter time keeps running across a
             // load, so a segment open across one would be mistimed: nothing is fed
             Logger.Log(LogLevel.Warn, "srs", "Speed Run Tool's SaveLoad did not bind: savestate loads cannot be seen, so srs records nothing");
         }
+
+        // loadState runs once the level is restored, before a player load's
+        // wipe starts. clearState stays unwired: clearing a slot rewinds
+        // nothing, and a TAS may clear the slots as it starts
+        wipeAction = SaveLoadImports.RegisterSaveLoadAction?.Invoke(null,
+            (_, level) => restoredWipe = level.Wipe, null, null, null, null);
 
         tracker = new RunTracker(SegmentRules.All, null);
     }
@@ -96,6 +141,8 @@ public static class RunWatcher {
     public static void Unload() {
         On.Celeste.Level.Update -= LevelOnUpdate;
         On.Celeste.Level.LoadLevel -= LevelOnLoadLevel;
+        On.Celeste.Level.Reload -= LevelOnReload;
+        On.Celeste.Session.Restart -= SessionOnRestart;
         On.Celeste.SaveData.RegisterCassette -= OnRegisterCassette;
         On.Celeste.HeartGem.RegisterAsCollected -= OnRegisterHeart;
 
@@ -103,51 +150,105 @@ public static class RunWatcher {
             SaveLoadImports.Unregister?.Invoke(saveLoadAction);
             saveLoadAction = null;
         }
+
+        if (wipeAction != null) {
+            SaveLoadImports.Unregister?.Invoke(wipeAction);
+            wipeAction = null;
+        }
+
+        restoredWipe = null;
     }
 
-    // a new Level from the loader: entering a chapter, a restart, a console
-    // load. A respawn after a death is a LoadLevel too, without isFromLoader,
-    // and always in the room of the death. A Respawn into another room is
-    // Speed Run Tool's room teleport (TeleportRoomUtils.TeleportTo), which then
-    // updates the level itself: the vanilla room changes use other intro types
+    // every room load passes here. The game walks the player into a room with
+    // any intro but Respawn: the transition (Level.cs:2262-2265), and the room
+    // changes of 2A's dream, 5A's and 5B's mirrors, 6A's fall and Farewell's
+    // intro. A death respawns through Level.Reload; any other Respawn is Speed
+    // Run Tool's teleport (TeleportRoomUtils.cs:261), which can stay in the
+    // room: PageDown in 7A goes to the next summit flag (:371-376). Four of the
+    // cutscene changes run in OnEndOfFrame, after this frame's update hook: the
+    // next fed frame reads the kind
     private static void LevelOnLoadLevel(On.Celeste.Level.orig_LoadLevel orig, Level self,
         Player.IntroTypes playerIntro, bool isFromLoader) {
         orig(self, playerIntro, isFromLoader);
-        if (isFromLoader) {
-            loadedFromLoader = true;
-        } else if (playerIntro == Player.IntroTypes.Respawn && self.Session.Level != lastRoom) {
-            teleported = true;
+        RoomLoad kind = isFromLoader ? RoomLoad.Loader
+            : playerIntro != Player.IntroTypes.Respawn ? RoomLoad.WalkIn
+            : reloading ? RoomLoad.Respawn
+            : RoomLoad.Teleport;
+        if (kind > roomLoad) {
+            roomLoad = kind;
         }
+    }
+
+    private static void LevelOnReload(On.Celeste.Level.orig_Reload orig, Level self) {
+        reloading = true;
+        try {
+            orig(self);
+        } finally {
+            reloading = false;
+        }
+    }
+
+    // Restart Chapter makes the new session with Session.Restart() and no room,
+    // through the wipe (LevelExit.cs:188) and through Speed Run Tool's restart
+    // that skips it (RespawnRestartSpeed.cs:125); a golden berry restart names
+    // its room (LevelExit.cs:183). Nothing updates the old session afterwards,
+    // so its time now is the run's last chapter time
+    private static Session SessionOnRestart(On.Celeste.Session.orig_Restart orig, Session self, string intoLevel) {
+        Session restarted = orig(self, intoLevel);
+        if (intoLevel == null) {
+            chapterRestarted = true;
+            restartedTime = self.Time;
+            restartedArea = self.Area;
+        }
+
+        return restarted;
     }
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         // switched off: nothing is fed, and the next frame fed drops what was
         // open, since the events missed meanwhile would close it wrongly. A
-        // chapter entered meanwhile is not a start any more. A savestate loaded
-        // meanwhile is seen as a load on the first frame back, and opens only
-        // if the player stands on a start spawn then. Without Speed Run Tool's
-        // SaveLoad nothing is ever fed: a load could not be seen
+        // chapter entered meanwhile is not a start any more, and a savestate
+        // made or loaded meanwhile opens nothing: nothing watched the player
+        // move. Without Speed Run Tool's SaveLoad nothing is ever fed: a load
+        // could not be seen
         if (!SrsModule.Settings.Enabled || saveLoadAction == null) {
-            // cleared after orig too: a LoadLevel inside it would set them
+            // cleared after orig too: a LoadLevel or a restart inside it would set them
             fedLastFrame = false;
+            restoredWipe = null;
             orig(self);
-            loadedFromLoader = false;
-            teleported = false;
+            roomLoad = RoomLoad.None;
+            chapterRestarted = false;
+            Saved.Moved = true;
+            if (self.Tracker.GetEntity<Player>()?.StateMachine.State != Player.StReflectionFall) {
+                Saved.From = self.Session.Level;
+            }
+
             return;
         }
 
         // before orig: the reading an end is timed from (Speed Run Tool freezes
-        // its display before it adds the frame), and the level as a load left it
+        // its display before it adds the frame), and the level and the Saved
+        // values as a load left them, before this frame can move the player
         bool loaded = Saved.Stamp != stamp;
+        if (loaded) {
+            // a room loaded before the load belongs to the timeline it left
+            roomLoad = RoomLoad.None;
+        }
+
         long before = self.Session.Time;
         Player playerBefore = self.Tracker.GetEntity<Player>();
-        Vector2? positionBefore = playerBefore?.Position;
         LevelData dataBefore = self.Session.LevelData;
         string roomBefore = self.Session.Level;
         int stateBefore = playerBefore?.StateMachine.State ?? -1;
+        Vector2? exactBefore = playerBefore?.ExactPosition;
         bool controlBefore = !self.InCutscene && !NoControlStates.Contains(stateBefore);
         bool stoppedBefore = self.TimerStopped || self.Completed;
-        bool wipingBefore = self.Wipe != null;
+        // a player load's own wipe
+        bool loadWiping = self.Wipe != null && self.Wipe != restoredWipe;
+        restoredWipe = null;
+        string from = Saved.From;
+        bool movedAtLoad = Saved.Moved;
+        Vector2 spawnAtLoad = Saved.SpawnAt;
 
         frameStart = before;
         inUpdate = true;
@@ -158,27 +259,49 @@ public static class RunWatcher {
         long after = session.Time;
         string scope = SegmentAutoDetect.ScopeOf(session);
         string room = session.Level;
-        int state = self.Tracker.GetEntity<Player>()?.StateMachine.State ?? -1;
+        Player player = self.Tracker.GetEntity<Player>();
+        int state = player?.StateMachine.State ?? -1;
         bool control = !self.InCutscene && !NoControlStates.Contains(state);
         bool launching = state == Player.StIntroJump;
         bool stopped = self.TimerStopped || self.Completed;
         tracker.Rooms = RoomMap.For(session);
         EndState end = EndState.With(session.Inventory.Dashes);
+        RoomLoad load = roomLoad;
+        roomLoad = RoomLoad.None;
+        // a room change no LoadLevel walked into is a teleport too. Not on a
+        // load: the state's room is not a room change
+        bool teleported = Saved.Stamp == stamp
+                          && (load == RoomLoad.Teleport
+                              || (fedLastFrame && room != lastRoom && load < RoomLoad.WalkIn));
 
         bool feed = false;
+        // a new attempt landed this frame, so the player appears now if they
+        // have control
+        bool restarted = false;
+        // this frame's control and state edges are the player's own: not on a
+        // load inside orig, nor on the frame srs is switched back on
+        bool watched = true;
         if (!loaded && Saved.Stamp != stamp) {
             // a load inside orig, which no Speed Run Tool version does today:
             // this frame's events would mix two timelines
-            tracker.Checkpoint = Saved.Checkpoint;
             tracker.Drop();
             Latest = null;
+            watched = false;
         } else if (loaded) {
-            // every load is a new attempt; the checkpoint comes back with the state
-            tracker.Checkpoint = Saved.Checkpoint;
-            bool wipeEnd = wipingBefore
+            // every load is a new attempt. With control, the Current Room
+            // segment of the room opens if the player had not moved since
+            // appearing on its start spawn; without (mid-respawn, mid-wake-up,
+            // mid-intro), it waits for the appearance that follows
+            bool wipeEnd = loadWiping
                            && SpeedrunToolSettings.Instance?.FreezeAfterLoadStateType == FreezeAfterLoadStateType.Off;
-            tracker.Restart(scope, roomBefore, before - (wipeEnd ? WipeEndFrame : 0), controlBefore,
-                stateBefore == Player.StIntroJump, AtStartSpawn(dataBefore, positionBefore));
+            if (controlBefore) {
+                tracker.Restart(scope, roomBefore, before - (wipeEnd ? WipeEndFrame : 0), true,
+                    stateBefore == Player.StIntroJump,
+                    movedAtLoad ? _ => false : AtStartSpawn(dataBefore, spawnAtLoad));
+            } else {
+                tracker.RestartAtAppearance(scope, roomBefore);
+            }
+
             Latest = null;
             // this frame's events start from the level the load left
             lastRoom = roomBefore;
@@ -186,40 +309,41 @@ public static class RunWatcher {
             lastControl = controlBefore;
             lastStopped = stoppedBefore;
             feed = scope != null;
-        } else if (loadedFromLoader) {
+        } else if (load == RoomLoad.Loader) {
             // entering a chapter, a restart, a console load, the debug map: the
             // spawn tested is the one the player appears at (an intro starts
             // off screen), the chapter's own for a chapter start and the
             // checkpoint's for a checkpoint entered from chapter select, which
             // counts without its wake-up (owner, 2026-10-03). Timed from before
             // the frame, as any start
-            tracker.Checkpoint = null;
-            tracker.Restart(scope, room, before, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
             Latest = null;
-        } else if (teleported) {
-            // Speed Run Tool's room teleport skips rooms without lowering chapter
-            // time: a new attempt from the spawn it put the player on. The
-            // checkpoint is unknown mid-segment, and a stale one would open the
-            // next segment from its far side
-            tracker.Checkpoint = null;
-            tracker.Restart(scope, room, before, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
-            Latest = null;
-        } else if (!fedLastFrame) {
-            // switched back on: the checkpoint stays within the room it was left
-            // in, and is unknown anywhere else, so the next segment is missed,
-            // never mistimed
-            if (room != lastRoom || session.Area != lastArea) {
-                tracker.Checkpoint = null;
+            // == and not Equals: AreaKey.Equals(object) always returns false
+            if (chapterRestarted && restartedArea == session.Area) {
+                // the rows ending on Restart Chapter close first, on the old
+                // session's time; the restart then drops the rest unrecorded
+                Emit(session, tracker.ChapterRestarted(restartedTime, end));
             }
 
+            tracker.Restart(scope, room, before, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
+            restarted = true;
+        } else if (teleported) {
+            // Speed Run Tool's room teleport skips rooms without lowering chapter
+            // time: a new attempt from the spawn it put the player on
+            tracker.Restart(scope, room, before, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
+            Latest = null;
+            restarted = true;
+        } else if (!fedLastFrame) {
+            // switched back on: whatever was open missed events
             tracker.Drop();
             Latest = null;
+            watched = false;
         } else if (after < before) {
             // Level.Reload zeroes chapter time on a death in the first room
             // with nothing collected: a new attempt from the spawn, which
             // without control waits for ControlReturned
             tracker.Restart(scope, room, after, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
             Latest = null;
+            restarted = true;
         } else {
             feed = scope != null;
         }
@@ -238,8 +362,8 @@ public static class RunWatcher {
                 Emit(session, tracker.ChapterTimeStopped(before, end));
             }
 
-            if (room != lastRoom) {
-                Emit(session, tracker.RoomEntered(scope, room, before, control, launching, end));
+            if (room != lastRoom && load == RoomLoad.WalkIn) {
+                Emit(session, tracker.RoomEntered(scope, from, room, before, control, launching, end));
             }
 
             // the state changes during this frame's update, and a savestate
@@ -250,19 +374,41 @@ public static class RunWatcher {
             }
 
             if (!lastControl && control) {
-                tracker.ControlReturned(room, after);
+                tracker.ControlReturned(room, after, AtStartSpawn(session.LevelData, player?.ExactPosition));
             }
         }
 
+        // the player appears when control returns after a no-control state,
+        // when the intro jump ends (every chapter's, 1A's included), and when a
+        // restart lands with control; a load is never an appearance, it
+        // restores the last one. A loader, a teleport, a death and the switch
+        // back on set Moved, before an appearance of the same frame
+        bool appeared = restarted
+            ? control
+            : watched && ((!lastControl && control) || (lastState == Player.StIntroJump && !launching));
+        bool disturbed = load is RoomLoad.Respawn or RoomLoad.Teleport or RoomLoad.Loader || teleported || !fedLastFrame;
+        (float X, float Y)? at = player == null ? null : (player.ExactPosition.X, player.ExactPosition.Y);
+        // a restart that has control already appears where the frame began, so
+        // a direction held into its first frame is a move
+        (float X, float Y)? appearedAt = restarted && control && exactBefore is { } start ? (start.X, start.Y) : at;
+        Stillness still = new Stillness(Saved.SpawnAt.X, Saved.SpawnAt.Y, Saved.Moved)
+            .After(disturbed, appeared, appearedAt)
+            .After(false, false, at);
+        Saved.SpawnAt = new Vector2(still.X, still.Y);
+        Saved.Moved = still.Moved;
+
         Saved.Stamp = ++stamp;
-        Saved.Checkpoint = tracker.Checkpoint;
+        // during 6A's watched fall the rooms passed through are not where the
+        // run comes from: 00 is entered from start, as after either skip
+        if (restarted || !watched || state != Player.StReflectionFall) {
+            Saved.From = room;
+        }
+
         lastRoom = room;
-        lastArea = session.Area;
         lastState = state;
         lastControl = control;
         lastStopped = stopped;
-        loadedFromLoader = false;
-        teleported = false;
+        chapterRestarted = false;
         fedLastFrame = true;
     }
 

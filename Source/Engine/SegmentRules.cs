@@ -34,8 +34,13 @@ internal static class SegmentRules {
             SheetRow row = rows[i];
             (string, string) anchor = (row.Scope, row.Anchor);
             Collectibles marked = MarkersOf(row.Label);
-            // RTM and RC are the only markers that end a run early, at the collect
-            bool endsAtCollect = SheetData.EndConditionOf(row.Label) != EndCondition.Checkpoint;
+            // RTM ends a run at the collect, RC at the restart; what an RC row
+            // collected is a requirement, checked when it ends
+            EndKind end = SheetData.EndConditionOf(row.Label) switch {
+                EndCondition.Checkpoint => EndKind.NextStart,
+                EndCondition.Restart => EndKind.Restart,
+                _ => EndKind.Collect,
+            };
 
             rules.Add(new SegmentRule(
                 row.Scope, row.Chapter, row.Name, row.Anchor,
@@ -43,8 +48,8 @@ internal static class SegmentRules {
                 row.Anchor == "Start" || SegmentAutoDetect.CurrentRoomStarts.Contains(anchor)
                     ? StartSetup.CurrentRoom
                     : StartSetup.NextRoom,
-                endsAtCollect ? EndKind.Collect : EndKind.NextStart,
-                endsAtCollect ? marked : Collectibles.None,
+                end,
+                end == EndKind.Collect ? marked : Collectibles.None,
                 marked,
                 RequiresBerries: false,
                 DashesOf(row, labels),

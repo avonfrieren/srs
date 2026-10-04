@@ -34,6 +34,8 @@ internal enum EndKind {
     ChapterEnd,
     // the collect itself; with two collectibles, the later of the two
     Collect,
+    // Restart Chapter, on the old session's last reading ("RC" rows)
+    Restart,
 }
 
 /// How a run of one imported row is detected. Written in game-checkpoint names,

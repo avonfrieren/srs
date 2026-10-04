@@ -95,14 +95,23 @@ public class SegmentRulesTests {
     }
 
     [Fact]
-    public void RtmAndRcRowsEndAtTheCollect() {
+    public void RtmRowsEndAtTheCollect() {
         Assert.Equal((EndKind.Collect, Collectibles.Cassette),
             (Rule("6a/b", "Hollows Tape").End, Rule("6a/b", "Hollows Tape").EndsOn));
         Assert.Equal((EndKind.Collect, Collectibles.Cassette),
             (Rule("5a/b", "Depths Tape").End, Rule("5a/b", "Depths Tape").EndsOn));
-        Assert.Equal((EndKind.Collect, Collectibles.Heart),
-            (Rule("2a", "Start Heart RC").End, Rule("2a", "Start Heart RC").EndsOn));
         Assert.Equal(EndKind.NextStart, Rule("6a/b", "Hollows").End);
+    }
+
+    // timed to the restart, as Speed Run Tool's timer kept across it is; the
+    // heart is what tells it from plain 2a Start
+    [Fact]
+    public void TheRcRowEndsAtTheRestartWithItsHeart() {
+        SegmentRule rc = Rule("2a", "Start Heart RC");
+        Assert.Equal((EndKind.Restart, Collectibles.None, Collectibles.Heart), (rc.End, rc.EndsOn, rc.Requires));
+        Assert.Equal(EndKind.NextStart, Rule("2a", "Start").End);
+        Assert.Equal(new[] { "2a/Start Heart RC" },
+            SegmentRules.All.Where(r => r.End == EndKind.Restart).Select(r => $"{r.Chapter}/{r.Name}"));
     }
 
     [Fact]

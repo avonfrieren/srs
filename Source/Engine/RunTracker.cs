@@ -10,8 +10,12 @@ internal interface IRoomMap {
     string StartRoomOf(SegmentRule rule);
 
     /// The room a NextStart rule ends in; null when it has none and ends when
-    /// chapter time stops.
+    /// chapter time stops. For a Restart rule, the room its segment ends in.
     string EndRoomOf(SegmentRule rule);
+
+    /// The room the rule's start room must be entered from; null when the rule
+    /// never opens on an entry (a chapter's Start, 7A's start).
+    string EntryRoomOf(SegmentRule rule);
 
     /// The red berries of the rule's anchor checkpoint, as EntityID keys.
     IReadOnlyCollection<string> BerriesOf(SegmentRule rule);
@@ -39,8 +43,10 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
     }
 
     private readonly List<OpenSegment> open = [];
-    // starts reached without control, waiting for it to come back in pendingRoom
-    private readonly List<SegmentRule> pending = [];
+    // starts reached without control, waiting for it to come back in
+    // pendingRoom. FromLoad: a savestate loaded without control, whose start
+    // is tested where the player appears
+    private readonly List<(SegmentRule Rule, bool FromLoad)> pending = [];
     private string pendingRoom;
 
     /// Swapped by RunWatcher when the area changes.
@@ -74,70 +80,61 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         pendingRoom = null;
     }
 
-    /// The start room of the last segment start room entered: the checkpoint
-    /// the player is in. RunWatcher saves it with each savestate and puts it
-    /// back on a load; null when unknown.
-    public string Checkpoint { get; set; }
-
-    /// A new attempt (a savestate load, a level from the loader, a room
-    /// teleport, a first-room reset): nothing open is recorded.
+    /// A new attempt (a level from the loader, a room teleport, a first-room
+    /// reset, a savestate loaded with control): nothing open is recorded.
     /// The Current Room segments starting in this room then open where atStart
     /// says the player is at their start; nothing else does.
     public void Restart(string scope, string room, long reading, bool control, bool launching,
         Func<SegmentRule, bool> atStart) {
         Drop();
-        if (IsStartRoom(scope, room)) {
-            Checkpoint = room;
-        }
-
         OpenAt(scope, room, reading, control, launching, standalone: true,
-            rule => rule.Setup == StartSetup.CurrentRoom && atStart(rule));
+            rule => rule.Setup == StartSetup.CurrentRoom && atStart(rule), fromLoad: false);
     }
 
-    /// Session.Level changed. Closes first, then opens: the segment ending here
-    /// is never the one starting here. A start opens only when entered from the
-    /// checkpoint before it, or when this entry closed a segment ending here,
-    /// so a backtrack into a start room, or a return to the chapter's first
-    /// room, opens nothing.
-    public List<SegmentRecord> RoomEntered(string scope, string room, long reading, bool control, bool launching,
-        EndState end) {
+    /// A savestate loaded without control (mid-wake-up, mid-respawn, mid-intro):
+    /// nothing open is recorded, and the Current Room segments starting in this
+    /// room wait for the player to appear, where ControlReturned tests them.
+    public void RestartAtAppearance(string scope, string room) {
+        Drop();
+        OpenAt(scope, room, 0, control: false, launching: false, standalone: true,
+            rule => rule.Setup == StartSetup.CurrentRoom, fromLoad: true);
+    }
+
+    /// The player walked into this room from another: a transition, or a room
+    /// change the game makes in a cutscene. Closes first, then opens: the
+    /// segment ending here is never the one starting here. Only an entry from
+    /// the entry room of a segment starting here counts. It closes the segment
+    /// ending here with a time and opens the one starting here. Any other way
+    /// in may be a shortcut: it drops the segment ending here unrecorded and
+    /// opens nothing, so a backtrack or a return to the chapter's first room
+    /// opens nothing either. A Restart row whose segment ends here is dropped
+    /// on any way in: a restart after it is not a run of the row.
+    public List<SegmentRecord> RoomEntered(string scope, string from, string room, long reading, bool control,
+        bool launching, EndState end) {
+        bool entry = IsEntry(scope, from, room);
         List<SegmentRecord> records = CloseWhere(
             segment => segment.Rule.End == EndKind.NextStart && Rooms.EndRoomOf(segment.Rule) == room,
-            reading, end, out int closed);
+            reading, end, record: entry);
+        CloseWhere(segment => segment.Rule.End == EndKind.Restart && Rooms.EndRoomOf(segment.Rule) == room,
+            reading, end, record: false);
         pending.Clear();
         pendingRoom = null;
-        if (IsStartRoom(scope, room)) {
-            string from = Checkpoint;
-            Checkpoint = room;
-            // closing a segment that ends here (met, unmet or disqualified) also
-            // opens: 6A's watched fall passes through Hollows' room 04 before
-            // Lake's 00, which moves the checkpoint off 6a Start's
-            if (closed > 0 || Follows(scope, from, room)) {
-                OpenAt(scope, room, reading, control, launching, standalone: false, _ => true);
-            }
+        if (entry) {
+            OpenAt(scope, room, reading, control, launching, standalone: false,
+                rule => Rooms.EntryRoomOf(rule) == from, fromLoad: false);
         }
 
         return records;
     }
 
-    private bool IsStartRoom(string scope, string room) {
-        foreach (SegmentRule rule in rules) {
-            if (rule.Scope == scope && Rooms.StartRoomOf(rule) == room) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    // a segment of the checkpoint the player was in ends in this room
-    private bool Follows(string scope, string from, string room) {
+    // a segment starting in this room is entered from that one
+    private bool IsEntry(string scope, string from, string room) {
         if (from == null) {
             return false;
         }
 
         foreach (SegmentRule rule in rules) {
-            if (rule.Scope == scope && Rooms.StartRoomOf(rule) == from && Rooms.EndRoomOf(rule) == room) {
+            if (rule.Scope == scope && Rooms.StartRoomOf(rule) == room && Rooms.EntryRoomOf(rule) == from) {
                 return true;
             }
         }
@@ -146,10 +143,14 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
     }
 
     /// Control came back in this room: a start reached without it opens now.
-    public void ControlReturned(string room, long reading) {
+    /// One a savestate load left waiting opens only where atAppearance says
+    /// the player appeared at its start.
+    public void ControlReturned(string room, long reading, Func<SegmentRule, bool> atAppearance) {
         if (pendingRoom == room) {
-            foreach (SegmentRule rule in pending) {
-                OpenIfClosed(rule, reading);
+            foreach ((SegmentRule rule, bool fromLoad) in pending) {
+                if (!fromLoad || atAppearance(rule)) {
+                    OpenIfClosed(rule, reading);
+                }
             }
         }
 
@@ -176,7 +177,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         return CloseWhere(
             segment => segment.Rule.End == EndKind.Collect
                        && (segment.Collected & segment.Rule.EndsOn) == segment.Rule.EndsOn,
-            reading, end, out _);
+            reading, end);
     }
 
     public void BerryCollected(string berry) {
@@ -190,10 +191,19 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         CloseWhere(
             segment => segment.Rule.End == EndKind.ChapterEnd
                        || (segment.Rule.End == EndKind.NextStart && Rooms.EndRoomOf(segment.Rule) == null),
-            reading, end, out _);
+            reading, end);
+
+    /// Restart Chapter left the level, with the old session's last reading: the
+    /// segments ending on it close, and everything else open is dropped
+    /// unrecorded. The new level's Restart then opens what starts there.
+    public List<SegmentRecord> ChapterRestarted(long reading, EndState end) {
+        List<SegmentRecord> records = CloseWhere(segment => segment.Rule.End == EndKind.Restart, reading, end);
+        Drop();
+        return records;
+    }
 
     private void OpenAt(string scope, string room, long reading, bool control, bool launching, bool standalone,
-        Func<SegmentRule, bool> opens) {
+        Func<SegmentRule, bool> opens, bool fromLoad) {
         foreach (SegmentRule rule in rules) {
             if (rule.Scope != scope || Rooms.StartRoomOf(rule) != room || !opens(rule)) {
                 continue;
@@ -212,7 +222,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
             if (control) {
                 OpenIfClosed(rule, reading);
             } else {
-                pending.Add(rule);
+                pending.Add((rule, fromLoad));
                 pendingRoom = room;
             }
         }
@@ -230,9 +240,9 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         open.Add(new OpenSegment(rule, reading));
     }
 
-    private List<SegmentRecord> CloseWhere(System.Predicate<OpenSegment> ends, long reading, EndState end,
-        out int removed) {
-        removed = 0;
+    // record false: the segments that end now are dropped, not recorded
+    private List<SegmentRecord> CloseWhere(Predicate<OpenSegment> ends, long reading, EndState end,
+        bool record = true) {
         List<SegmentRecord> records = [];
         for (int i = 0; i < open.Count;) {
             OpenSegment segment = open[i];
@@ -242,8 +252,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
             }
 
             open.RemoveAt(i);
-            removed++;
-            if (!segment.Disqualified && Met(segment, reading, end) is { } ticks) {
+            if (record && !segment.Disqualified && Met(segment, reading, end) is { } ticks) {
                 records.Add(new SegmentRecord(segment.Rule, ticks));
             }
         }

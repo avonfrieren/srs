@@ -29,6 +29,41 @@ public class SheetConsistencyTests {
         Assert.All(SegmentAutoDetect.SpawnOffsets.Keys, key => Assert.Contains(key, anchors));
     }
 
+    // a Next Room segment opens only on entering its first room from its entry
+    // room, and so does a segment after a wake-up: one left out would never
+    // open, and the segment before it would never close with a time. A
+    // chapter's Start and 7A's start have none: they open on a restart or at
+    // the end of the launch, never on an entry
+    [Fact]
+    public void EveryNextRoomAndWakeUpRowHasAnEntryRoom() {
+        List<string> wrong = SegmentRules.All
+            .Where(rule => SegmentAutoDetect.EntryRooms.ContainsKey((rule.Scope, rule.Anchor))
+                           != (rule.Setup == StartSetup.NextRoom
+                               || SegmentAutoDetect.CurrentRoomStarts.Contains((rule.Scope, rule.Anchor))))
+            .Select(rule => $"{rule.Chapter}/{rule.Name}")
+            .ToList();
+        Assert.Empty(wrong);
+
+        HashSet<(string, string)> anchors = SheetRows.All.Select(r => (r.Scope, r.Anchor)).ToHashSet();
+        Assert.All(SegmentAutoDetect.EntryRooms.Keys, key => Assert.Contains(key, anchors));
+        Assert.DoesNotContain(SegmentAutoDetect.EntryRooms.Keys, key => key.GameName == "Start");
+    }
+
+    // the owner's rulings (2026-10-04): of the two rooms Cliff Face's and
+    // Rescue's first rooms can be entered from, only the imported routes' one
+    // counts; and the rooms a cutscene brings the player into are entered from
+    // the room it starts in
+    [Theory]
+    [InlineData("4a", "Cliff Face", "c-08")]
+    [InlineData("5a", "Rescue", "d-20")]
+    [InlineData("2a", "Awake", "13")]
+    [InlineData("5a", "Unravelling", "void")]
+    [InlineData("5b", "Through the Mirror", "b-09")]
+    [InlineData("6a", "Lake", "start")]
+    public void TheEntryRoomsTheOwnerRuledOn(string scope, string anchor, string room) {
+        Assert.Equal(room, SegmentAutoDetect.EntryRooms[(scope, anchor)]);
+    }
+
     // a Current Room start that is not a chapter's "Start" opens on a restart
     // only from its WakeUpSpawns entry: a new one left out would never open
     [Fact]
@@ -73,8 +108,8 @@ public class SheetConsistencyTests {
     }
 
     // every imported segment carries the end condition its raw sheet name
-    // declares. Only a row that ends in RTM or RC stops at what it collects:
-    // the two 📼 RTM rows at the cassette, "2a Start 💙 RC" at the heart. The
+    // declares. Only a row that ends in RTM stops at what it collects: the two
+    // 📼 RTM rows at the cassette. "2a Start 💙 RC" stops at the restart. The
     // other two hearts are Clear rows — collect and keep going — so they end
     // at the next in-game checkpoint, like everything else (or at the
     // chapter's completion when there is none, resolved at runtime). A marker
@@ -88,10 +123,11 @@ public class SheetConsistencyTests {
         ];
 
         Assert.Equal([("5a/b", "Depths Tape"), ("6a/b", "Hollows Tape")], EndingAt(EndCondition.Cassette));
-        Assert.Equal([("2a", "Start Heart RC")], EndingAt(EndCondition.Heart));
+        Assert.Equal([("2a", "Start Heart RC")], EndingAt(EndCondition.Restart));
+        Assert.Empty(EndingAt(EndCondition.Heart));
         Assert.All(
             Fixtures.Imported.Where(segment =>
-                segment.End != EndCondition.Cassette && segment.End != EndCondition.Heart),
+                segment.End != EndCondition.Cassette && segment.End != EndCondition.Restart),
             segment => Assert.Equal(EndCondition.Checkpoint, segment.End));
     }
 

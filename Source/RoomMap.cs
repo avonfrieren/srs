@@ -20,10 +20,20 @@ internal sealed class RoomMap : IRoomMap {
         scope = SegmentAutoDetect.ScopeOf(session);
         firstRoom = session.MapData?.StartLevel()?.Name;
         checkpoints = AreaData.Get(session.Area)?.Mode[(int)session.Area.Mode]?.Checkpoints ?? [];
+
+        // a misspelt entry room never matches, and its segment never opens
+        if (session.MapData != null) {
+            foreach (KeyValuePair<(string Scope, string GameName), string> entry in SegmentAutoDetect.EntryRooms) {
+                if (entry.Key.Scope == scope && session.MapData.Get(entry.Value) == null) {
+                    Logger.Log(LogLevel.Warn, "srs", $"room map: the entry room {entry.Value} of {entry.Key.GameName} is not a room of {scope}");
+                }
+            }
+        }
     }
 
     public static RoomMap For(Session session) {
-        if (current == null || !current.area.Equals(session.Area)) {
+        // == and not Equals: AreaKey.Equals(object) always returns false
+        if (current == null || current.area != session.Area) {
             current = new RoomMap(session);
         }
 
@@ -63,6 +73,11 @@ internal sealed class RoomMap : IRoomMap {
 
         return null;
     }
+
+    public string EntryRoomOf(SegmentRule rule) =>
+        rule.Scope == scope && SegmentAutoDetect.EntryRooms.TryGetValue((scope, rule.Anchor), out string room)
+            ? room
+            : null;
 
     // no imported row requires berries yet (SegmentRulesTests pins it): the
     // map's berries per checkpoint come with the rows that need them

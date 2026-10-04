@@ -17,6 +17,9 @@ public enum EndCondition {
     Cassette,
     // "💙 RTM" rows: same, for the crystal heart
     Heart,
+    // "RC" rows: the run goes on through the menu and the wipe to Restart
+    // Chapter, and what it collected is checked then
+    Restart,
 }
 
 // parsed practice sheet: one block of checkpoint segments merged from the
@@ -124,12 +127,14 @@ public class SheetData {
 
     // the end of the run is in the raw name too, and "RTM" and "RC" are the
     // only things that end one early: the sheet's markers for "collect, then
-    // return to map" or "restart the chapter", and the community convention is
-    // that the segment stops at the collect (the menuing after it is not
-    // gameplay and is never timed). Every other
-    // row runs to the end of its segment — the next in-game checkpoint, or
-    // the chapter itself when there is none, which SegmentRules resolves
-    // with no help from here.
+    // return to map" or "restart the chapter". An RTM segment stops at the
+    // collect (the menuing after it is not gameplay and is never timed). An RC
+    // segment stops when Restart Chapter leaves the level, where Speed Run
+    // Tool's timer, kept on across the restart, freezes: the pause, the
+    // confirm and the wipe are in the time, the reload and its intro are not.
+    // Every other row runs to the end of its segment — the next in-game
+    // checkpoint, or the chapter itself when there is none, which
+    // SegmentRules resolves with no help from here.
     // A "Clear" suffix on a checkpoint row is *not* the chapter's completion,
     // whatever it reads like: "Shrine 💙 Clear" (27.5s) cannot contain Old
     // Trail and Cliff Face (78s of run after it), and the sheet's own chapter
@@ -140,12 +145,11 @@ public class SheetData {
     // imported and their route settles which comes last
     internal static EndCondition EndConditionOf(string rawName) {
         string name = rawName.TrimEnd();
-        // RTM (return to map) and RC (restart chapter) both end the run at the
-        // collection: what follows either one is menuing, which the room timer
-        // never counts. RC is on exactly one row of the whole sheet,
-        // "2a Start 💙 RC", so reading it changes no segment that already works
-        if (!name.EndsWith("RTM", StringComparison.Ordinal)
-            && !name.EndsWith("RC", StringComparison.Ordinal)) {
+        if (name.EndsWith("RC", StringComparison.Ordinal)) {
+            return EndCondition.Restart;
+        }
+
+        if (!name.EndsWith("RTM", StringComparison.Ordinal)) {
             return EndCondition.Checkpoint;
         }
 

@@ -25,6 +25,15 @@ public class EndConditionTests {
         Assert.Equal(EndCondition.Heart, SheetData.EndConditionOf(rawName));
     }
 
+    // the sheet's one RC row runs on to Restart Chapter: its heart is a
+    // requirement, not its end
+    [Theory]
+    [InlineData("2a Start 💙 RC")]
+    [InlineData("2a Start 💙 RC ")]
+    public void RcRowsEndAtTheRestart(string rawName) {
+        Assert.Equal(EndCondition.Restart, SheetData.EndConditionOf(rawName));
+    }
+
     // everything that is not an RTM row runs to the end of its segment, and
     // that includes the "Clear" ones: on a checkpoint row the suffix means
     // "collect it and keep going", not the chapter's completion — the sheet's

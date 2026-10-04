@@ -86,6 +86,65 @@ public static partial class SegmentAutoDetect {
         ("5b", "Through the Mirror"),
     ];
 
+    // (scope, game checkpoint) -> the room a segment's first room must be
+    // entered from for the segment to open, and for the one before it to
+    // close with a time. Every Next Room segment and every segment after a
+    // wake-up has one; a chapter's Start and 7A's start have none and open
+    // only on a restart or at the end of the launch. Measured on 2026-10-04 by
+    // replaying every chapter TAS and checking each start room's edges with
+    // their entities. The rooms reached by a cutscene are entered from the
+    // room the cutscene starts in: 2A's dream, 5A's and 5B's mirror, 6A's fall
+    internal static readonly Dictionary<(string Scope, string GameName), string> EntryRooms = new() {
+        [("1a", "Crossing")] = "5",
+        [("1a", "Chasm")] = "9",
+        [("2a", "Intervention")] = "3x",
+        [("2a", "Awake")] = "13",
+        [("3a", "Huge Mess")] = "07-a",
+        [("3a", "Elevator Shaft")] = "09-b",
+        [("3a", "Presidential Suite")] = "02-d",
+        [("4a", "Shrine")] = "a-09",
+        [("4a", "Old Trail")] = "b-08",
+        // d-00 is also entered from c-10, the berry room beside c-08: only the
+        // berry routes, which are not imported, go that way (owner)
+        [("4a", "Cliff Face")] = "c-08",
+        [("5a", "Depths")] = "a-13",
+        [("5a", "Unravelling")] = "void",
+        [("5a", "Search")] = "c-13",
+        // e-00 is also reached up the shaft of d-01, which no route takes (owner)
+        [("5a", "Rescue")] = "d-20",
+        [("5b", "Central Chamber")] = "a-02",
+        [("5b", "Through the Mirror")] = "b-09",
+        [("5b", "Mix Master")] = "c-04",
+        // 00 shares an edge only with a room of its own segment: it is reached
+        // by the fall from start, watched or skipped
+        [("6a", "Lake")] = "start",
+        [("6a", "Hollows")] = "02b",
+        [("6a", "Reflection")] = "20",
+        [("6a", "Rock Bottom")] = "b-03",
+        [("6a", "Resolution")] = "boss-20",
+        [("6b", "Reflection")] = "a-06",
+        [("6b", "Rock Bottom")] = "b-10",
+        [("6b", "Reprieve")] = "c-04",
+        [("7a", "500 M")] = "a-06",
+        [("7a", "1000 M")] = "b-09",
+        [("7a", "1500 M")] = "c-09",
+        [("7a", "2000 M")] = "d-11",
+        [("7a", "2500 M")] = "e-13",
+        [("7a", "3000 M")] = "f-11",
+        [("8a", "Into the Core")] = "02",
+        [("8a", "Hot and Cold")] = "b-07",
+        [("8a", "Heart of the Mountain")] = "c-04",
+        [("8a", "HotM Horizontal")] = "d-07",
+        [("Farewell", "Singular")] = "intro-03-space",
+        [("Farewell", "Power Source")] = "b-07",
+        [("Farewell", "Remembered")] = "e-00y",
+        [("Farewell", "Event Horizon")] = "e-08",
+        [("Farewell", "Determination")] = "g-06",
+        [("Farewell", "Stubbornness")] = "h-10",
+        [("Farewell", "Reconciliation")] = "i-05",
+        [("Farewell", "Farewell")] = "j-15",
+    };
+
     // (scope, game checkpoint) -> the spawn a wake-up puts the player on, in
     // world coordinates (measured 2026-10-03): the only spawn a Current Room
     // start that is not a chapter's "Start" opens from. The game's default
@@ -103,5 +162,8 @@ public static partial class SegmentAutoDetect {
     // Room start measured is on the spawn (2026-10-03)
     internal static readonly Dictionary<(string Scope, string GameName), (int X, int Y)> SpawnOffsets = new() {
         [("Farewell", "Start")] = (8, 0),
+        // the campfire cutscene ends with the player at the bonfire, watched
+        // or skipped (CS06_Campfire.OnEnd), 172 px right of the room's spawn
+        [("6a", "Start")] = (172, 0),
     };
 }
