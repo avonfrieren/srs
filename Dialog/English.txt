@@ -40,13 +40,15 @@ SRS_EXPORT_URL_CHECKING=      Asking the sheet...
 SRS_EXPORT_URL_CHECK_OK=      The sheet answered.
 SRS_EXPORT_URL_CHECK_FAILED=      The sheet did not answer:
 SRS_EXPORT_URL_CHECK_NOT_SHEET=      Something answered, but not the export script. Check the deployment.
+SRS_EXPORT_URL_SAVE_FAILED=      Could not save the URL. The reason is in log.txt.
+SRS_EXPORT_URL_FORGET_FAILED=      Could not forget the URL. The reason is in log.txt.
 
 # Sheet export - errors. No {0} placeholders: Celeste may eat the braces, so
 # anything carrying a value is composed in code from these prefixes.
 SRS_EXPORT_ERR_NO_URL=      No sheet URL configured. See Mod Options.
 SRS_EXPORT_ERR_STATUS=      The sheet answered with error
 SRS_EXPORT_ERR_TIMEOUT=     No answer after 60 seconds. The sheet may still have been written, so check it before retrying.
-SRS_EXPORT_ERR_UNREACHABLE= Could not reach the sheet:
+SRS_EXPORT_ERR_UNREACHABLE= Could not reach the sheet. The reason is in log.txt.
 SRS_EXPORT_ERR_UNREADABLE=  Unreadable response from the sheet:
 SRS_EXPORT_ERR_EMPTY=       Empty response from the sheet.
 SRS_EXPORT_ERR_NO_ROWS=     The sheet returned no rows.

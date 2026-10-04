@@ -34,7 +34,7 @@ public class SrsModule : EverestModule {
         // Hotkeys updated it, so it must stay outside Hotkeys' hook. Nothing
         // else constrains it, it only reads what the others produced
         ExportMenu.Load();
-        // no Level.Update hook of its own: an Everest exit event, so it is
+        // no Level.Update hook of its own: an Everest enter event, so it is
         // outside the ordering the comment above describes
         SessionBests.Load();
     }
@@ -119,14 +119,20 @@ public class SrsModule : EverestModule {
         }
 
         Logger.Log(LogLevel.Info, "srs", "Repointed the stored sheet urls at the current reference workbook");
+        // a save that fails leaves the migration in memory, and it runs again
+        // next launch
+        TrySaveSettings("the migrated sheet urls");
+    }
+
+    /// Everest catches the write itself, but not the File.Delete and
+    /// CreateDirectory it does first: every save srs asks for goes through
+    /// here, or a locked or read-only Saves folder crashes the game from a menu
+    /// press or a hook. What was changed still holds in memory.
+    internal static void TrySaveSettings(string what) {
         try {
-            SaveSettings();
+            Instance.SaveSettings();
         } catch (Exception e) {
-            // Everest catches the write itself, but not the File.Delete and
-            // CreateDirectory it does first: those throw out of LoadSettings,
-            // which would take the whole mod down over a settings file. The
-            // migration already holds in memory, and runs again next launch
-            Logger.Log(LogLevel.Warn, "srs", $"Could not persist the migrated sheet urls: {e}");
+            Logger.Log(LogLevel.Warn, "srs", $"could not save the settings ({what}): {e.GetType().Name}");
         }
     }
 

@@ -84,6 +84,8 @@ public class PendingUpdateTests {
     [InlineData("8,704")]   // a French locale, the case that made this a bug
     [InlineData("n/a")]
     [InlineData("see below")]
+    // an hour or more, which Speed Run Tool's format would show an hour short
+    [InlineData("1:05:03")]
     public void AnUnreadableCellIsNeverAnImprovement(string cell) {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "5a", "Depths"), "5a Depths",
             Ticks(30.0), cell);

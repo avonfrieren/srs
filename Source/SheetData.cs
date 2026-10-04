@@ -244,6 +244,8 @@ public class SheetData {
         return true;
     }
 
+    private const double SecondsPerDay = 24 * 60 * 60;
+
     // accepts the sheet's mixed formats: "28", "28.1", "00:56", "1:05.5", "24:06.802"
     public static TimeSpan? TryParseTime(string cell) {
         // null is not only a CSV thing any more: the export asks about a cell
@@ -260,17 +262,24 @@ public class SheetData {
         }
 
         // past the leading field, each one counts minutes or seconds and stays
-        // under 60 ("1:75" is a typo, not 2:15); only the seconds carry a fraction
+        // under 60 ("1:75" is a typo, not 2:15); only the seconds carry a
+        // fraction. NaN and Infinity parse whatever the style
         double totalSeconds = 0;
         for (int i = 0; i < parts.Length; i++) {
             bool last = i == parts.Length - 1;
             NumberStyles style = last ? NumberStyles.AllowDecimalPoint : NumberStyles.None;
             if (!double.TryParse(parts[i], style, CultureInfo.InvariantCulture, out double value)
-                || value < 0 || (i > 0 && value >= 60)) {
+                || !double.IsFinite(value) || value < 0 || (i > 0 && value >= 60)) {
                 return null;
             }
 
             totalSeconds = totalSeconds * 60 + value;
+        }
+
+        // a number this large overflows the ticks, and no cell of a day or more
+        // is a segment time
+        if (totalSeconds >= SecondsPerDay) {
+            return null;
         }
 
         // via ticks: TimeSpan.FromSeconds rounds to milliseconds with double

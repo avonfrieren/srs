@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Linq;
 using System.IO;
 using System.Net.Http;
@@ -116,7 +117,7 @@ public static class SheetImporter {
             return Dialog.Clean("SRS_STATUS_NONE");
         }
 
-        string date = CacheTime?.ToString("yyyy-MM-dd HH:mm") ?? "?";
+        string date = CacheTime?.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture) ?? "?";
         return $"{Dialog.Clean("SRS_STATUS_LOADED")}: {Data.SegmentCount} ({date})";
     }
 

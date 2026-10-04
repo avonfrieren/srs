@@ -42,6 +42,17 @@ internal sealed class RunBook {
         return improved;
     }
 
+    /// Empties the book unless it holds runs of this scope; true when it did.
+    /// A null scope is a chapter the sheet does not cover.
+    public bool DropUnlessIn(string scope) {
+        if (Scope is not { } held || held == scope) {
+            return false;
+        }
+
+        Clear();
+        return true;
+    }
+
     public void Clear() {
         best.Clear();
         LastImproved = null;

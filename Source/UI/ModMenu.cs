@@ -56,7 +56,7 @@ internal static class ModMenu {
         // the only way to bind the [SettingIgnore] hotkeys: last, at the root of
         // the section and inside the range the master switch hides. Never in a
         // submenu, which keeps reading input under the screen it opens
-        menu.Add(HotkeyMenu.OpenButton(menu, Hotkeys.Set, Hotkeys.Text, SrsModule.Instance.SaveSettings));
+        menu.Add(HotkeyMenu.OpenButton(menu, Hotkeys.Set, Hotkeys.Text, () => SrsModule.TrySaveSettings("the hotkeys")));
 
         // taken as a range rather than listed entry by entry: the entries added
         // since `first` come from several builders, and a hand-written list

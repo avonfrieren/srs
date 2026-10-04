@@ -439,6 +439,12 @@ internal static class ExportMenu {
             return;
         }
 
+        // a wipe keeps running under the pause, and the one after a death ends
+        // in Level.Reload, which removes the screen with every other entity
+        if (level.Wipe != null) {
+            return;
+        }
+
         if (!ExportUrlMenu.HasUrl) {
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NEEDS_URL"), null);
             return;
@@ -572,12 +578,15 @@ internal static class ExportMenu {
 
         newMenu.Add(new TableFooter(columns));
 
-        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = !RemoteBests.IsResolved };
+        // rows built on no answer compared against nothing, and an answer
+        // landing later does not rebuild them: such a table never exports
+        bool builtOnAnswer = RemoteBests.IsResolved;
+        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = !builtOnAnswer };
         exportButton.OnUpdate = () => {
             exportButton.Label = ExportLabel(updates);
-            exportButton.Disabled = !RemoteBests.IsResolved;
+            exportButton.Disabled = !builtOnAnswer || !RemoteBests.IsResolved;
         };
-        exportButton.Pressed(() => Submit(level, updates));
+        exportButton.Pressed(() => Submit(level, updates, builtOnAnswer));
         newMenu.Add(exportButton);
 
         TextMenu.Button cancelButton = new(Dialog.Clean("SRS_EXPORT_CANCEL"));
@@ -615,7 +624,7 @@ internal static class ExportMenu {
         _ => "",
     };
 
-    private static void Submit(Level level, List<PendingUpdate> updates) {
+    private static void Submit(Level level, List<PendingUpdate> updates, bool builtOnAnswer) {
         if (submitting) {
             // saying nothing here read as a dead button, and it could last the
             // whole 60 s timeout
@@ -627,7 +636,7 @@ internal static class ExportMenu {
         // compared, so submitting one can overwrite a better sheet time.
         // Unreachable (Export is Disabled on the same condition), kept because
         // it guards a data-loss path
-        if (!RemoteBests.IsResolved) {
+        if (!builtOnAnswer || !RemoteBests.IsResolved) {
             Logger.Log(LogLevel.Warn, LogTag, "submit reached the unresolved guard: " + RemoteBests.State);
             return;
         }
@@ -679,36 +688,43 @@ internal static class ExportMenu {
                 return;
             }
 
-            (string body, string error) = task.Result;
             submitting = false;
 
-            if (error != null) {
-                Logger.Log(LogLevel.Warn, LogTag, "export failed: " + error);
-                QueueSummary([error]);
-                return;
-            }
+            // nothing above this continuation observes a throw: the screen
+            // would stay on "Writing..." until the player leaves it
+            try {
+                (string body, string error) = task.Result;
+                if (error != null) {
+                    Logger.Log(LogLevel.Warn, LogTag, "export failed: " + error);
+                    QueueSummary([error]);
+                    return;
+                }
 
-            if (!ExportProtocol.TryParseResponse(body, out ExportResponse response, out string parseError)) {
-                Logger.Log(LogLevel.Warn, LogTag, "unreadable answer: " + parseError);
-                QueueSummary([parseError]);
-                return;
-            }
+                if (!ExportProtocol.TryParseResponse(body, out ExportResponse response, out string parseError)) {
+                    Logger.Log(LogLevel.Warn, LogTag, "unreadable answer: " + parseError);
+                    QueueSummary([parseError]);
+                    return;
+                }
 
-            // the status is translated, the script's own reason is not: we do
-            // not author it, and a pasted report has to carry its words
-            foreach (ExportResult r in response.Results) {
-                Logger.Log(LogLevel.Info, LogTag, $"  {RowLabel(r)}: {r.Status}" +
-                    (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
-            }
+                // the status is translated, the script's own reason is not: we do
+                // not author it, and a pasted report has to carry its words
+                foreach (ExportResult r in response.Results) {
+                    Logger.Log(LogLevel.Info, LogTag, $"  {RowLabel(r)}: {r.Status}" +
+                        (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
+                }
 
-            List<string> lines = response.Results
-                .Select(r => $"{RowLabel(r)}: {StatusText(r.Status)}" +
-                    (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"))
-                .ToList();
-            if (lines.Count == 0) {
-                lines.Add(Dialog.Clean("SRS_EXPORT_DONE"));
+                List<string> lines = response.Results
+                    .Select(r => $"{RowLabel(r)}: {StatusText(r.Status)}" +
+                        (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"))
+                    .ToList();
+                if (lines.Count == 0) {
+                    lines.Add(Dialog.Clean("SRS_EXPORT_DONE"));
+                }
+                QueueSummary(lines);
+            } catch (Exception e) {
+                Logger.Log(LogLevel.Warn, LogTag, "an export answer could not be shown: " + e);
+                QueueSummary([$"{Dialog.Clean("SRS_EXPORT_ERR_UNREADABLE")} {e.GetType().Name}"]);
             }
-            QueueSummary(lines);
         });
     }
 

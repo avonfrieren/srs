@@ -66,6 +66,12 @@ public class TimeParsingTests {
     [InlineData("1:60")]
     [InlineData("1:00:60")]
     [InlineData("1.5:30")]
+    // double.TryParse takes these whatever the style, and the last overflows
+    // the ticks into long.MinValue
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    [InlineData("1:NaN")]
+    [InlineData("999999999999")]
     public void ReturnsNullForUnparseableCells(string cell) {
         Assert.Null(SheetData.TryParseTime(cell));
     }

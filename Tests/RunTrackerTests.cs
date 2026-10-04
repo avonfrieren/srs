@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
@@ -211,6 +212,22 @@ public class RunTrackerTests {
         t.Restart("1a", "1", 100, true, false, _ => true);
 
         Assert.Empty(t.RoomEntered("1a", "5", "6", 100, true, false, One));
+    }
+
+    // Speed Run Tool's format has no hours: a time of an hour or more would be
+    // exported an hour short
+    [Fact]
+    public void NeverRecordsAnHourOrMore() {
+        Add("Start", "1", "6", setup: StartSetup.CurrentRoom);
+        Add("Crossing", "6", "9b", entry: "5");
+        RunTracker t = Tracker();
+        long hour = TimeSpan.FromHours(1).Ticks;
+
+        t.Restart("1a", "1", 0, true, false, _ => true);
+        Assert.Empty(t.RoomEntered("1a", "5", "6", hour, true, false, One));
+
+        t.Restart("1a", "1", 0, true, false, _ => true);
+        Assert.Equal([("Start", hour - 1)], Of(t.RoomEntered("1a", "5", "6", hour - 1, true, false, One)));
     }
 
     [Fact]

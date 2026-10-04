@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using Monocle;
 using SDL2;
 
@@ -75,10 +76,17 @@ public static class ExportUrlMenu {
                 return;
             }
 
-            ExportTarget.Set(pasted);
-            settings.ExportUrlSetOn = DateTime.Now.ToString("yyyy-MM-dd");
+            if (!ExportTarget.Set(pasted)) {
+                // a check still out for an earlier paste would answer over this line
+                generation++;
+                checking = false;
+                message = Dialog.Clean("SRS_EXPORT_URL_SAVE_FAILED");
+                return;
+            }
+
+            settings.ExportUrlSetOn = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             RemoteBests.Reset();
-            SrsModule.Instance.SaveSettings();
+            SrsModule.TrySaveSettings("the date the sheet URL was set");
 
             setButton.Label = StatusLabel(settings);
             forgetButton.Visible = true;
@@ -103,10 +111,18 @@ public static class ExportUrlMenu {
                 return;
             }
 
-            ExportTarget.Forget();
+            if (!ExportTarget.Forget()) {
+                forgetArmed = false;
+                forgetButton.Label = Dialog.Clean("SRS_EXPORT_URL_FORGET");
+                generation++;
+                checking = false;
+                message = Dialog.Clean("SRS_EXPORT_URL_FORGET_FAILED");
+                return;
+            }
+
             settings.ExportUrlSetOn = "";
             RemoteBests.Reset();
-            SrsModule.Instance.SaveSettings();
+            SrsModule.TrySaveSettings("the sheet URL forgotten");
 
             forgetArmed = false;
             generation++;
@@ -137,18 +153,26 @@ public static class ExportUrlMenu {
                 return;
             }
 
-            (string body, string error) = task.Result;
-            if (error != null) {
-                message = $"{Dialog.Clean("SRS_EXPORT_URL_CHECK_FAILED")} {error}";
-            } else if (ExportProtocol.TryParseRows(body, out List<RemoteRow> rows, out string _)) {
-                // the count proves the export script answered with real rows;
-                // the player has no use for the number, the log keeps it
-                Logger.Log(LogLevel.Info, LogTag, $"sheet URL check: {rows.Count} rows read");
-                message = Dialog.Clean("SRS_EXPORT_URL_CHECK_OK");
-            } else {
+            // nothing above this continuation observes a throw: the status
+            // would stay on "Asking the sheet..." for the rest of the visit
+            try {
+                (string body, string error) = task.Result;
+                if (error != null) {
+                    message = $"{Dialog.Clean("SRS_EXPORT_URL_CHECK_FAILED")} {error}";
+                } else if (ExportProtocol.TryParseRows(body, out List<RemoteRow> rows, out string _)) {
+                    // the count proves the export script answered with real rows;
+                    // the player has no use for the number, the log keeps it
+                    Logger.Log(LogLevel.Info, LogTag, $"sheet URL check: {rows.Count} rows read");
+                    message = Dialog.Clean("SRS_EXPORT_URL_CHECK_OK");
+                } else {
+                    message = Dialog.Clean("SRS_EXPORT_URL_CHECK_NOT_SHEET");
+                }
+            } catch (Exception e) {
+                Logger.Log(LogLevel.Warn, LogTag, "a sheet URL check could not be read: " + e.GetType().Name);
                 message = Dialog.Clean("SRS_EXPORT_URL_CHECK_NOT_SHEET");
+            } finally {
+                checking = false;
             }
-            checking = false;
         });
     }
 

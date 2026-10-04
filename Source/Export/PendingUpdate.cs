@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -31,8 +32,11 @@ public sealed class PendingUpdate {
     public static PendingUpdate Create(SheetRowRef row, string label, long localTicks, string remoteCell,
         SheetSegment segment = null) {
         long? parsedTicks = SheetData.TryParseTime(remoteCell)?.Ticks;
-        bool unreadable = parsedTicks == null && !string.IsNullOrWhiteSpace(remoteCell);
-        long? remoteTicks = parsedTicks == 0 ? null : parsedTicks;
+        // an hour or more is unreadable too: Speed Run Tool's format has no
+        // hours, and would show the cell an hour short
+        bool unreadable = (parsedTicks == null && !string.IsNullOrWhiteSpace(remoteCell))
+                          || parsedTicks >= TimeSpan.TicksPerHour;
+        long? remoteTicks = unreadable || parsedTicks == 0 ? null : parsedTicks;
 
         // an unreadable cell is never an improvement: we cannot tell, and the
         // safe default is to leave a time we do not understand alone

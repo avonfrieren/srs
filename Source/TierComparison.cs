@@ -52,7 +52,7 @@ public static class TierComparison {
         // from behind the pause menu
         if (Hotkeys.Pressed(Hotkeys.ToggleShowTier)) {
             Settings.ShowTier = !Settings.ShowTier;
-            SrsModule.Instance.SaveSettings();
+            SrsModule.TrySaveSettings("Show Tier");
             PopupMessageUtils.ShowOptionState(Dialog.Clean("MODOPTIONS_SRS_SHOWTIER"),
                 Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
         }

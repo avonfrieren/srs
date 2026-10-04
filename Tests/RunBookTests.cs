@@ -56,6 +56,24 @@ public class RunBookTests {
         Assert.Null(book.LastImproved);
     }
 
+    // a chapter's last segment closes as its ending plays, so the book must
+    // outlive the level: only another chapter, or one the sheet does not
+    // cover, drops it
+    [Fact]
+    public void OnlyAnotherChapterDropsTheBook() {
+        RunBook book = new();
+        book.Offer([Record("3a", "Presidential Suite", 80)]);
+
+        Assert.False(book.DropUnlessIn("3a"));
+        Assert.Single(book.All);
+        Assert.True(book.DropUnlessIn("4a"));
+        Assert.Empty(book.All);
+
+        book.Offer([Record("3a", "Presidential Suite", 80)]);
+        Assert.True(book.DropUnlessIn(null));
+        Assert.False(book.DropUnlessIn("3a"));
+    }
+
     [Fact]
     public void ClearForgetsEverything() {
         RunBook book = new();
