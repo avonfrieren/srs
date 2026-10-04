@@ -69,7 +69,7 @@ public class SheetData {
     /// merged under one header; null when nothing parsed.
     public SheetBlock CheckpointBlock { get; private set; }
 
-    /// The Import keys none of the parsed tabs had. A row the
+    /// The SheetRows keys none of the parsed tabs had. A row the
     /// sheet renamed misses the allowlist without a sound and drops out of the
     /// sliders, the tier and auto-detection; this is how it gets noticed.
     /// Covers only what was given: parse two tabs, and the third one's rows
@@ -93,103 +93,8 @@ public class SheetData {
         return "Unranked";
     }
 
-    // raw (chapter, checkpoint) of the sheet -> (chapter, name) of the mod.
-    // Deliberately a hardcoded allowlist, no name normalization (owner
-    // decision): only the checkpoints
-    // the mod supports are imported — the remaining emoji variants and the IL
-    // rows are for later. The emoji rows kept so far are the ones the any% and
-    // True Ending routes actually run: the two cassettes ("Depths 📼 RTM",
-    // "Hollows 📼 RTM") and the two hearts ("Huge Mess 💙", "Shrine 💙
-    // Clear"), renamed after their plain sibling plus what they collect. Like
-    // the old sheet, the two route choices are folded into single
-    // "5a/b"/"6a/b" chapters, the chapter echo is dropped from names ("1a
-    // Start" -> "Start") except the side-disambiguating ones ("5a Start"), and
-    // names shared by both sides keep a side prefix ("6a Rock Bottom"/"6b Rock
-    // Bottom")
-    internal static readonly Dictionary<(string Chapter, string Name), (string Chapter, string Name)> Import = new() {
-        // A Sides Standards: "<X>a CP" groups (the "<X>a IL" groups are not
-        // imported yet)
-        [("Prologue", "Granny")] = ("Prologue", "Granny"),
-        [("1a CP", "1a Start")] = ("1a", "Start"),
-        [("1a CP", "Crossing")] = ("1a", "Crossing"),
-        [("1a CP", "Chasm")] = ("1a", "Chasm"),
-        [("2a CP", "2a Start")] = ("2a", "Start"),
-        [("2a CP", "2a Start 💙 RC")] = ("2a", "Start Heart RC"),
-        [("2a CP", "Intervention")] = ("2a", "Intervention"),
-        [("2a CP", "Awake")] = ("2a", "Awake"),
-        [("3a CP", "3a Start")] = ("3a", "Start"),
-        [("3a CP", "Huge Mess")] = ("3a", "Huge Mess"),
-        [("3a CP", "Huge Mess 💙")] = ("3a", "Huge Mess Heart"),
-        [("3a CP", "Elevator Shaft")] = ("3a", "Elevator Shaft"),
-        [("3a CP", "Presidential Suite")] = ("3a", "Presidential Suite"),
-        [("4a CP", "4a Start")] = ("4a", "Start"),
-        [("4a CP", "Shrine")] = ("4a", "Shrine"),
-        [("4a CP", "Shrine 💙 Clear")] = ("4a", "Shrine Heart"),
-        [("4a CP", "Old Trail")] = ("4a", "Old Trail"),
-        [("4a CP", "Cliff Face")] = ("4a", "Cliff Face"),
-        [("5a CP", "5a Start")] = ("5a/b", "5a Start"),
-        [("5a CP", "Depths")] = ("5a/b", "Depths"),
-        [("5a CP", "Depths 📼 RTM")] = ("5a/b", "Depths Tape"),
-        // 5A past the mirror. The sheet's "Wake Up" row between Depths and
-        // Unravelling stays out on purpose
-        [("5a CP", "Unravelling")] = ("5a/b", "Unravelling"),
-        [("5a CP", "Search")] = ("5a/b", "Search"),
-        [("5a CP", "Rescue")] = ("5a/b", "Rescue"),
-        [("6a CP", "6a Start")] = ("6a/b", "6a Start"),
-        [("6a CP", "Lake")] = ("6a/b", "Lake"),
-        [("6a CP", "Hollows")] = ("6a/b", "Hollows"),
-        [("6a CP", "Hollows 📼 RTM")] = ("6a/b", "Hollows Tape"),
-        [("6a CP", "Reflection")] = ("6a/b", "Reflection"),
-        [("6a CP", "Rock Bottom")] = ("6a/b", "6a Rock Bottom"),
-        [("6a CP", "Resolution")] = ("6a/b", "Resolution"),
-        [("7a CP", "7a Start")] = ("7a", "7a Start"),
-        [("7a CP", "500m")] = ("7a", "500m"),
-        [("7a CP", "1000m")] = ("7a", "1000m"),
-        [("7a CP", "1500m")] = ("7a", "1500m"),
-        [("7a CP", "2000m")] = ("7a", "2000m"),
-        [("7a CP", "2500m")] = ("7a", "2500m"),
-        [("7a CP", "3000m")] = ("7a", "3000m"),
-        // 8a CP: the sheet cuts the game's single "Heart of the
-        // Mountain" checkpoint in two, the vertical climb then the horizontal
-        // chase — SegmentAutoDetect.SplitCheckpoints anchors the second half
-        [("8a CP", "8a Start")] = ("8a", "Start"),
-        [("8a CP", "Into the Core")] = ("8a", "Into the Core"),
-        [("8a CP", "Hot and Cold")] = ("8a", "Hot and Cold"),
-        [("8a CP", "HotM Vertical")] = ("8a", "HotM Vertical"),
-        [("8a CP", "HotM Horizontal")] = ("8a", "HotM Horizontal"),
-        // B Sides Standards: only the any% route's two B-sides
-        [("5b", "5b Start")] = ("5a/b", "5b Start"),
-        [("5b", "Central Chamber")] = ("5a/b", "Central Chamber"),
-        [("5b", "Through the Mirror")] = ("5a/b", "Through the Mirror"),
-        [("5b", "Mix Master")] = ("5a/b", "Mix Master"),
-        [("6b", "6b Start")] = ("6a/b", "6b Start"),
-        [("6b", "Falling")] = ("6a/b", "Falling"),
-        [("6b", "Rock Bottom")] = ("6a/b", "6b Rock Bottom"),
-        [("6b", "Reprieve")] = ("6a/b", "Reprieve"),
-        // Farewell Standards: the tab has no Chapter column, its rows
-        // are read under the implicit "Farewell" chapter (see Parse). Every
-        // row is kept except the four SoB/IL totals at the bottom. "DTS" rows
-        // are the double-dash skip's version of the first six segments — same
-        // in-game checkpoints, so they are a category of their own
-        [("Farewell", "Start")] = ("Farewell", "Start"),
-        [("Farewell", "Singular")] = ("Farewell", "Singular"),
-        [("Farewell", "Power Source")] = ("Farewell", "Power Source"),
-        [("Farewell", "Remembered")] = ("Farewell", "Remembered"),
-        [("Farewell", "Event Horizon")] = ("Farewell", "Event Horizon"),
-        [("Farewell", "Determination")] = ("Farewell", "Determination"),
-        [("Farewell", "Start DTS")] = ("Farewell", "Start DTS"),
-        [("Farewell", "Singular DTS")] = ("Farewell", "Singular DTS"),
-        [("Farewell", "Power Source DTS")] = ("Farewell", "Power Source DTS"),
-        [("Farewell", "Remembered DTS")] = ("Farewell", "Remembered DTS"),
-        [("Farewell", "Event Horizon DTS")] = ("Farewell", "Event Horizon DTS"),
-        [("Farewell", "Determination DTS")] = ("Farewell", "Determination DTS"),
-        [("Farewell", "Stubbornness")] = ("Farewell", "Stubbornness"),
-        [("Farewell", "Reconciliation")] = ("Farewell", "Reconciliation"),
-        [("Farewell", "Farewell")] = ("Farewell", "Farewell"),
-    };
-
     // never throws on malformed content: unparseable cells become null times,
-    // rows outside any block or absent from the Import allowlist are skipped.
+    // rows outside any block or absent from the SheetRows allowlist are skipped.
     // Segments from the three tabs land in one merged block, in tab row order
     // (A, then B, then Farewell), so the B-side rows of the folded chapters
     // follow their A-side ones like on the old sheet and Farewell closes the
@@ -199,10 +104,13 @@ public class SheetData {
     public static SheetData Parse(string aSidesCsv, string bSidesCsv, string farewellCsv = null) {
         SheetData data = new();
         SheetBlock merged = null;
-        HashSet<(string, string)> imported = [];
+        HashSet<(StandardsTab, string, string)> imported = [];
 
-        foreach ((string csv, string implicitChapter) in
-                 new[] { (aSidesCsv, null), (bSidesCsv, null), (farewellCsv, "Farewell") }) {
+        foreach ((string csv, StandardsTab tab, string implicitChapter) in new[] {
+                     (aSidesCsv, StandardsTab.ASides, (string)null),
+                     (bSidesCsv, StandardsTab.BSides, null),
+                     (farewellCsv, StandardsTab.Farewell, "Farewell"),
+                 }) {
             if (string.IsNullOrWhiteSpace(csv)) {
                 continue;
             }
@@ -221,9 +129,9 @@ public class SheetData {
                 }
 
                 foreach (SheetSegment segment in raw.Segments) {
-                    if (Import.TryGetValue((segment.Chapter, segment.Name), out (string Chapter, string Name) target)) {
-                        imported.Add((segment.Chapter, segment.Name));
-                        merged.Segments.Add(new SheetSegment(target.Chapter, target.Name,
+                    if (SheetRows.TryRead(tab, segment.Chapter, segment.Name, out SheetRow row)) {
+                        imported.Add((tab, segment.Chapter, segment.Name));
+                        merged.Segments.Add(new SheetSegment(row.Chapter, row.Name,
                             Realigned(segment.Times, merged.Columns.Count),
                             CategoryOf(segment.Name), EndConditionOf(segment.Name)));
                     }
@@ -231,9 +139,9 @@ public class SheetData {
             }
         }
 
-        foreach ((string, string) key in Import.Keys) {
-            if (!imported.Contains(key)) {
-                data.MissingRows.Add(key);
+        foreach (SheetRow row in SheetRows.All) {
+            if (!imported.Contains((row.Tab, row.SheetChapter, row.Label))) {
+                data.MissingRows.Add((row.SheetChapter, row.Label));
             }
         }
 
@@ -313,7 +221,7 @@ public class SheetData {
 
     // raw pass shared by the three tabs: split the CSV into blocks of segments,
     // one block per header row, keeping the sheet's own chapter/checkpoint
-    // names. internal rather than private so the tests can check the Import
+    // names. internal rather than private so the tests can check the SheetRows
     // allowlist against the raw rows of the sheet.
     // implicitChapter is for the Farewell tab, which has no Chapter column at
     // all: its rows read like the "Chapter Times" ones (a single label column)

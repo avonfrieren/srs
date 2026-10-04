@@ -27,8 +27,18 @@ public class SheetConsistencyTests {
     // rename on the sheet's side: refresh Tests/Fixtures/*.csv, and any row the
     // mod expects that no longer exists shows up here by name
     [Fact]
+    public void TheAnchorsAgreeWithCheckpointMap() {
+        foreach (KeyValuePair<(string Scope, string GameName), string> entry in SegmentAutoDetect.CheckpointMap) {
+            Assert.True(SheetRows.TryFindInScope(entry.Key.Scope, entry.Value, out SheetRow row),
+                $"{entry.Key.Scope}/{entry.Value}");
+            Assert.Equal(entry.Key.GameName, row.Anchor);
+        }
+    }
+
+    [Fact]
     public void EveryImportedRowStillExistsInTheSheet() {
-        List<(string, string)> missing = SheetData.Import.Keys
+        List<(string, string)> missing = SheetRows.All
+            .Select(row => (row.SheetChapter, row.Label))
             .Where(key => !RawRows.Contains(key))
             .ToList();
 
@@ -197,7 +207,7 @@ public class SheetConsistencyTests {
     // the shape of what gets imported
     [Fact]
     public void ImportsTheExpectedCheckpointsInRouteOrder() {
-        Assert.Equal(SheetData.Import.Count, Fixtures.Parsed.SegmentCount);
+        Assert.Equal(SheetRows.All.Length, Fixtures.Parsed.SegmentCount);
         Assert.Equal(
             ["Prologue", "1a", "2a", "3a", "4a", "5a/b", "6a/b", "7a", "8a", "Farewell"],
             Fixtures.Parsed.CheckpointBlock.Chapters());
@@ -374,9 +384,9 @@ public class SheetConsistencyTests {
     // the export screen at once, most of them ticked. Seen on 2026-08-30.
     [Fact]
     public void OneCheckpointNameIsSharedByChaptersAndResolvesToOneAnchor() {
-        List<string> chapters = [.. SheetData.Import.Values
-            .Where(target => target.Name == "Start")
-            .Select(target => target.Chapter)
+        List<string> chapters = [.. SheetRows.All
+            .Where(row => row.Name == "Start")
+            .Select(row => row.Chapter)
             .Distinct()];
 
         // several chapters call their first segment "Start" -- that is the

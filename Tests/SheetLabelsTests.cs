@@ -4,51 +4,49 @@ using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-// SheetLabels is the last hop before a time is written: it turns srs's own
-// (chapter, name) into the row of the player's sheet. Nothing forces it to
-// agree with SheetData.Import, so a checkpoint added upstream would import
-// fine and silently never export.
+// Checks the export half of the row table: SheetLabels is the last hop before
+// a time is written, turning srs's own (chapter, name) into the row of the
+// player's sheet through SheetRows.
 public class SheetLabelsTests {
     [Fact]
     public void EveryImportedSegmentHasARow() {
-        List<(string, string)> missing = [];
-        foreach ((string Chapter, string Name) segment in SheetData.Import.Values) {
-            if (!SheetLabels.TryMap(segment.Chapter, segment.Name, out _)) {
-                missing.Add(segment);
+        List<string> missing = [];
+        foreach (SheetRow row in SheetRows.All) {
+            if (!SheetLabels.TryMap(row.Chapter, row.Name, out _)) {
+                missing.Add($"{row.Chapter}/{row.Name}");
             }
         }
 
         Assert.Empty(missing);
     }
 
-    // Import's key half is the row's label as the sheet spells it, and that is
-    // exactly what SheetLabels has to write back. Comparing the two puts the
-    // whole table behind the fixtures: refresh them, and a renamed row fails
-    // here instead of going quietly notFound on the next export. Stubborness
-    // sat wrong for months because the only check on it was a pin written from
-    // the same reading as the value it pinned.
-    //
-    // A failure means one of two things. Either srs is behind a rename, and the
-    // fix is to follow it on both sides; or the personal tabs genuinely spell a
-    // row differently from the standards tabs, which has never happened and
-    // would need a snapshot of the personal tab to be checkable at all.
+    // the default target: same label, matching entry tab, the Standards chapter
+    // without " CP", empty on Farewell. A failure means a row whose two
+    // documents differ, which needs a Target override, not a new default
     [Fact]
     public void EveryRowIsWrittenUnderTheLabelItWasImportedFrom() {
         List<string> wrong = [];
-        foreach (KeyValuePair<(string Chapter, string Name), (string Chapter, string Name)> entry in SheetData.Import) {
-            if (!SheetLabels.TryMap(entry.Value.Chapter, entry.Value.Name, out SheetRowRef row)) {
-                continue; // EveryImportedSegmentHasARow is what covers this
-            }
-
-            if (row.Cp != entry.Key.Name) {
-                wrong.Add($"({entry.Value.Chapter}, {entry.Value.Name}) writes \"{row.Cp}\" "
-                          + $"but was imported from \"{entry.Key.Name}\"");
+        foreach (SheetRow row in SheetRows.All) {
+            if (row.Target == null && SheetRows.TargetOf(row).Cp != row.Label) {
+                wrong.Add($"({row.Chapter}, {row.Name}) writes \"{SheetRows.TargetOf(row).Cp}\" but reads \"{row.Label}\"");
             }
         }
 
-        // not Assert.Empty: it truncates the collection, and a sheet-wide rename
-        // puts several rows in here at once
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    // an override marks a real difference between the two documents; none exists yet
+    [Fact]
+    public void NoRowCarriesAnOverrideYet() {
+        Assert.DoesNotContain(SheetRows.All, row => row.Target != null);
+    }
+
+    [Fact]
+    public void EachRowIsKeyedOnceOnBothSides() {
+        Assert.Equal(SheetRows.All.Length,
+            SheetRows.All.Select(r => (r.Tab, r.SheetChapter, r.Label)).Distinct().Count());
+        Assert.Equal(SheetRows.All.Length,
+            SheetRows.All.Select(r => (r.Chapter, r.Name)).Distinct().Count());
     }
 
     [Fact]
@@ -59,15 +57,29 @@ public class SheetLabelsTests {
 
     [Fact]
     public void OnlyTheThreeWritableTabsAreTargeted() {
-        HashSet<string> tabs = [];
-        foreach (SheetRowRef row in SheetLabels.Map.Values) {
-            tabs.Add(row.Tab);
-        }
+        HashSet<string> tabs = [.. SheetRows.All.Select(row => SheetRows.TargetOf(row).Tab)];
 
         Assert.Equal(["A Sides", "B+C Sides", "Farewell"], tabs);
         Assert.Equal("A Sides", SheetLabels.TabASides);
         Assert.Equal("B+C Sides", SheetLabels.TabBCSides);
         Assert.Equal("Farewell", SheetLabels.TabFarewell);
+    }
+
+    [Fact]
+    public void EveryRowNamesItsGameAnchor() {
+        Assert.All(SheetRows.All, row => Assert.False(string.IsNullOrEmpty(row.Anchor)));
+        Assert.Equal("Hollows", Row("6a/b", "Hollows Tape").Anchor);
+        Assert.Equal("Start", Row("Farewell", "Start DTS").Anchor);
+        Assert.Equal("Reflection", Row("6a/b", "Falling").Anchor);
+        Assert.Equal("Heart of the Mountain", Row("8a", "HotM Vertical").Anchor);
+        Assert.Equal("HotM Horizontal", Row("8a", "HotM Horizontal").Anchor);
+        Assert.Equal("500 M", Row("7a", "500m").Anchor);
+        Assert.Equal("5b", Row("5a/b", "Mix Master").Scope);
+    }
+
+    private static SheetRow Row(string chapter, string name) {
+        Assert.True(SheetRows.TryFind(chapter, name, out SheetRow row), $"{chapter}/{name}");
+        return row;
     }
 
     // the chapter echo srs strips from its own names is back on the sheet

@@ -174,37 +174,11 @@ public static partial class SegmentAutoDetect {
         return null;
     }
 
-    // variant -> plain sibling ("Depths Tape" -> "Depths"); plain names come
-    // back unchanged. This is how a variant inherits its in-game anchor: both
-    // start at the same checkpoint. Matched on the variant name alone, without
-    // the key's chapter: two categories may point at the same variant row (the
-    // hearts do), but a variant name is unique across the sheet — the mod's
-    // own addressing already depends on it (ImportedCheckpointsAreUniquely-
-    // Addressed), so the plain sibling it comes back to is unambiguous
-    internal static string PlainNameOf(string sheetName) {
-        foreach (KeyValuePair<(SegmentCategory Category, string Chapter, string SheetName), string> entry
-                 in CategoryVariants) {
-            if (entry.Value == sheetName) {
-                return entry.Key.SheetName;
-            }
-        }
-
-        return sheetName;
-    }
-
     // CheckpointMap read backwards: the game checkpoint a sheet segment starts
     // at, inside one scope (game names repeat across scopes — "Start" — so the
     // scope is required). Null when the sheet name is not anchored in this
     // scope. RunWatcher resolves rooms from this: the start room of the run,
     // and the end room of Checkpoint segments (the next checkpoint's room)
-    internal static string GameNameOf(string scope, string sheetName) {
-        string plain = PlainNameOf(sheetName);
-        foreach (KeyValuePair<(string Scope, string GameName), string> entry in CheckpointMap) {
-            if (entry.Key.Scope == scope && entry.Value == plain) {
-                return entry.Key.GameName;
-            }
-        }
-
-        return null;
-    }
+    internal static string GameNameOf(string scope, string sheetName) =>
+        SheetRows.TryFindInScope(scope, sheetName, out SheetRow row) ? row.Anchor : null;
 }
