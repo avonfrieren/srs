@@ -165,15 +165,15 @@ public class SheetConsistencyTests {
     // sheet's own constant, not something derivable from the game
     [Fact]
     public void EveryUntimedHeadTargetsAKnownCheckpointAndKeepsItsValue() {
-        List<(string, string)> unknown = SegmentAutoDetect.UntimedSegmentHead.Keys
-            .Where(key => !SegmentAutoDetect.CheckpointMap.ContainsKey(key))
-            .ToList();
+        bool Anchored((string Scope, string GameName) key) =>
+            SheetRows.All.Any(row => row.Scope == key.Scope && row.Anchor == key.GameName);
 
-        Assert.Empty(unknown);
+        Assert.All(SegmentAutoDetect.UntimedSegmentHead.Keys, key => Assert.True(Anchored(key), key.ToString()));
+        Assert.All(SegmentAutoDetect.UntimedSegmentTail.Keys, key => Assert.True(Anchored(key), key.ToString()));
+        Assert.All(SegmentAutoDetect.AfterLaunchStarts, key => Assert.True(Anchored(key), key.ToString()));
         Assert.Equal(TimeSpan.FromMilliseconds(5508), SegmentAutoDetect.UntimedSegmentHead[("7a", "Start")]);
-        // and it only concerns the segments that have an override start room
-        Assert.All(SegmentAutoDetect.UntimedSegmentHead.Keys,
-            key => Assert.True(SegmentAutoDetect.StartRoomOverrides.ContainsKey(key)));
+        Assert.Equal(TimeSpan.FromMilliseconds(1037), SegmentAutoDetect.UntimedSegmentHead[("Prologue", "Start")]);
+        Assert.Equal(TimeSpan.FromMilliseconds(561), SegmentAutoDetect.UntimedSegmentTail[("Prologue", "Start")]);
     }
 
     // 3. auto-detection only points at checkpoints that were actually imported;

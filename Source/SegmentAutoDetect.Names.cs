@@ -149,16 +149,35 @@ public static partial class SegmentAutoDetect {
 
     // (scope, game checkpoint name) -> the head of the segment srs does not
     // time, added back to the captured time so the tier is read off the same
-    // number the sheet's thresholds describe. Only 7A Start so far: the sheet
+    // number the sheet's thresholds describe. These are the sheet's own
+    // constants for the untimed start a savestate skips. 7A Start: the sheet
     // starts it at a-00 (see StartRoomOverrides) and adds a fixed 5.508s
     // afterwards for the intro room plus Madeline's landing animation. The
     // mod cannot time that part — the run is practiced from a savestate
     // placed after the landing — but it must still count it, otherwise a run
     // is compared against thresholds that include it and lands several tiers
-    // too high
+    // too high. Prologue is timed as file time: its savestate is set after the
+    // intro animation, whose 61 frames file time counts and the timer does not
     internal static readonly Dictionary<(string Scope, string GameName), TimeSpan> UntimedSegmentHead = new() {
         [("7a", "Start")] = new TimeSpan(0, 0, 0, 5, 508),
+        [("Prologue", "Start")] = new TimeSpan(0, 0, 0, 1, 37),
     };
+
+    // (scope, game checkpoint) -> the end of the segment the timer does not
+    // count, added like a head. The Prologue's file time runs 33 frames past
+    // the accumulator's last tick, to the LevelExit, skipped or watched
+    // (measured 2026-10-03)
+    internal static readonly Dictionary<(string Scope, string GameName), TimeSpan> UntimedSegmentTail = new() {
+        [("Prologue", "Start")] = new TimeSpan(0, 0, 0, 0, 561),
+    };
+
+    // (scope, game checkpoint) of the segments that start once the summit
+    // launch into their room is over. 7A's intro launches Madeline from
+    // a-00-intro into a-00 with both clocks running, and the 5.508 s head
+    // already counts the landing: opening on the a-00 entry would count it twice
+    internal static readonly HashSet<(string Scope, string GameName)> AfterLaunchStarts = [
+        ("7a", "Start"),
+    ];
 
     // StartRoomOverrides read backwards: the game checkpoint whose segment is
     // timed from this room, or null. This is what lets the auto-detection move
