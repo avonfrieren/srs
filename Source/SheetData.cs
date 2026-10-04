@@ -4,24 +4,6 @@ using System.Globalization;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// what finishes a run of the segment: derived from the sheet's own
-// naming vocabulary, read by SegmentRules to know whether a row ends at a
-// collect — SpeedrunTool's Number of Rooms plays no part anymore.
-public enum EndCondition {
-    // ends where the next in-game checkpoint starts; resolved at runtime from
-    // AreaData (no next checkpoint ⇒ the chapter's completion ends the run)
-    Checkpoint,
-    // "📼 RTM" rows: the run ends the moment the cassette is collected (the
-    // community convention for RTM segments — the menuing after the grab is
-    // not gameplay and is never timed by the room timer)
-    Cassette,
-    // "💙 RTM" rows: same, for the crystal heart
-    Heart,
-    // "RC" rows: the run goes on through the menu and the wipe to Restart
-    // Chapter, and what it collected is checked then
-    Restart,
-}
-
 // parsed practice sheet: one block of checkpoint segments merged from the
 // three imported tabs ("A Sides Standards", "B Sides Standards" and
 // "Farewell Standards"), with a header of tier columns ("Hidden",
@@ -85,7 +67,7 @@ public class SheetData {
                 }
 
                 if (merged == null) {
-                    merged = new SheetBlock("Checkpoints", raw.TierStart, hasCheckpoints: true);
+                    merged = new SheetBlock(raw.TierStart, hasCheckpoints: true);
                     merged.Columns.AddRange(raw.Columns);
                     data.CheckpointBlock = merged;
                 }
@@ -94,8 +76,7 @@ public class SheetData {
                     if (SheetRows.TryRead(tab, segment.Chapter, segment.Name, out SheetRow row)) {
                         imported.Add((tab, segment.Chapter, segment.Name));
                         merged.Segments.Add(new SheetSegment(row.Chapter, row.Name,
-                            Realigned(segment.Times, merged.Columns.Count),
-                            EndConditionOf(segment.Name)));
+                            Realigned(segment.Times, merged.Columns.Count)));
                     }
                 }
             }
@@ -125,41 +106,6 @@ public class SheetData {
         return aligned;
     }
 
-    // the end of the run is in the raw name too, and "RTM" and "RC" are the
-    // only things that end one early: the sheet's markers for "collect, then
-    // return to map" or "restart the chapter". An RTM segment stops at the
-    // collect (the menuing after it is not gameplay and is never timed). An RC
-    // segment stops when Restart Chapter leaves the level, where Speed Run
-    // Tool's timer, kept on across the restart, freezes: the pause, the
-    // confirm and the wipe are in the time, the reload and its intro are not.
-    // Every other row runs to the end of its segment — the next in-game
-    // checkpoint, or the chapter itself when there is none, which
-    // SegmentRules resolves with no help from here.
-    // A "Clear" suffix on a checkpoint row is *not* the chapter's completion,
-    // whatever it reads like: "Shrine 💙 Clear" (27.5s) cannot contain Old
-    // Trail and Cliff Face (78s of run after it), and the sheet's own chapter
-    // totals go up by exactly what the heart detour costs that one segment.
-    // It means "collect it and keep going", as opposed to the "Shrine 💙 RTM"
-    // row next to it (owner confirmed).
-    // Combined "💙+📼" RTM rows default to Cassette until they are actually
-    // imported and their route settles which comes last
-    internal static EndCondition EndConditionOf(string rawName) {
-        string name = rawName.TrimEnd();
-        if (name.EndsWith("RC", StringComparison.Ordinal)) {
-            return EndCondition.Restart;
-        }
-
-        if (!name.EndsWith("RTM", StringComparison.Ordinal)) {
-            return EndCondition.Checkpoint;
-        }
-
-        if (name.Contains("📼")) {
-            return EndCondition.Cassette;
-        }
-
-        return name.Contains("💙") ? EndCondition.Heart : EndCondition.Checkpoint;
-    }
-
     // raw pass shared by the three tabs: split the CSV into blocks of segments,
     // one block per header row, keeping the sheet's own chapter/checkpoint
     // names. internal rather than private so the tests can check the SheetRows
@@ -182,7 +128,7 @@ public class SheetData {
             // column, then the tier column labels
             int tierStart = TierStart(row);
             if (tierStart > 0) {
-                currentBlock = new SheetBlock(row[0].Trim(), tierStart, row[1].Trim() == "Checkpoint");
+                currentBlock = new SheetBlock(tierStart, row[1].Trim() == "Checkpoint");
                 currentChapter = null;
                 for (int i = tierStart; i < row.Length; i++) {
                     string label = row[i].Trim();
@@ -288,8 +234,7 @@ public class SheetData {
     }
 }
 
-public class SheetBlock(string name, int tierStart, bool hasCheckpoints) {
-    public readonly string Name = name;
+public class SheetBlock(int tierStart, bool hasCheckpoints) {
     // column index of the first tier ("Hidden"); segment times start there too
     public readonly int TierStart = tierStart;
     // true when segments are individual checkpoints grouped under a chapter,
@@ -297,18 +242,6 @@ public class SheetBlock(string name, int tierStart, bool hasCheckpoints) {
     public readonly bool HasCheckpoints = hasCheckpoints;
     public readonly List<string> Columns = [];
     public readonly List<SheetSegment> Segments = [];
-
-    // distinct chapters in sheet order ("Prologue", "1a", … "5a/b", …)
-    public List<string> Chapters() {
-        List<string> chapters = [];
-        foreach (SheetSegment segment in Segments) {
-            if (!chapters.Contains(segment.Chapter)) {
-                chapters.Add(segment.Chapter);
-            }
-        }
-
-        return chapters;
-    }
 
     // checkpoint names repeat across chapters ("Start" in nearly all of
     // them), so checkpoints are always addressed by (chapter, name)
@@ -324,29 +257,14 @@ public class SheetBlock(string name, int tierStart, bool hasCheckpoints) {
 
         return null;
     }
-
-    public List<SheetSegment> Checkpoints(string chapter) {
-        List<SheetSegment> checkpoints = [];
-        foreach (SheetSegment segment in Segments) {
-            if (segment.Chapter == chapter) {
-                checkpoints.Add(segment);
-            }
-        }
-
-        return checkpoints;
-    }
 }
 
-public class SheetSegment(string chapter, string name, List<TimeSpan?> times = null,
-    EndCondition end = EndCondition.Checkpoint) {
+public class SheetSegment(string chapter, string name, List<TimeSpan?> times = null) {
     // owning chapter; equals Name in chapter-only blocks
     public readonly string Chapter = chapter;
     public readonly string Name = name;
     // aligned with the owning block's Columns; null = empty or unparseable cell
     public readonly List<TimeSpan?> Times = times ?? [];
-    // derived from the raw sheet name's marker at import (raw blocks keep the
-    // default: their names still carry the marker itself)
-    public readonly EndCondition End = end;
 }
 
 // minimal RFC 4180 parser: quoted fields, "" escapes, \r\n or \n line ends

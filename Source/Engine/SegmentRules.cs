@@ -12,17 +12,6 @@ internal static class SegmentRules {
 
     public static readonly IReadOnlyList<SegmentRule> All = Build(SheetRows.All);
 
-    /// The rule of srs's (chapter, name), or null.
-    public static SegmentRule Find(string chapter, string name) {
-        foreach (SegmentRule rule in All) {
-            if (rule.Chapter == chapter && rule.Name == name) {
-                return rule;
-            }
-        }
-
-        return null;
-    }
-
     internal static List<SegmentRule> Build(IReadOnlyList<SheetRow> rows) {
         HashSet<(StandardsTab, string)> labels = [];
         foreach (SheetRow row in rows) {
@@ -34,13 +23,7 @@ internal static class SegmentRules {
             SheetRow row = rows[i];
             (string, string) anchor = (row.Scope, row.Anchor);
             Collectibles marked = MarkersOf(row.Label);
-            // RTM ends a run at the collect, RC at the restart; what an RC row
-            // collected is a requirement, checked when it ends
-            EndKind end = SheetData.EndConditionOf(row.Label) switch {
-                EndCondition.Checkpoint => EndKind.NextStart,
-                EndCondition.Restart => EndKind.Restart,
-                _ => EndKind.Collect,
-            };
+            EndKind end = EndOf(row.Label, marked);
 
             rules.Add(new SegmentRule(
                 row.Scope, row.Chapter, row.Name, row.Anchor,
@@ -59,6 +42,21 @@ internal static class SegmentRules {
         }
 
         return rules;
+    }
+
+    // "RTM" and "RC" are the only suffixes that end a run before its segment
+    // does: RTM at the heart or cassette it marks, RC at Restart Chapter, where
+    // what it marks is a requirement. "Clear" means collect and keep going
+    private static EndKind EndOf(string label, Collectibles marked) {
+        string name = label.TrimEnd();
+        if (name.EndsWith("RC", StringComparison.Ordinal)) {
+            return EndKind.Restart;
+        }
+
+        return name.EndsWith("RTM", StringComparison.Ordinal)
+               && (marked & (Collectibles.Heart | Collectibles.Cassette)) != Collectibles.None
+            ? EndKind.Collect
+            : EndKind.NextStart;
     }
 
     // matched with Contains: the sheet's spacing around a marker is irregular

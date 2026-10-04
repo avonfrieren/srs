@@ -7,8 +7,11 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 
 // one rule per imported row, and nothing that two rules could both claim
 public class SegmentRulesTests {
-    private static SegmentRule Rule(string chapter, string name) =>
-        SegmentRules.Find(chapter, name) ?? throw new Exception($"no rule for {chapter}/{name}");
+    private static SegmentRule Rule(string chapter, string name) => TestRules.Find(chapter, name);
+
+    // the rule a label alone derives, on a row of no table
+    private static SegmentRule Synthetic(string label) =>
+        SegmentRules.Build([new SheetRow(StandardsTab.ASides, "3a CP", label, "3a", "3a", label, "Huge Mess")])[0];
 
     private static readonly HashSet<string> ExpectedCurrentRoomRows = [
         "Prologue/Granny",
@@ -94,6 +97,50 @@ public class SegmentRulesTests {
         Assert.Equal(Collectibles.Heart, Rule("4a", "Shrine Heart").Requires);
     }
 
+    // the sheet's spacing around a marker is irregular, and a row marking both
+    // ends on the later of the two. Collectibles as an int: the enum is internal
+    [Theory]
+    [InlineData("Depths 📼 RTM", (int)Collectibles.Cassette)]
+    [InlineData("📼RTM", (int)Collectibles.Cassette)]
+    [InlineData("Shrine 💙 RTM", (int)Collectibles.Heart)]
+    [InlineData("💙+📼 RTM", (int)(Collectibles.Heart | Collectibles.Cassette))]
+    public void AnRtmLabelEndsAtWhatItMarks(string label, int endsOn) {
+        SegmentRule rule = Synthetic(label);
+
+        Assert.Equal((EndKind.Collect, (Collectibles)endsOn), (rule.End, rule.EndsOn));
+    }
+
+    [Theory]
+    [InlineData("2a Start 💙 RC")]
+    [InlineData("2a Start 💙 RC ")]
+    public void AnRcLabelEndsAtTheRestartAndRequiresWhatItMarks(string label) {
+        SegmentRule rule = Synthetic(label);
+
+        Assert.Equal((EndKind.Restart, Collectibles.None, Collectibles.Heart), (rule.End, rule.EndsOn, rule.Requires));
+    }
+
+    // "Clear" on a checkpoint row means collect and keep going, not the
+    // chapter's end, and an RTM marking nothing a run collects has nothing to
+    // end on
+    [Theory]
+    [InlineData("Granny")]
+    [InlineData("Start DTS")]
+    [InlineData("Crossing 💙")]
+    [InlineData("Shrine 💙 Clear")]
+    [InlineData("Hollows 📼Clear")]
+    [InlineData("1b Clear")]
+    [InlineData("Plain RTM")]
+    public void EveryOtherLabelEndsWithItsSegment(string label) {
+        Assert.Equal(EndKind.NextStart, Synthetic(label).End);
+    }
+
+    // a marker read wrong mistimes its row without a sound
+    [Fact]
+    public void OnlyTheRcAndTapeRowsEndEarly() {
+        Assert.Equal(["2a/Start Heart RC", "5a/b/Depths Tape", "6a/b/Hollows Tape"],
+            SegmentRules.All.Where(r => r.End != EndKind.NextStart).Select(r => $"{r.Chapter}/{r.Name}"));
+    }
+
     [Fact]
     public void RtmRowsEndAtTheCollect() {
         Assert.Equal((EndKind.Collect, Collectibles.Cassette),
@@ -110,8 +157,6 @@ public class SegmentRulesTests {
         SegmentRule rc = Rule("2a", "Start Heart RC");
         Assert.Equal((EndKind.Restart, Collectibles.None, Collectibles.Heart), (rc.End, rc.EndsOn, rc.Requires));
         Assert.Equal(EndKind.NextStart, Rule("2a", "Start").End);
-        Assert.Equal(new[] { "2a/Start Heart RC" },
-            SegmentRules.All.Where(r => r.End == EndKind.Restart).Select(r => $"{r.Chapter}/{r.Name}"));
     }
 
     [Fact]

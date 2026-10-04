@@ -7,15 +7,17 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 public class StillnessTests {
     private static readonly (float, float) Spawn = (19f, 144f);
 
+    // before any appearance: nothing a load could open from
+    private static readonly Stillness Unsettled = new(0f, 0f, true);
+
     [Fact]
     public void NothingHasAppearedAtFirst() {
-        Assert.True(Stillness.Unsettled.Moved);
-        Assert.True(Stillness.Unsettled.After(false, false, Spawn).Moved);
+        Assert.True(Unsettled.After(false, false, Spawn).Moved);
     }
 
     [Fact]
     public void AnAppearanceRecordsWhereAndClearsMoved() {
-        Stillness still = Stillness.Unsettled.After(false, true, Spawn);
+        Stillness still = Unsettled.After(false, true, Spawn);
 
         Assert.Equal(new Stillness(19f, 144f, false), still);
         Assert.Equal(still, still.After(false, false, Spawn));
@@ -25,14 +27,14 @@ public class StillnessTests {
     // on the spawn, the exact one does not
     [Fact]
     public void ASubPixelTapIsAMove() {
-        Stillness still = Stillness.Unsettled.After(false, true, Spawn);
+        Stillness still = Unsettled.After(false, true, Spawn);
 
         Assert.True(still.After(false, false, (19.28f, 144f)).Moved);
     }
 
     [Fact]
     public void WalkingAwayAndBackStaysMoved() {
-        Stillness still = Stillness.Unsettled.After(false, true, Spawn)
+        Stillness still = Unsettled.After(false, true, Spawn)
             .After(false, false, (28f, 144f))
             .After(false, false, Spawn);
 
@@ -43,7 +45,7 @@ public class StillnessTests {
     // frame: the appearance wins over the disturbance
     [Fact]
     public void ADisturbanceComesBeforeTheAppearanceOfItsFrame() {
-        Stillness still = Stillness.Unsettled.After(false, true, Spawn);
+        Stillness still = Unsettled.After(false, true, Spawn);
 
         Assert.True(still.After(true, false, Spawn).Moved);
         Assert.Equal(new Stillness(400f, -352f, false), still.After(true, true, (400f, -352f)));
@@ -53,16 +55,16 @@ public class StillnessTests {
     // into that frame moves the player before the frame ends
     [Fact]
     public void AnAppearanceThenItsFramesOwnMoveIsAMove() {
-        Stillness still = Stillness.Unsettled.After(true, true, Spawn).After(false, false, (19.28f, 144f));
+        Stillness still = Unsettled.After(true, true, Spawn).After(false, false, (19.28f, 144f));
 
         Assert.True(still.Moved);
-        Assert.False(Stillness.Unsettled.After(true, true, Spawn).After(false, false, Spawn).Moved);
+        Assert.False(Unsettled.After(true, true, Spawn).After(false, false, Spawn).Moved);
     }
 
     // 6A's fall removes the player before the cutscene ends
     [Fact]
     public void WithoutAPlayerNothingChangesButADisturbance() {
-        Stillness still = Stillness.Unsettled.After(false, true, Spawn);
+        Stillness still = Unsettled.After(false, true, Spawn);
 
         Assert.Equal(still, still.After(false, true, null));
         Assert.True(still.After(true, false, null).Moved);

@@ -107,30 +107,6 @@ public class SheetConsistencyTests {
         Assert.Equal([("5a CP", "Unravelling")], data.MissingRows);
     }
 
-    // every imported segment carries the end condition its raw sheet name
-    // declares. Only a row that ends in RTM stops at what it collects: the two
-    // 📼 RTM rows at the cassette. "2a Start 💙 RC" stops at the restart. The
-    // other two hearts are Clear rows — collect and keep going — so they end
-    // at the next in-game checkpoint, like everything else (or at the
-    // chapter's completion when there is none, resolved at runtime). A marker
-    // slipping through Import unnoticed would silently mistime the segment
-    [Fact]
-    public void EveryImportedSegmentEndsTheWayItsRawNameDeclares() {
-        static HashSet<(string, string)> EndingAt(EndCondition condition) => [
-            .. Fixtures.Imported
-                .Where(segment => segment.End == condition)
-                .Select(segment => (segment.Chapter, segment.Name))
-        ];
-
-        Assert.Equal([("5a/b", "Depths Tape"), ("6a/b", "Hollows Tape")], EndingAt(EndCondition.Cassette));
-        Assert.Equal([("2a", "Start Heart RC")], EndingAt(EndCondition.Restart));
-        Assert.Empty(EndingAt(EndCondition.Heart));
-        Assert.All(
-            Fixtures.Imported.Where(segment =>
-                segment.End != EndCondition.Cassette && segment.End != EndCondition.Restart),
-            segment => Assert.Equal(EndCondition.Checkpoint, segment.End));
-    }
-
     [Fact]
     public void EveryImportedSegmentIsAnchoredToAGameCheckpoint() {
         List<string> unanchored = Fixtures.Imported
@@ -199,21 +175,7 @@ public class SheetConsistencyTests {
         Assert.Equal(SheetRows.All.Length, Fixtures.Parsed.SegmentCount);
         Assert.Equal(
             ["Prologue", "1a", "2a", "3a", "4a", "5a/b", "6a/b", "7a", "8a", "Farewell"],
-            Fixtures.Parsed.CheckpointBlock.Chapters());
-    }
-
-    // the two cassette routes the owner asked for in v2.0.0; they are the only
-    // emoji rows kept. They start at the same in-game checkpoint as their
-    // non-cassette sibling, and their runs end at the cassette collect, not in
-    // any room
-    [Theory]
-    [InlineData("5a/b", "Depths Tape")]
-    [InlineData("6a/b", "Hollows Tape")]
-    public void ImportsTheCassetteCheckpointsEndingAtTheCollect(string chapter, string name) {
-        SheetSegment segment = Assert.Single(Fixtures.Imported,
-            s => s.Chapter == chapter && s.Name == name);
-
-        Assert.Equal(EndCondition.Cassette, segment.End);
+            Fixtures.Parsed.CheckpointBlock.Segments.Select(segment => segment.Chapter).Distinct());
     }
 
     // the tier columns are read positionally from the header row, so their
@@ -285,7 +247,7 @@ public class SheetConsistencyTests {
         // and that one name resolves under each of their scopes, so a caller
         // holding a scope and a name has nothing left that says which chapter
         foreach (string scope in SheetRows.All.Where(row => row.Name == "Start").Select(row => row.Scope).Distinct()) {
-            Assert.True(SheetRows.TryFindInScope(scope, "Start", out _), scope);
+            Assert.Contains(SheetRows.All, row => row.Scope == scope && row.Name == "Start");
         }
     }
 }

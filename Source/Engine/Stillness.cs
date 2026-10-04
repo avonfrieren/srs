@@ -5,9 +5,6 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// for a player who has not moved since appearing. Positions are exact, the
 /// sub-pixel remainder included: a tap shorter than a pixel is a move.
 internal readonly record struct Stillness(float X, float Y, bool Moved) {
-    /// Before any appearance: nothing a load could open from.
-    public static readonly Stillness Unsettled = new(0f, 0f, true);
-
     /// One fed frame, after the update. A disturbance (a level from the loader,
     /// a teleport, a death, switching srs off) comes before an appearance on the
     /// same frame, and the move check comes last. With no player (at is null)

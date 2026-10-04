@@ -8,7 +8,7 @@ public class RunBookTests {
     private static long Ticks(double seconds) => TimeSpan.FromSeconds(seconds).Ticks;
 
     private static SegmentRecord Record(string chapter, string name, double seconds) =>
-        new(SegmentRules.Find(chapter, name), Ticks(seconds));
+        new(TestRules.Find(chapter, name), Ticks(seconds));
 
     [Fact]
     public void KeepsTheBestOfEachRow() {
@@ -51,7 +51,7 @@ public class RunBookTests {
     [Fact]
     public void ANonPositiveTimeIsNeverKept() {
         RunBook book = new();
-        Assert.Empty(book.Offer([new SegmentRecord(SegmentRules.Find("6a/b", "Hollows"), 0)]));
+        Assert.Empty(book.Offer([new SegmentRecord(TestRules.Find("6a/b", "Hollows"), 0)]));
 
         Assert.Null(book.LastImproved);
     }

@@ -128,19 +128,6 @@ internal static class SheetRows {
     public static bool TryFind(string chapter, string name, out SheetRow row) =>
         byAddress.TryGetValue((chapter, name), out row);
 
-    /// The row a scope (a side of a folded chapter) has under this name.
-    public static bool TryFindInScope(string scope, string name, out SheetRow row) {
-        foreach (SheetRow candidate in All) {
-            if (candidate.Scope == scope && candidate.Name == name) {
-                row = candidate;
-                return true;
-            }
-        }
-
-        row = default;
-        return false;
-    }
-
     public static SheetRowRef TargetOf(SheetRow row) => row.Target ?? DefaultTarget(row);
 
     /// Same label on the matching entry tab, under the Standards chapter without

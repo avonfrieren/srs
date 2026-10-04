@@ -18,32 +18,24 @@ internal static class ExportSource {
         SessionBests.DropIfElsewhere(session);
 
         if (!SessionBests.TryGet(out SheetSegment segment, out long ticks)
-            || segment.Chapter != SegmentAutoDetect.ChapterOf(session)
             || !SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)) {
             return updates;
         }
 
-        updates.Add(Build(row, segment, ticks, session));
+        // the raw cell, not a parsed time: PendingUpdate has to tell an empty
+        // cell from one it cannot read, and only the cell itself says which
+        string remote = RemoteBests.TryGet(row, out RemoteRow remoteRow) ? remoteRow.Time : null;
+        updates.Add(PendingUpdate.Create(row, DisplayName(segment, session), ticks, remote));
         return updates;
     }
 
     /// srs folds 6A and 6B into "6a/b" and re-prefixes the names both sides
     /// share ("6a Rock Bottom"). On screen that prefix is noise, and dropping it
     /// collides with nothing within a single scope.
-    public static string DisplayName(SheetSegment segment, Session session) {
+    private static string DisplayName(SheetSegment segment, Session session) {
         string side = SegmentAutoDetect.ScopeOf(session);
         return side != null && segment.Name.StartsWith(side + " ", StringComparison.Ordinal)
             ? segment.Name[(side.Length + 1)..]
             : segment.Name;
-    }
-
-    /// Rebuilds a row against a segment, remote time included: the sheet value,
-    /// the delta and whether it improves all change with the target.
-    public static PendingUpdate Build(SheetRowRef row, SheetSegment segment, long ticks, Session session) {
-        // the raw cell, not a parsed time: PendingUpdate has to tell an empty
-        // cell from one it cannot read, and only the cell itself says which
-        string remote = RemoteBests.TryGet(row, out RemoteRow remoteRow) ? remoteRow.Time : null;
-
-        return PendingUpdate.Create(row, DisplayName(segment, session), ticks, remote, segment);
     }
 }

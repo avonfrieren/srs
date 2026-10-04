@@ -2,13 +2,11 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// The sheet chapter and scope of a session, plus the name tables in
-// SegmentAutoDetect.Names.cs.
+// The scope of a session, plus the name tables in SegmentAutoDetect.Names.cs.
 public static partial class SegmentAutoDetect {
     // vanilla (AreaKey.ID, side) -> sheet chapter, plus the side name inside
-    // the folded chapters (the sheet routes 5 as 5B only, 6 as both sides).
-    // internal: RoomMap, SegmentRules and SessionBests read it
-    internal static readonly Dictionary<(int Id, AreaMode Mode), (string Chapter, string Side)> ChapterMap = new() {
+    // the folded chapters (the sheet routes 5 as 5B only, 6 as both sides)
+    private static readonly Dictionary<(int Id, AreaMode Mode), (string Chapter, string Side)> ChapterMap = new() {
         [(0, AreaMode.Normal)] = ("Prologue", null),
         [(1, AreaMode.Normal)] = ("1a", null),
         [(2, AreaMode.Normal)] = ("2a", null),
@@ -25,12 +23,6 @@ public static partial class SegmentAutoDetect {
         [(9, AreaMode.Normal)] = ("8a", null),
         [(10, AreaMode.Normal)] = ("Farewell", null),
     };
-
-    // the sheet chapter the session is in, folded sides included ("6a/b").
-    internal static string ChapterOf(Session session) =>
-        ChapterMap.TryGetValue((session.Area.ID, session.Area.Mode), out (string Chapter, string Side) area)
-            ? area.Chapter
-            : null;
 
     // the scope a chapter's name tables are keyed by: the side for the folded
     // chapters (5a/b, 6a/b), the chapter itself otherwise. Null outside the

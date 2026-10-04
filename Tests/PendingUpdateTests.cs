@@ -15,7 +15,6 @@ public class PendingUpdateTests {
         var update = PendingUpdate.Create(new SheetRowRef("B+C Sides", "6b", "Falling"), "6b Falling",
             Ticks(67.915), "69.412");
 
-        Assert.True(update.WillImprove);
         Assert.True(update.Selected);
         Assert.Equal("-1.497", update.DeltaText);
     }
@@ -25,7 +24,6 @@ public class PendingUpdateTests {
         var update = PendingUpdate.Create(new SheetRowRef("B+C Sides", "6b", "Rock Bottom"), "6b Rock Bottom",
             Ticks(52.479), "51.980");
 
-        Assert.False(update.WillImprove);
         Assert.False(update.Selected);
         Assert.Equal("+0.499", update.DeltaText);
     }
@@ -35,9 +33,7 @@ public class PendingUpdateTests {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "7a", "3000m"), "7a 3000m",
             Ticks(41.5), "");
 
-        Assert.True(update.WillImprove);
         Assert.True(update.Selected);
-        Assert.False(update.RemoteUnreadable);
         Assert.Equal("", update.RemoteText);
         Assert.Equal("", update.DeltaText);
     }
@@ -47,8 +43,8 @@ public class PendingUpdateTests {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "7a", "3000m"), "7a 3000m",
             Ticks(41.5), null);
 
-        Assert.True(update.WillImprove);
-        Assert.False(update.RemoteUnreadable);
+        Assert.True(update.Selected);
+        Assert.Equal("", update.DeltaText);
     }
 
     // the sheet writes 0:00.000 into a cell that has never held a time: its own
@@ -58,9 +54,7 @@ public class PendingUpdateTests {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "7a", "3000m"), "7a 3000m",
             Ticks(41.5), "0:00.000");
 
-        Assert.True(update.WillImprove);
         Assert.True(update.Selected);
-        Assert.False(update.RemoteUnreadable);
         Assert.Null(update.RemoteTicks);
         Assert.Equal("", update.RemoteText);
         Assert.Equal("", update.DeltaText);
@@ -73,7 +67,7 @@ public class PendingUpdateTests {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "1a Crossing",
             Ticks(21.948), "21.948");
 
-        Assert.False(update.WillImprove);
+        Assert.False(update.Selected);
         Assert.Equal("+0.000", update.DeltaText);
     }
 
@@ -90,8 +84,6 @@ public class PendingUpdateTests {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "5a", "Depths"), "5a Depths",
             Ticks(30.0), cell);
 
-        Assert.True(update.RemoteUnreadable);
-        Assert.False(update.WillImprove);
         Assert.False(update.Selected);
         Assert.Null(update.RemoteTicks);
         // shown as it stands: only the player can tell a locale from a typo
@@ -104,8 +96,7 @@ public class PendingUpdateTests {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "5a", "Search"), "5a Search",
             Ticks(30.0), "   ");
 
-        Assert.False(update.RemoteUnreadable);
-        Assert.True(update.WillImprove);
+        Assert.True(update.Selected);
         Assert.Equal("", update.DeltaText);
     }
 

@@ -16,15 +16,10 @@ internal sealed class UpdateRow : TextMenu.Item {
 
     private readonly ExportColumns columns;
     private readonly bool odd;
-    // the list Submit reads
-    private readonly List<PendingUpdate> slot;
-    private readonly int index;
+    private readonly PendingUpdate update;
 
-    public PendingUpdate Update => slot[index];
-
-    public UpdateRow(List<PendingUpdate> slot, int index, ExportColumns columns, bool odd) {
-        this.slot = slot;
-        this.index = index;
+    public UpdateRow(PendingUpdate update, ExportColumns columns, bool odd) {
+        this.update = update;
         this.columns = columns;
         this.odd = odd;
         // false on the base item: without it the cursor never lands on the row
@@ -32,8 +27,8 @@ internal sealed class UpdateRow : TextMenu.Item {
     }
 
     public override void ConfirmPressed() {
-        Update.Selected = !Update.Selected;
-        Audio.Play(Update.Selected ? "event:/ui/main/button_toggle_on" : "event:/ui/main/button_toggle_off");
+        update.Selected = !update.Selected;
+        Audio.Play(update.Selected ? "event:/ui/main/button_toggle_on" : "event:/ui/main/button_toggle_off");
     }
 
     public override float LeftWidth() => columns.TotalWidth;
@@ -41,7 +36,6 @@ internal sealed class UpdateRow : TextMenu.Item {
 
     public override void Render(Vector2 position, bool highlighted) {
         float alpha = Container.Alpha;
-        PendingUpdate update = Update;
 
         // both parities banded: one stripe over bare background reads as a
         // tinted list, two read as a grid
@@ -553,8 +547,6 @@ internal static class ExportMenu {
         menu = newMenu;
     }
 
-    /// keepSelection is the row the cursor was on, for a rebuild that leaves
-    /// the table's shape alone. Without one the screen opens on the run itself.
     private static void Build(Level level, List<PendingUpdate> updates) {
         awaitingRows = false;
         ExportColumns columns = ExportColumns.Measure(updates);
@@ -564,15 +556,14 @@ internal static class ExportMenu {
 
         string chapter = null;
         bool odd = false;
-        for (int i = 0; i < updates.Count; i++) {
-            PendingUpdate update = updates[i];
+        foreach (PendingUpdate update in updates) {
             string group = string.IsNullOrEmpty(update.Row.Chapter) ? update.Row.Tab : update.Row.Chapter;
             if (group != chapter) {
                 chapter = group;
                 newMenu.Add(new GroupRow(columns, group));
             }
 
-            newMenu.Add(new UpdateRow(updates, i, columns, odd));
+            newMenu.Add(new UpdateRow(update, columns, odd));
             odd = !odd;
         }
 
