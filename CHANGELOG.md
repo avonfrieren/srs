@@ -3,8 +3,8 @@
 ## Unreleased
 
 - **Nothing to select.** The Chapter and Checkpoint sliders, Category, Auto-Detect, Show Selection and their hotkeys are gone, and so is the greyed row under the timer. srs times every segment that can be running. Two hotkeys remain: Toggle Tier Display and Open Sheet Export. Settings files lose the removed keys at the next save.
-- **Chained practice.** Running several checkpoints in a row records each segment with its own time and tier. The row under the timer shows the last one completed, the most specific when several complete together.
-- **Segments are timed with the chapter time**, so records and the export no longer depend on the room timer's type. The tier row is still drawn under Speedrun Tool's timer, and shows only while that timer is on.
+- **Chained practice.** Running several checkpoints in a row records each segment with its own time and tier. The rows above the timer show the last one completed, the most specific when several complete together.
+- **Segments are timed with the chapter time**, so records and the export no longer depend on the room timer's type.
 - **A segment is recorded from the room before it.** Walk into its first room from the room before it and it is recorded, however you reached that room: a chain, a savestate, the debug map, `console load` or Speedrun Tool's room teleport. Any other way in records nothing: 4A's Cliff Face counts only from `c-08`, and 5A's Rescue only from `d-20`.
 - **A savestate load or a room teleport starts a new attempt.** The segment you were in is not recorded, and a checkpoint crossed with the mod switched off leaves the next segment unrecorded rather than mistimed.
 - **A chapter's first segment, and a segment after a wake-up, start from a savestate made before you moved.** A single-frame tap refuses the state, and so does walking away and back. A state saved during a respawn, a wake-up or an intro waits for you to appear. Entering a chapter starts its first segment only on the chapter's own spawn.
@@ -21,6 +21,9 @@
 - **The reference sheet moved, and srs follows it.** srs reads the new document, and repoints your settings on launch if they still name the old one. A tab you pointed elsewhere on purpose is left alone.
 - **The Keybinds screen is the one AxiomeVI's other mods share, and records a combo in one pass.** Press Confirm on a row, hold the whole combo (up to four keys or buttons) and let go. A key already held when recording starts counts only once pressed again, and **Journal** or **Delete** clears a row. With `T` and `Shift+T` bound to two hotkeys, `Shift+T` fires only its own. Hotkeys stay quiet while the window is unfocused or another mod's Keybinds screen is open. The *Clear all bindings* button is gone.
 - **A file or settings write that fails no longer crashes the game.** Setting or forgetting the sheet URL says when the file could not be written or deleted.
+- **The tier row moved above Speedrun Tool's timer, and became two rows**: the segment srs detected (`1a Crossing`), over your time and tier in the tier's color, then `PB` and your gain in gold (`PB -0.214`) when your own sheet holds a slower time, then the gap to the next tier in red (`+0.140 to Purple 1`), or your margin under the WR in green (`-0.120 to WR`). The rows show from the moment a segment completes until you leave the room or load a savestate, while that timer is on, and no longer make room for srta's row.
+- **Each part has its switch** in Mod Options, all on by default: **Show Checkpoint Name**, **Show Time**, **Show Tier**, **Show PB Improvement** and **Show Delta to Next Tier**. **Show Tier** and its hotkey now hide only the tier's name: the time stays, in the tier's color.
+- **A tier needs a time strictly under its threshold**, as on the sheet. A tie with the WR still counts as WR. The time is ranked to the millisecond you see.
 - **Tier colours follow the sheet's current palette.** Each tier is drawn in its cell colour on the sheet; Gold is drawn in its gold text colour, WR in white, Unranked in grey.
 
 ## v3.7.0 — 2026-08-27 by Axiome

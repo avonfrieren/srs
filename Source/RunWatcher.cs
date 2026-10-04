@@ -89,6 +89,12 @@ public static class RunWatcher {
     /// null after a load. The HUD's tier row.
     internal static SegmentRecord? Latest { get; private set; }
 
+    /// The room Latest closed in: the tier row shows until the player leaves it.
+    internal static string LatestRoom { get; private set; }
+
+    /// Counts every Latest set, so a reader tells a new record from the same one.
+    internal static int LatestSerial { get; private set; }
+
     // fields are filled at runtime by ModInterop()
 #pragma warning disable CS0649
     [ModImportName("SpeedrunTool.SaveLoad")]
@@ -462,5 +468,7 @@ public static class RunWatcher {
 
         SessionBests.Record(records, session);
         Latest = records[Specificity.MostSpecific(records.ConvertAll(record => record.Rule))];
+        LatestRoom = session.Level;
+        LatestSerial++;
     }
 }

@@ -8,19 +8,35 @@ using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// The row under Speed Run Tool's timer: the latest record's time, and the tier
-// it reached in the tier's color, like srta's delta row.
+// Two rows above Speed Run Tool's timer: the segment's name, over its time,
+// tier, PB gain and delta to the next tier. Shown until the player leaves the
+// room the segment closed in, and not again on coming back.
 public static class TierComparison {
     private static SrsSettings Settings => SrsModule.Settings;
 
     // recomputed every frame from RunWatcher.Latest, so a sheet re-import shows
     // at once; session display, not registered with save states
-    private static string rowText = "";
+    private static TierRows? rows;
+    private static string segmentName = "";
     private static Color tierColor = Color.White;
 
-    // drop the row below srta's delta row when srta is present; resolved on
-    // first render (mod load order between srs and srta is not guaranteed)
-    private static bool? srtaLoaded;
+    // the record the player walked away from
+    private static int dismissedSerial = -1;
+
+    // the gold of Speed Run Tool's timer on a best time. Plain text, not its
+    // renderer: that one draws decimals at 70 %, unreadable at this size
+    private static readonly Color PbColor = Calc.HexToColor("fad768");
+
+    // LiveSplit's default ahead and behind colors
+    private static readonly Color AheadColor = Calc.HexToColor("00cc36");
+    private static readonly Color BehindColor = Calc.HexToColor("cc1200");
+
+    // the player's sheet time for the latest record, read when the record
+    // lands (or when the sheet first answers after it), never again: exporting
+    // this very time must not take its PB away
+    private static int sheetSerial = -1;
+    private static bool sheetResolved;
+    private static long? sheetTicks;
 
     public static void Load() {
         // hook order: see SrsModule.Load
@@ -49,32 +65,47 @@ public static class TierComparison {
                 Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
         }
 
-        ComputeTier();
+        ComputeTier(self.Session);
     }
 
-    // the latest record's row, looked up by name (see SheetBlock.Find), and the
-    // tier its time reached (SheetData.TierOf)
-    private static void ComputeTier() {
-        rowText = "";
+    // the latest record's row, looked up by name (see SheetBlock.Find), while
+    // the player is still in the room it closed in
+    private static void ComputeTier(Session session) {
+        rows = null;
+        if (session.Level != RunWatcher.LatestRoom) {
+            dismissedSerial = RunWatcher.LatestSerial;
+        }
+
         SheetBlock block = SheetImporter.Data?.CheckpointBlock;
-        if (RunWatcher.Latest is not { } record || block == null
+        if (RunWatcher.Latest is not { } record || RunWatcher.LatestSerial == dismissedSerial || block == null
             || block.Find(record.Rule.Chapter, record.Rule.Name) is not { } segment) {
             return;
         }
 
-        TimeSpan time = TimeSpan.FromTicks(record.Ticks);
-        SetTier(time, SheetData.TierOf(block.Columns, segment.Times, time));
+        if (RunWatcher.LatestSerial != sheetSerial || (!sheetResolved && RemoteBests.IsResolved)) {
+            sheetSerial = RunWatcher.LatestSerial;
+            sheetResolved = RemoteBests.IsResolved;
+            sheetTicks = SheetTimeOf(segment);
+        }
+
+        TierRows built = TierLine.Build(block.Columns, segment.Times, record.Ticks, sheetTicks);
+        rows = built;
+        segmentName = TierLine.NameOf(record.Rule.Scope, record.Rule.Name);
+        tierColor = built.Tier == SheetData.Unranked ? Color.Gray : TierColors.GetValueOrDefault(built.Tier, Color.White);
     }
 
-    // Format matches what SpeedrunTool displayed during the run (see TimeFormat.FromTicks).
-    private static string FormatTime(TimeSpan time) =>
-        TimeFormat.FromTicks(time.Ticks);
+    // the time the player's own sheet holds for the row, as the export screen
+    // reads it; null without an export URL or before the sheet answered
+    private static long? SheetTimeOf(SheetSegment segment) =>
+        SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)
+        && RemoteBests.TryGet(row, out RemoteRow remote)
+            ? PendingUpdate.TicksOf(remote.Time)
+            : null;
 
     // tier colors, copied from the sheet: each tier's cell fill, keyed by the
     // full column name (the rank suffix is significant). Gold takes its ink,
     // since its fill is near black; WR is white; Unranked is grey, as on the
-    // sheet. Hidden never matches (its thresholds are zero) and, like any
-    // unknown column, falls back white
+    // sheet; unknown columns fall back white
     private static readonly Dictionary<string, Color> TierColors =
         new(StringComparer.OrdinalIgnoreCase) {
             ["WR"] = Calc.HexToColor("ffffff"),
@@ -109,69 +140,86 @@ public static class TierComparison {
             ["Red 3"] = Calc.HexToColor("e06666"),
         };
 
-    private static void SetTier(TimeSpan time, string column) {
-        rowText = $"{FormatTime(time)} {column}";
-        tierColor = column.Trim().Equals("Unranked", StringComparison.OrdinalIgnoreCase)
-            ? Color.Gray
-            : TierColors.GetValueOrDefault(column.Trim(), Color.White);
-    }
-
     private static void SpeedrunTimerDisplayOnRender(On.Celeste.SpeedrunTimerDisplay.orig_Render orig, SpeedrunTimerDisplay self) {
         orig(self);
 
         // hidden along with the room timer itself, and with the whole mod
-        if (!Settings.Enabled
+        if (!Settings.Enabled || rows is not { } shown
             || SpeedrunToolSettings.Instance is not { Enabled: true } settings
             || settings.RoomTimerType == RoomTimerType.Off || self.DrawLerp <= 0f) {
             return;
         }
 
-        if (Settings.ShowTier && rowText.Length > 0) {
-            DrawRow(self, 0, rowText, tierColor);
+        // the time keeps the tier's color without the tier
+        List<(string Text, Color Color)> parts = [];
+        string ranked = $"{(Settings.ShowTime ? shown.Time : "")} {(Settings.ShowTier ? shown.Tier : "")}".Trim();
+        if (ranked.Length > 0) {
+            parts.Add((ranked, tierColor));
+        }
+
+        if (Settings.ShowPbImprovement && shown.Pb != null) {
+            parts.Add((shown.Pb, PbColor));
+        }
+
+        if (Settings.ShowDelta && shown.Gap != null) {
+            parts.Add((shown.Gap, shown.GapAhead ? AheadColor : BehindColor));
+        }
+
+        int slot = 0;
+        if (parts.Count > 0) {
+            DrawRow(self, slot++, parts);
+        }
+
+        if (Settings.ShowCheckpointName) {
+            DrawRow(self, slot, [(segmentName, Color.White)]);
         }
     }
 
-    // row below SpeedrunTool's time + PB rows (below srta's delta row when srta
-    // is installed), same background and sliding animation; row 0 is the only
-    // slot srs owns, each further one would sit a row lower
-    private static void DrawRow(SpeedrunTimerDisplay self, int row, string text, Color color) {
-        const float topTimeHeight = 38f;
+    private const string PartSeparator = "  ";
+
+    // two rows fit above the timer at this size, below the top of the screen
+    private const float Scale = 0.54f;
+
+    // the timer's digits rise above its background: the rows end above them
+    private const float DigitRise = 10f;
+
+    // art shows between the two bands, or the rows read as one block
+    private const float RowGap = 4f;
+
+    // Speed Run Tool's text placement sits the ink high in the band: lowered
+    // to its middle
+    private const float TextDrop = 2f;
+
+    // slot 0 sits right above the timer, slot 1 above it; same background and
+    // sliding animation as Speed Run Tool's PB row, scaled down. One band for
+    // the whole row, sized on what is written
+    private static void DrawRow(SpeedrunTimerDisplay self, int slot, List<(string Text, Color Color)> parts) {
         const float timeMarginLeft = 32f;
-        const float scale = 0.6f;
-
-        srtaLoaded ??= IsSrtaLoaded();
-
-        PixelFont font = Dialog.Languages["english"].Font;
-        float fontFaceSize = Dialog.Languages["english"].FontFaceSize;
+        float ratio = Scale / 0.6f;
+        string text = string.Join(PartSeparator, parts.ConvertAll(part => part.Text));
 
         MTexture bg = GFX.Gui["strawberryCountBG"];
-        float rowHeight = bg.Height * scale + 1f;
+        float rowHeight = bg.Height * Scale + 1f;
         float x = -300f * Ease.CubeIn(1f - self.DrawLerp);
-        float y = self.Y + topTimeHeight + rowHeight + row * (rowHeight + 1f);
-        if (srtaLoaded.Value) {
-            y += rowHeight + 1f;
-        }
+        float y = self.Y - DigitRise - rowHeight - slot * (rowHeight + RowGap);
 
-        // Speed Run Tool's PB-row width formula (3.27.17), not the text's width:
-        // the 288 px background fades out to the right, and each row of the
-        // stack ends inside its text, the tail over the fade. Nothing checks
-        // the formula against a newer Speed Run Tool
-        float width = 60f + Math.Max(0f, 18f * (text.Length - 8));
-        Draw.Rect(x, y - 1f, width + bg.Width * scale, 1f, Color.Black);
+        // Speed Run Tool's PB-row width formula (3.27.17), scaled, not the
+        // text's width: the background fades out to the right, and each row
+        // ends inside its text, the tail over the fade. Nothing checks the
+        // formula against a newer Speed Run Tool
+        float width = (60f + Math.Max(0f, 18f * (text.Length - 8))) * ratio;
         Draw.Rect(x, y, width + 2f, rowHeight, Color.Black);
-        bg.Draw(new Vector2(x + width, y), Vector2.Zero, Color.White, scale);
+        bg.Draw(new Vector2(x + width, y), Vector2.Zero, Color.White, Scale);
 
-        font.DrawOutline(fontFaceSize, text, new Vector2(x + timeMarginLeft, y + 28.4f),
-            new Vector2(0f, 1f), Vector2.One * scale, color, 2f, Color.Black);
-    }
-
-    private static bool IsSrtaLoaded() {
-        foreach (EverestModule module in Everest.Modules) {
-            if (module.Metadata?.Name == "srta") {
-                return true;
-            }
+        // measured on the size DrawOutline picks for this scale, which is not
+        // the base size when the font has several loaded
+        PixelFont font = Dialog.Languages["english"].Font;
+        float baseSize = Dialog.Languages["english"].FontFaceSize;
+        PixelFontSize size = font.Get(baseSize * Scale);
+        Vector2 at = new(x + timeMarginLeft, y + 28.4f * ratio + TextDrop);
+        foreach ((string part, Color color) in parts) {
+            font.DrawOutline(baseSize, part, at, new Vector2(0f, 1f), Vector2.One * Scale, color, 2f, Color.Black);
+            at.X += size.Measure(part + PartSeparator).X * Scale * baseSize / size.Size;
         }
-
-        return false;
     }
 }
