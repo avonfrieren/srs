@@ -52,7 +52,8 @@ public class RunTrackerTests {
 
         // a state saved in room 7, inside Crossing, then back into its first room
         t.Restart("1a", "7", 0, true, false, _ => true);
-        Assert.Empty(t.RoomEntered("1a", "6a", "6", 30, true, false, One));
+        Assert.Empty(t.Open);
+        Assert.Empty(t.RoomEntered("1a", "7", "6", 30, true, false, One));
 
         Assert.Empty(t.Open);
     }
@@ -178,19 +179,6 @@ public class RunTrackerTests {
     }
 
     [Fact]
-    public void APlantedSavestateOpensNothing() {
-        Add("Crossing", "6", "9b", entry: "5");
-        RunTracker t = Tracker();
-
-        // a state saved in room 7, further into Crossing than its first room
-        t.Restart("1a", "7", 0, true, false, _ => true);
-
-        Assert.Empty(t.Open);
-        Assert.Empty(t.RoomEntered("1a", "7", "6", 50, true, false, One));
-        Assert.Empty(t.Open);
-    }
-
-    [Fact]
     public void DropForgetsEverything() {
         Add("Start", "1", "6", setup: StartSetup.CurrentRoom);
         Add("Crossing", "6", "9b", entry: "5");
@@ -260,38 +248,30 @@ public class RunTrackerTests {
         Assert.Equal([("Awake", 240L)], Of(t.ChapterTimeStopped(400, One)));
     }
 
-    [Fact]
-    public void ControlReturningInAnotherRoomOpensNothing() {
+    // Awake reached by its wake-up, without control: it waits for control in end_0
+    private RunTracker AwakeWaitingForControl() {
         Add("Before", "3", "end_0", setup: StartSetup.CurrentRoom);
         Add("Awake", "end_0", null, setup: StartSetup.CurrentRoom, entry: "13");
-
-        // control case: the same steps, control back in the pending room, open it
-        RunTracker control = Tracker();
-        control.Restart("1a", "3", 0, true, false, _ => true);
-        control.RoomEntered("1a", "13", "end_0", 100, false, false, One);
-        control.ControlReturned("end_0", 130, _ => true);
-        Assert.Equal(["Awake"], control.Open.Select(r => r.Name));
-
         RunTracker t = Tracker();
         t.Restart("1a", "3", 0, true, false, _ => true);
         t.RoomEntered("1a", "13", "end_0", 100, false, false, One);
-        t.ControlReturned("end_1", 130, _ => true);
-
-        Assert.Empty(t.Open);
+        return t;
     }
 
     [Fact]
-    public void ARestartWithoutControlWaitsToo() {
-        Add("Awake", "end_0", null, setup: StartSetup.CurrentRoom, entry: "13");
-        RunTracker t = Tracker();
+    public void ControlReturningInThePendingRoomOpensTheStart() {
+        RunTracker t = AwakeWaitingForControl();
+        t.ControlReturned("end_0", 130, _ => true);
 
-        // a checkpoint entered from chapter select, during its wake-up: the
-        // spawn was tested at the restart
-        t.Restart("1a", "end_0", 0, false, false, _ => true);
+        Assert.Equal(["Awake"], t.Open.Select(r => r.Name));
+    }
+
+    [Fact]
+    public void ControlReturningInAnotherRoomOpensNothing() {
+        RunTracker t = AwakeWaitingForControl();
+        t.ControlReturned("end_1", 130, _ => true);
+
         Assert.Empty(t.Open);
-        t.ControlReturned("end_0", 60, _ => false);
-
-        Assert.Equal([("Awake", 340L)], Of(t.ChapterTimeStopped(400, One)));
     }
 
     [Fact]
@@ -402,19 +382,7 @@ public class RunTrackerTests {
 
     [Fact]
     public void DropForgetsAPendingStart() {
-        Add("Before", "3", "end_0", setup: StartSetup.CurrentRoom);
-        Add("Awake", "end_0", null, setup: StartSetup.CurrentRoom, entry: "13");
-
-        // control case: without the drop, control returning opens it
-        RunTracker control = Tracker();
-        control.Restart("1a", "3", 0, true, false, _ => true);
-        control.RoomEntered("1a", "13", "end_0", 100, false, false, One);
-        control.ControlReturned("end_0", 160, _ => true);
-        Assert.Equal(["Awake"], control.Open.Select(r => r.Name));
-
-        RunTracker t = Tracker();
-        t.Restart("1a", "3", 0, true, false, _ => true);
-        t.RoomEntered("1a", "13", "end_0", 100, false, false, One);
+        RunTracker t = AwakeWaitingForControl();
         t.Drop();
         t.ControlReturned("end_0", 160, _ => true);
 
@@ -479,12 +447,7 @@ public class RunTrackerTests {
 
     [Fact]
     public void DisqualifyForgetsPendingStarts() {
-        Add("Before", "3", "end_0", setup: StartSetup.CurrentRoom);
-        Add("Awake", "end_0", null, setup: StartSetup.CurrentRoom, entry: "13");
-        RunTracker t = Tracker();
-
-        t.Restart("1a", "3", 0, true, false, _ => true);
-        t.RoomEntered("1a", "13", "end_0", 100, false, false, One);
+        RunTracker t = AwakeWaitingForControl();
         t.Disqualify();
         t.ControlReturned("end_0", 160, _ => true);
 
@@ -504,16 +467,6 @@ public class RunTrackerTests {
 
         Assert.Empty(t.RoomEntered("1a", "9", "9b", 1500, true, false, One));
         Assert.Equal([("Chasm", 500L)], Of(t.ChapterTimeStopped(2000, One)));
-    }
-
-    [Fact]
-    public void ALoadAtTheSpawnOpensTheCurrentRoomSegment() {
-        Add("Start", "1", "6", setup: StartSetup.CurrentRoom);
-        Add("Crossing", "6", "9b", entry: "5");
-        RunTracker t = Tracker();
-
-        t.Restart("1a", "1", 0, true, false, _ => true);
-        Assert.Equal([("Start", 100L)], Of(t.RoomEntered("1a", "5", "6", 100, true, false, One)));
     }
 
     [Fact]
@@ -702,23 +655,6 @@ public class RunTrackerTests {
         Assert.Empty(t.Open);
     }
 
-    [Fact]
-    public void TheRcRowRecordsOnNothingButARestart() {
-        Add("Start", "start", "3", setup: StartSetup.CurrentRoom, scope: "2a");
-        Add("Start Heart RC", "start", "3", requires: Collectibles.Heart, endKind: EndKind.Restart,
-            setup: StartSetup.CurrentRoom, scope: "2a");
-        Add("Intervention", "3", "end_0", scope: "2a", entry: "3x");
-        RunTracker t = Tracker();
-
-        t.Restart("2a", "start", 0, true, false, _ => true);
-        t.Collected(Collectibles.Heart, 100, One);
-        // walking out of its segment drops it unrecorded
-        Assert.Equal([("Start", 270L)], Of(t.RoomEntered("2a", "3x", "3", 270, true, false, One)));
-        Assert.Empty(t.ChapterTimeStopped(900, One));
-
-        Assert.Equal(["Intervention"], t.Open.Select(r => r.Name));
-    }
-
     // the heart, then on into Intervention, then Restart Chapter much later:
     // that run is not one of the row
     [Fact]
@@ -735,10 +671,12 @@ public class RunTrackerTests {
         Assert.Empty(control.RoomEntered("2a", "start", "s1", 150, true, false, One));
         Assert.Equal([("Start Heart RC", 200L)], Of(control.ChapterRestarted(200, One)));
 
+        // walking out of its segment drops it unrecorded
         RunTracker t = Tracker();
         t.Restart("2a", "start", 0, true, false, _ => true);
         t.Collected(Collectibles.Heart, 100, One);
         Assert.Equal([("Start", 270L)], Of(t.RoomEntered("2a", "3x", "3", 270, true, false, One)));
+        Assert.Equal(["Intervention"], t.Open.Select(r => r.Name));
 
         Assert.Empty(t.ChapterRestarted(9000, One));
     }

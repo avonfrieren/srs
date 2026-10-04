@@ -84,13 +84,4 @@ public class RunBookTests {
         Assert.Null(book.LastImproved);
         Assert.Null(book.Scope);
     }
-
-    // "Start" exists in nearly every chapter: the chapter is part of the address
-    [Fact]
-    public void FindAddressesASegmentByChapterAndName() {
-        SheetBlock block = Fixtures.Parsed.CheckpointBlock;
-
-        Assert.Equal("2a", block.Find("2a", "Start")?.Chapter);
-        Assert.Null(block.Find("2a", "Hollows"));
-    }
 }

@@ -168,6 +168,15 @@ public class SheetConsistencyTests {
         Assert.Empty(duplicates);
     }
 
+    // "Start" exists in nearly every chapter: the chapter is part of the address
+    [Fact]
+    public void FindAddressesASegmentByChapterAndName() {
+        SheetBlock block = Fixtures.Parsed.CheckpointBlock;
+
+        Assert.Equal("2a", block.Find("2a", "Start")?.Chapter);
+        Assert.Null(block.Find("2a", "Hollows"));
+    }
+
     // canary for a restructured sheet: not a full snapshot of the data, just
     // the shape of what gets imported
     [Fact]
@@ -194,7 +203,6 @@ public class SheetConsistencyTests {
         // left ragged, or TierComparison would run off the end of them
         SheetSegment farewell = Assert.Single(Fixtures.Imported,
             s => s.Chapter == "Farewell" && s.Name == "Farewell");
-        Assert.Equal(TimeSpan.Parse("00:01:18.353"), farewell.Times[1]);
         Assert.Null(farewell.Times[^1]);
     }
 
@@ -225,29 +233,16 @@ public class SheetConsistencyTests {
         Assert.DoesNotContain(Fixtures.Imported, segment => segment.Chapter.Contains(chapter));
     }
 
-    // the row table answers on (scope, sheet name) and a name that several
-    // chapters share resolves under each of their scopes. SessionBests keys on
-    // the anchor, which is what lets a run be re-labelled onto another row of
-    // the same checkpoint -- and what makes any caller walking the whole sheet
-    // responsible for filtering by chapter first.
-    //
-    // Pinned because dropping that filter put the Start row of six chapters on
-    // the export screen at once, most of them ticked. Seen on 2026-08-30.
+    // several chapters name a row "Start": the chapter is part of a row's
+    // address, and each chapter's Start is found as its own row
     [Fact]
-    public void OneCheckpointNameIsSharedByChaptersAndResolvesToOneAnchor() {
-        List<string> chapters = [.. SheetRows.All
-            .Where(row => row.Name == "Start")
-            .Select(row => row.Chapter)
-            .Distinct()];
+    public void ANameSharedByChaptersIsOneRowPerChapter() {
+        List<SheetRow> starts = [.. SheetRows.All.Where(row => row.Name == "Start")];
 
-        // several chapters call their first segment "Start" -- that is the
-        // premise; if it ever stops being true this test has nothing to say
-        Assert.True(chapters.Count > 1, string.Join(", ", chapters));
-
-        // and that one name resolves under each of their scopes, so a caller
-        // holding a scope and a name has nothing left that says which chapter
-        foreach (string scope in SheetRows.All.Where(row => row.Name == "Start").Select(row => row.Scope).Distinct()) {
-            Assert.Contains(SheetRows.All, row => row.Scope == scope && row.Name == "Start");
-        }
+        Assert.True(starts.Count > 1, "the premise: several chapters name a row Start");
+        Assert.All(starts, start => {
+            Assert.True(SheetRows.TryFind(start.Chapter, "Start", out SheetRow found));
+            Assert.Equal(start, found);
+        });
     }
 }

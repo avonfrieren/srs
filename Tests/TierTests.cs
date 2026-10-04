@@ -14,6 +14,8 @@ public class TierTests {
     [Theory]
     [InlineData(48.0, "WR")]
     [InlineData(48.8, "WR")]
+    // a time equal to a threshold reaches it
+    [InlineData(49.011, "WR")]
     [InlineData(49.5, "Pink")]
     [InlineData(51.0, "Unranked")]
     public void TheFirstColumnInSheetOrderTheTimeBeatsWins(double seconds, string tier) {

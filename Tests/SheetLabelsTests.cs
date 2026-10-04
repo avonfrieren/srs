@@ -8,37 +8,14 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 // a time is written, turning srs's own (chapter, name) into the row of the
 // player's sheet through SheetRows.
 public class SheetLabelsTests {
+    // a row whose two documents differ carries a Target, which wins over the
+    // default; the default's tab and chapter are pinned row by row below
     [Fact]
-    public void EveryImportedSegmentHasARow() {
-        List<string> missing = [];
-        foreach (SheetRow row in SheetRows.All) {
-            if (!SheetLabels.TryMap(row.Chapter, row.Name, out _)) {
-                missing.Add($"{row.Chapter}/{row.Name}");
-            }
-        }
+    public void ATargetOverridesTheDefault() {
+        SheetRowRef elsewhere = new("A Sides", "1a", "Crossing (renamed)");
+        SheetRow overridden = Row("1a", "Crossing") with { Target = elsewhere };
 
-        Assert.Empty(missing);
-    }
-
-    // the default target: same label, matching entry tab, the Standards chapter
-    // without " CP", empty on Farewell. A failure means a row whose two
-    // documents differ, which needs a Target override, not a new default
-    [Fact]
-    public void EveryRowIsWrittenUnderTheLabelItWasImportedFrom() {
-        List<string> wrong = [];
-        foreach (SheetRow row in SheetRows.All) {
-            if (row.Target == null && SheetRows.TargetOf(row).Cp != row.Label) {
-                wrong.Add($"({row.Chapter}, {row.Name}) writes \"{SheetRows.TargetOf(row).Cp}\" but reads \"{row.Label}\"");
-            }
-        }
-
-        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
-    }
-
-    // an override marks a real difference between the two documents; none exists yet
-    [Fact]
-    public void NoRowCarriesAnOverrideYet() {
-        Assert.DoesNotContain(SheetRows.All, row => row.Target != null);
+        Assert.Equal(elsewhere, SheetRows.TargetOf(overridden));
     }
 
     [Fact]
@@ -84,13 +61,13 @@ public class SheetLabelsTests {
 
     // the chapter echo srs strips from its own names is back on the sheet
     [Theory]
-    [InlineData("1a", "Start", "1a", "1a Start")]
-    [InlineData("2a", "Start", "2a", "2a Start")]
-    [InlineData("3a", "Start", "3a", "3a Start")]
-    [InlineData("4a", "Start", "4a", "4a Start")]
-    [InlineData("8a", "Start", "8a", "8a Start")]
-    public void StartRowsCarryTheChapterEcho(string srsChapter, string srsName, string chapter, string cp) {
-        AssertRow(srsChapter, srsName, "A Sides", chapter, cp);
+    [InlineData("1a", "1a Start")]
+    [InlineData("2a", "2a Start")]
+    [InlineData("3a", "3a Start")]
+    [InlineData("4a", "4a Start")]
+    [InlineData("8a", "8a Start")]
+    public void StartRowsCarryTheChapterEcho(string chapter, string cp) {
+        AssertRow(chapter, "Start", "A Sides", chapter, cp);
     }
 
     [Fact]

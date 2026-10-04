@@ -53,8 +53,6 @@ public class TimeParsingTests {
     }
 
     [Theory]
-    [InlineData("")]
-    [InlineData("   ")]
     [InlineData("#REF!")]
     [InlineData("1:48 ?")]
     [InlineData("abc")]

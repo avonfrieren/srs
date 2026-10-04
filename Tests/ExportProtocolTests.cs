@@ -5,16 +5,21 @@ using Xunit;
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
 public class ExportProtocolTests {
+    // expect is the compare-and-swap: the script writes nothing unless the cell
+    // still reads what it carries
     [Fact]
     public void SerializesARequestWithLowerCamelCaseFields() {
         var request = new ExportRequest {
-            Updates = { new ExportUpdate { Chapter = "6b", Cp = "Falling", Time = "1:07.915" } },
+            Updates = {
+                new ExportUpdate { Tab = "B+C Sides", Chapter = "6b", Cp = "Falling", Time = "1:07.915", Expect = "1:09.4" },
+            },
         };
 
         string json = ExportProtocol.SerializeRequest(request);
 
-        Assert.Contains("\"chapter\":\"6b\"", json);
-        Assert.Contains("\"time\":\"1:07.915\"", json);
+        Assert.Equal(
+            """{"updates":[{"tab":"B+C Sides","chapter":"6b","cp":"Falling","time":"1:07.915","expect":"1:09.4"}]}""",
+            json);
     }
 
     // the payloads below are what the deployed script actually answered on

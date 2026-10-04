@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
@@ -16,17 +15,11 @@ public class MalformedInputTests {
     [InlineData("   ", "\n\n")]
     [InlineData("no,header,here\n1,2,3", "")]
     [InlineData(",,,,\n,,,,", ",,,")]
-    public void ReturnsNoSegmentsInsteadOfThrowing(string aSides, string bSides) {
-        SheetData data = SheetData.Parse(aSides, bSides);
-
-        Assert.Equal(0, data.SegmentCount);
-    }
-
     // a sheet that stopped being shared publicly answers 200 with a sign-in
     // page; the importer rejects it, but the parser must not choke on it either
-    [Fact]
-    public void SurvivesAnHtmlErrorPage() {
-        SheetData data = SheetData.Parse("<!DOCTYPE html><html><body>Sign in</body></html>", null);
+    [InlineData("<!DOCTYPE html><html><body>Sign in</body></html>", null)]
+    public void ReturnsNoSegmentsInsteadOfThrowing(string aSides, string bSides) {
+        SheetData data = SheetData.Parse(aSides, bSides);
 
         Assert.Equal(0, data.SegmentCount);
     }
@@ -121,19 +114,4 @@ public class MalformedInputTests {
         SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
         Assert.Equal("Start", segment.Name);
     }
-}
-
-// the three tabs as they were last exported; refreshing them is how a
-// change in the sheet becomes a failing test (see SheetConsistencyTests)
-internal static class Fixtures {
-    public static string ASides { get; } = Read("asides.csv");
-    public static string BSides { get; } = Read("bsides.csv");
-    public static string Farewell { get; } = Read("farewell.csv");
-
-    public static SheetData Parsed { get; } = SheetData.Parse(ASides, BSides, Farewell);
-
-    public static List<SheetSegment> Imported => Parsed.CheckpointBlock.Segments;
-
-    private static string Read(string name) =>
-        System.IO.File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "Fixtures", name));
 }

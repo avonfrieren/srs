@@ -33,27 +33,14 @@ public class SegmentRulesTests {
         "Farewell/Start DTS",
     ];
 
+    // every other row is NextRoom: a new Start-anchored row, or a new
+    // wake-up, shows up here as a diff
     [Fact]
     public void CurrentRoomRowsAreTheChapterStartsAndTheWakeUps() {
-        foreach (SegmentRule rule in SegmentRules.All) {
-            bool expected = rule.Anchor == "Start"
-                            || SegmentAutoDetect.CurrentRoomStarts.Contains((rule.Scope, rule.Anchor));
-            Assert.True(expected == (rule.Setup == StartSetup.CurrentRoom), $"{rule.Chapter}/{rule.Name}");
-        }
-
-        Assert.Equal(StartSetup.CurrentRoom, Rule("Prologue", "Granny").Setup);
-        // spec §12.2: a new Start-anchored row shows up here as a diff
         HashSet<string> currentRoom = SegmentRules.All.Where(r => r.Setup == StartSetup.CurrentRoom)
             .Select(r => $"{r.Chapter}/{r.Name}").ToHashSet();
+
         Assert.Equal(ExpectedCurrentRoomRows, currentRoom);
-        Assert.Equal(StartSetup.CurrentRoom, Rule("2a", "Awake").Setup);
-        Assert.Equal(StartSetup.CurrentRoom, Rule("5a/b", "Unravelling").Setup);
-        Assert.Equal(StartSetup.CurrentRoom, Rule("5a/b", "Through the Mirror").Setup);
-        Assert.Equal(StartSetup.CurrentRoom, Rule("7a", "7a Start").Setup);
-        Assert.Equal(StartSetup.NextRoom, Rule("1a", "Crossing").Setup);
-        Assert.Equal(StartSetup.NextRoom, Rule("2a", "Intervention").Setup);
-        Assert.Equal(StartSetup.NextRoom, Rule("6a/b", "Lake").Setup);
-        Assert.Equal(StartSetup.NextRoom, Rule("7a", "500m").Setup);
     }
 
     [Fact]
@@ -132,6 +119,30 @@ public class SegmentRulesTests {
     [InlineData("Plain RTM")]
     public void EveryOtherLabelEndsWithItsSegment(string label) {
         Assert.Equal(EndKind.NextStart, Synthetic(label).End);
+    }
+
+    // the markers are what a run must collect, wherever they sit in the label
+    [Theory]
+    [InlineData("Crossing 💙", (int)Collectibles.Heart)]
+    [InlineData("Hollows 📼Clear", (int)Collectibles.Cassette)]
+    [InlineData("7a Start 💎", (int)Collectibles.Gem)]
+    [InlineData("Crossing", (int)Collectibles.None)]
+    public void ALabelRequiresWhatItMarks(string label, int requires) {
+        Assert.Equal((Collectibles)requires, Synthetic(label).Requires);
+    }
+
+    // "X DTS" keeps both dashes and the "X" beside it lost one; a Farewell row
+    // without a twin, and any other tab's, has no dash rule
+    [Fact]
+    public void ADtsTwinSplitsItsRowOnTheDashes() {
+        List<SegmentRule> rules = SegmentRules.Build([
+            new SheetRow(StandardsTab.Farewell, "Farewell", "Singular", "Farewell", "Farewell", "Singular", "Singular"),
+            new SheetRow(StandardsTab.Farewell, "Farewell", "Singular DTS", "Farewell", "Farewell", "Singular DTS", "Singular"),
+            new SheetRow(StandardsTab.Farewell, "Farewell", "Stubbornness", "Farewell", "Farewell", "Stubbornness", "Stubbornness"),
+            new SheetRow(StandardsTab.ASides, "1a CP", "Crossing DTS", "1a", "1a", "Crossing DTS", "Crossing"),
+        ]);
+
+        Assert.Equal(new int?[] { 1, 2, null, null }, rules.Select(r => r.Dashes));
     }
 
     // a marker read wrong mistimes its row without a sound
