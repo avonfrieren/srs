@@ -2,22 +2,18 @@ using Celeste.Mod.CelesteHotkeys;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// the four rebindable hotkeys, as a CelesteHotkeys table polled once per
+// the two rebindable hotkeys, as a CelesteHotkeys table polled once per
 // frame. The module reads a binding as a combo, which Everest's key config
 // screen cannot express: every binding is [SettingIgnore] and bound from the
 // module's own screen (ModMenu)
 public static class Hotkeys {
-    internal static readonly Keybind<SrsSettings> CycleCategory =
-        new("MODOPTIONS_SRS_CYCLECATEGORY", nameof(SrsSettings.CycleCategory));
     internal static readonly Keybind<SrsSettings> ToggleShowTier =
         new("MODOPTIONS_SRS_TOGGLESHOWTIER", nameof(SrsSettings.ToggleShowTier));
-    internal static readonly Keybind<SrsSettings> ToggleShowSelection =
-        new("MODOPTIONS_SRS_TOGGLESHOWSELECTION", nameof(SrsSettings.ToggleShowSelection));
     internal static readonly Keybind<SrsSettings> OpenExportMenu =
         new("MODOPTIONS_SRS_OPENEXPORTMENU", nameof(SrsSettings.OpenExportMenu));
 
     internal static readonly Keybind<SrsSettings>[] All =
-        [CycleCategory, ToggleShowTier, ToggleShowSelection, OpenExportMenu];
+        [ToggleShowTier, OpenExportMenu];
 
     internal static readonly HotkeySet<SrsSettings> Set = new(() => SrsModule.Settings, All);
 
@@ -36,9 +32,7 @@ public static class Hotkeys {
         // screen, where these used to be set, records it unfiltered
         Bindable.Sanitize(SrsModule.Settings);
 
-        // loaded first, so this hook is the innermost one: after orig the
-        // hotkeys are updated before RunWatcher, TierComparison,
-        // SegmentAutoDetect and ExportMenu read them on the same frame
+        // hook order: see SrsModule.Load
         On.Celeste.Level.Update += LevelOnUpdate;
     }
 
@@ -49,7 +43,7 @@ public static class Hotkeys {
     /// Whether the hotkey fired this frame. While the level is paused only the
     /// export screen's own hotkey answers, and only behind the pause that
     /// screen holds, or the combo that opened it could not close it. The other
-    /// three move the selection, which is what the open screen is a view of.
+    /// one toggles the tier row, which the open screen hides anyway.
     /// Polled through the pause rather than skipped, so a combo held across it
     /// does not fire when it ends.
     internal static bool Pressed(Keybind<SrsSettings> keybind) =>

@@ -28,9 +28,8 @@ public sealed class ExportResult {
     [JsonPropertyName("reason")] public string Reason { get; set; } = "";
 }
 
-/// The script answers with results, or with error and nothing else. There is no
-/// "ok" on the wire: a run against the deployed script on 2026-08-28 returned
-/// exactly {results:[...]} and {error:"..."}.
+/// The script answers with results, or with error and nothing else: there is
+/// no "ok" on the wire.
 public sealed class ExportResponse {
     [JsonPropertyName("results")] public List<ExportResult> Results { get; set; } = [];
     [JsonPropertyName("error")] public string Error { get; set; }

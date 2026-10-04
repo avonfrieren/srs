@@ -1,8 +1,11 @@
+using System;
 using System.Collections.Generic;
 using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
+// RemoteBests is static and xUnit runs test classes in parallel: no other
+// class may touch it
 public class RemoteBestsStateTests {
     [Fact]
     public void StartsNotLoaded() {
@@ -18,6 +21,45 @@ public class RemoteBestsStateTests {
         ]);
 
         Assert.Equal(RemoteState.Ready, RemoteBests.State);
+        Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "1a", "Crossing"), out RemoteRow row));
+        Assert.Equal("21.948", row.Time);
+    }
+
+    // a screen asking afresh: nothing is compared against a sheet that may have
+    // moved, and nothing held has an age
+    [Fact]
+    public void BeginFetchEmptiesTheIndexAndWaits() {
+        RemoteBests.Reset();
+        RemoteBests.Accept([
+            new RemoteRow { Tab = "A Sides", Chapter = "1a", Cp = "Crossing", Time = "21.948" },
+        ]);
+        RemoteBests.BeginFetch();
+
+        Assert.Equal(RemoteState.Loading, RemoteBests.State);
+        Assert.False(RemoteBests.IsResolved);
+        Assert.False(RemoteBests.TryGet(new SheetRowRef("A Sides", "1a", "Crossing"), out _));
+        Assert.Equal(TimeSpan.MaxValue, RemoteBests.Age);
+    }
+
+    [Fact]
+    public void AnAnswerIsAsOldAsItsArrival() {
+        RemoteBests.Reset();
+        Assert.Equal(TimeSpan.MaxValue, RemoteBests.Age);
+
+        RemoteBests.Accept([]);
+        Assert.True(RemoteBests.Age < TimeSpan.FromMinutes(1));
+    }
+
+    // a refresh failing under an open screen keeps the rows it was built from
+    [Fact]
+    public void FailingAfterAnAnswerKeepsItsRows() {
+        RemoteBests.Reset();
+        RemoteBests.Accept([
+            new RemoteRow { Tab = "A Sides", Chapter = "1a", Cp = "Crossing", Time = "21.948" },
+        ]);
+        RemoteBests.Fail("timeout");
+
+        Assert.Equal(RemoteState.Error, RemoteBests.State);
         Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "1a", "Crossing"), out RemoteRow row));
         Assert.Equal("21.948", row.Time);
     }
@@ -58,9 +100,9 @@ public class RemoteBestsStateTests {
 
     [Fact]
     public void RowsDifferingOnlyByEmojiStayDistinct() {
-        // ten such pairs exist in the sheet ("7a Start" / "7a Start \U0001F48E", every 7A
-        // checkpoint, "Crossing" / "Crossing \U0001F499"...). Stripping emoji
-        // instead of only the variation selector merges them.
+        // the sheet has such pairs ("7a Start" / "7a Start \U0001F48E", "Crossing" /
+        // "Crossing \U0001F499"). Stripping emoji instead of only the variation
+        // selector merges them.
         RemoteBests.Reset();
         RemoteBests.Accept([
             new RemoteRow { Tab = "A Sides", Chapter = "7a", Cp = "7a Start", Time = "39.457" },

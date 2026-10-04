@@ -27,12 +27,11 @@ internal static class ExportClient {
             if (string.IsNullOrWhiteSpace(url)) {
                 return (null, ExportProtocol.Localize("SRS_EXPORT_ERR_NO_URL"));
             }
-            // the round trip is the whole of the wait the player sees, and
-            // nothing measured it: an Apps Script cold start and an oversized
-            // payload look the same from the game
+            // timed: an Apps Script cold start and an oversized payload look the
+            // same from the game
             Stopwatch clock = Stopwatch.StartNew();
             try {
-                HttpResponseMessage response = json == null
+                using HttpResponseMessage response = json == null
                     ? await Http.GetAsync(url)
                     : await Http.PostAsync(url,
                         new StringContent(json, Encoding.UTF8, "application/json"));
@@ -56,7 +55,8 @@ internal static class ExportClient {
             } catch (Exception e) {
                 Logger.Log(LogLevel.Warn, LogTag,
                     $"export request failed after {clock.ElapsedMilliseconds} ms: " + e.Message);
-                return (null, ExportProtocol.Localize("SRS_EXPORT_ERR_UNREACHABLE") + " " + e.Message);
+                // the message is the runtime's, in English: the log keeps it
+                return (null, ExportProtocol.Localize("SRS_EXPORT_ERR_UNREACHABLE"));
             }
         });
 }

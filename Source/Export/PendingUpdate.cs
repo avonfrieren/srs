@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -5,8 +6,6 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// One reviewable line of the export screen.
 public sealed class PendingUpdate {
     public SheetRowRef Row { get; private init; }
-    /// the sheet segment this time is being written to; null in tests
-    public SheetSegment Segment { get; private init; }
     public string Label { get; private init; }
     public long LocalTicks { get; private init; }
     public long? RemoteTicks { get; private init; }
@@ -17,9 +16,6 @@ public sealed class PendingUpdate {
     /// where RemoteText reformats to "1:36.900"
     public string RemoteCell { get; private init; }
     public string DeltaText { get; private init; }
-    public bool WillImprove { get; private init; }
-    /// the sheet holds something in that cell and this mod cannot read it
-    public bool RemoteUnreadable { get; private init; }
     public bool Selected { get; set; }
 
     /// remoteCell is the cell as the script read it, never a parsed time.
@@ -28,11 +24,13 @@ public sealed class PendingUpdate {
     /// as empty ticks the row and overwrites it, which a Google locale writing
     /// 8,704 does on every row. 0:00.000 counts as empty, the sheet's own idiom
     /// for "no time yet" (as in TierComparison's threshold > TimeSpan.Zero).
-    public static PendingUpdate Create(SheetRowRef row, string label, long localTicks, string remoteCell,
-        SheetSegment segment = null) {
+    public static PendingUpdate Create(SheetRowRef row, string label, long localTicks, string remoteCell) {
         long? parsedTicks = SheetData.TryParseTime(remoteCell)?.Ticks;
-        bool unreadable = parsedTicks == null && !string.IsNullOrWhiteSpace(remoteCell);
-        long? remoteTicks = parsedTicks == 0 ? null : parsedTicks;
+        // an hour or more is unreadable too: Speed Run Tool's format has no
+        // hours, and would show the cell an hour short
+        bool unreadable = (parsedTicks == null && !string.IsNullOrWhiteSpace(remoteCell))
+                          || parsedTicks >= TimeSpan.TicksPerHour;
+        long? remoteTicks = unreadable || parsedTicks == 0 ? null : parsedTicks;
 
         // an unreadable cell is never an improvement: we cannot tell, and the
         // safe default is to leave a time we do not understand alone
@@ -47,7 +45,6 @@ public sealed class PendingUpdate {
 
         return new PendingUpdate {
             Row = row,
-            Segment = segment,
             Label = label,
             LocalTicks = localTicks,
             RemoteTicks = remoteTicks,
@@ -58,8 +55,6 @@ public sealed class PendingUpdate {
                        : remoteTicks == null ? "" : TimeFormat.FromTicks(remoteTicks.Value),
             RemoteCell = remoteCell ?? "",
             DeltaText = delta,
-            WillImprove = improves,
-            RemoteUnreadable = unreadable,
             Selected = improves,
         };
     }

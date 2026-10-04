@@ -1,93 +1,141 @@
 using System;
+using System.Collections.Generic;
+using Celeste.Mod.SpeedrunTool;
+using Microsoft.Xna.Framework;
 using Monocle;
 using MonoMod.ModInterop;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// srs decides itself when a run of the selected segment is
-// finished, from the segment's declarative EndCondition — entering the next
-// checkpoint's room, completing the chapter, or collecting the cassette/heart.
-// SpeedrunTool is only the stopwatch: GetRoomTime() is captured on the frame
-// the condition fires, and its Number of Rooms setting is never touched (the
-// old RoomCounts table is gone — room counts were route-fragile and blind to
-// categories; conditions are neither).
+// Feeds RunTracker from the game: chapter time, how each room was reached, the
+// player's control, the collects, the frame chapter time stops and Restart
+// Chapter.
 public static class RunWatcher {
-    // the room the run started in: Session.Level on the 0 -> >0 edge of the
-    // timer. That is the room whose entry started the timing — a Next Room
-    // timer armed one room before the segment (the standard practice setup)
-    // starts on the transition *into* the segment's first room, a Current
-    // Room timer starts right where it was reset; in both cases the frame
-    // the time first moves, Session.Level is the room the run is timed from.
-    // Mutated during gameplay ⇒ registered with SpeedrunTool's save states:
-    // loading a savestate restores the run in progress, capture included
-    private static string startRoom;
-    private static bool completed;
-    private static bool hasCapture;
-    private static long capturedTicks;
-    // the segment the run completed, by name: the selection can move after
-    // the run (the sliders, the category hotkey), and the tier must stay
-    // graded against the thresholds the run was made on
-    private static string capturedChapter;
-    private static string capturedName;
+    // the player has no control in these states: a start reached in one waits
+    // for control in that room. ⚠️ StIntroJump must stay out: 7A's 500m to
+    // 3000m are entered in it, from the launch, and open on the entry
+    private static readonly HashSet<int> NoControlStates = [
+        Player.StDummy, Player.StIntroWalk, Player.StIntroRespawn,
+        Player.StIntroWakeUp, Player.StBirdDashTutorial, Player.StFrozen, Player.StReflectionFall,
+        Player.StTempleFall, Player.StIntroMoonJump, Player.StIntroThinkForABit,
+    ];
+
+    // with Speed Run Tool's "freeze after load" Off, a player load counts the
+    // frame its wipe ends on, which Session.Time does not. Only the load's own
+    // wipe counts: a TAS load starts none, and restores the one its state was
+    // saved under
+    private static readonly long WipeEndFrame = TimeSpan.FromMilliseconds(17).Ticks;
+
+    // how the room was loaded since the last fed frame, read from LoadLevel;
+    // when several loads land in one gap, the strongest wins
+    private enum RoomLoad {
+        None,
+        // Respawn from Level.Reload: a death
+        Respawn,
+        // any intro but Respawn: a transition, or a room change the game makes
+        // in a cutscene
+        WalkIn,
+        // any other Respawn: Speed Run Tool's teleport, into another room or to
+        // a summit flag of this one
+        Teleport,
+        // a level from the loader: entering a chapter, a restart, console load,
+        // the debug map
+        Loader,
+    }
+
+    private static RunTracker tracker;
+
+    // game state, saved and restored with each savestate: a stamp written on
+    // every fed frame (a load puts back an older one, which is how a load is
+    // seen), the room the next walk-in comes from, and where the player last
+    // appeared, exactly, with whether they have moved since
+    private static class Saved {
+        public static long Stamp;
+        public static string From;
+        public static Vector2 SpawnAt;
+        public static bool Moved = true;
+    }
 
     private static object saveLoadAction;
+    private static object wipeAction;
+    // the wipe the last load restored with the level, before a player load
+    // starts its own; read and cleared on the next frame
+    private static ScreenWipe restoredWipe;
 
-    // SegmentAutoDetect suspends itself while this is true: a finished run
-    // usually walks into the next checkpoint's room, and moving the selection
-    // there would re-target the tier comparison and discard the shown result
-    public static bool Completed => completed;
+    // never saved: what a load is compared against. stamp only grows, so a
+    // saved stamp differs from it once a frame has been fed since the save
+    private static long stamp;
+    private static string lastRoom;
+    private static int lastState = -1;
+    private static bool lastControl = true;
+    private static bool lastStopped;
+    private static bool fedLastFrame;
+    private static RoomLoad roomLoad;
+    // inside Level.Reload, the game's only LoadLevel(Respawn)
+    private static bool reloading;
 
-    // the final time is frozen on every completion; HasCapture tells whether
-    // the run also started at the selected segment's start room (start
-    // guard) — only then does it earn a tier. A run from a savestate planted
-    // mid-segment still shows its frozen time, greyed, so the end of the run
-    // is always visible
-    public static bool HasCapture => hasCapture;
-    public static long CapturedTicks => capturedTicks;
+    // Restart Chapter, seen when the new session is made: the old session's
+    // last chapter time, for the rows that end on it
+    private static bool chapterRestarted;
+    private static long restartedTime;
+    private static AreaKey restartedArea;
 
-    /// The completed segment in the sheet as it is now, looked up by name so a
-    /// re-import mid-session is picked up. Null when nothing is completed or
-    /// the sheet no longer has that row.
-    public static SheetSegment CapturedSegment {
-        get {
-            SheetBlock block = SheetImporter.Data?.CheckpointBlock;
-            return !completed || block == null
-                ? null
-                : block.Find(capturedChapter, capturedName);
-        }
-    }
+    // the frame being fed: a collect inside it is timed from its start, as
+    // every other end is (Session.Time already counts the frame by then)
+    private static bool inUpdate;
+    private static long frameStart;
+
+    /// The last segment closed with a time, the most specific of its frame;
+    /// null after a load. The HUD's tier row.
+    internal static SegmentRecord? Latest { get; private set; }
 
     // fields are filled at runtime by ModInterop()
 #pragma warning disable CS0649
-    [ModImportName("SpeedrunTool.RoomTimer")]
-    private static class RoomTimerImports {
-        public static Func<long> GetRoomTime;
-    }
-
     [ModImportName("SpeedrunTool.SaveLoad")]
     private static class SaveLoadImports {
         public static Func<Type, string[], object> RegisterStaticTypes;
+
+        // saveState, loadState, clearState, beforeSaveState, beforeLoadState, preCloneEntities
+        public static Func<Action<Dictionary<Type, Dictionary<string, object>>, Level>,
+            Action<Dictionary<Type, Dictionary<string, object>>, Level>, Action, Action<Level>, Action<Level>,
+            Action, object> RegisterSaveLoadAction;
+
         public static Action<object> Unregister;
     }
 #pragma warning restore CS0649
 
     public static void Load() {
-        // loaded before TierComparison and SegmentAutoDetect: this Level.Update
-        // hook must stay innermost so the frame order after orig is capture →
-        // tier computation → selection move
+        // hook order: see SrsModule.Load
         On.Celeste.Level.Update += LevelOnUpdate;
+        On.Celeste.Level.LoadLevel += LevelOnLoadLevel;
+        On.Celeste.Level.Reload += LevelOnReload;
+        On.Celeste.Session.Restart += SessionOnRestart;
         On.Celeste.SaveData.RegisterCassette += OnRegisterCassette;
         On.Celeste.HeartGem.RegisterAsCollected += OnRegisterHeart;
 
-        typeof(RoomTimerImports).ModInterop();
         typeof(SaveLoadImports).ModInterop();
-        saveLoadAction = SaveLoadImports.RegisterStaticTypes?.Invoke(typeof(RunWatcher),
-            [nameof(startRoom), nameof(completed), nameof(hasCapture), nameof(capturedTicks),
-                nameof(capturedChapter), nameof(capturedName)]);
+        saveLoadAction = SaveLoadImports.RegisterStaticTypes?.Invoke(typeof(Saved),
+            [nameof(Saved.Stamp), nameof(Saved.From), nameof(Saved.SpawnAt), nameof(Saved.Moved)]);
+        if (saveLoadAction == null) {
+            // loads would go unseen, and chapter time keeps running across a
+            // load, so a segment open across one would be mistimed: nothing is fed
+            Logger.Log(LogLevel.Warn, "srs", "Speed Run Tool's SaveLoad did not bind: savestate loads cannot be seen, so srs records nothing");
+        }
+
+        // loadState runs once the level is restored, before a player load's
+        // wipe starts. clearState stays unwired: clearing a slot rewinds
+        // nothing, and a TAS may clear the slots as it starts
+        wipeAction = SaveLoadImports.RegisterSaveLoadAction?.Invoke(null,
+            (_, level) => restoredWipe = level.Wipe, null, null, null, null);
+
+        tracker = new RunTracker(SegmentRules.All, null);
     }
 
     public static void Unload() {
         On.Celeste.Level.Update -= LevelOnUpdate;
+        On.Celeste.Level.LoadLevel -= LevelOnLoadLevel;
+        On.Celeste.Level.Reload -= LevelOnReload;
+        On.Celeste.Session.Restart -= SessionOnRestart;
         On.Celeste.SaveData.RegisterCassette -= OnRegisterCassette;
         On.Celeste.HeartGem.RegisterAsCollected -= OnRegisterHeart;
 
@@ -95,241 +143,324 @@ public static class RunWatcher {
             SaveLoadImports.Unregister?.Invoke(saveLoadAction);
             saveLoadAction = null;
         }
+
+        if (wipeAction != null) {
+            SaveLoadImports.Unregister?.Invoke(wipeAction);
+            wipeAction = null;
+        }
+
+        restoredWipe = null;
+    }
+
+    // every room load passes here. A walk-in is any intro but Respawn: a
+    // transition, or a cutscene's room change (2A's dream, the mirrors, 6A's
+    // fall, Farewell's intro). A death respawns through Level.Reload; any other
+    // Respawn is Speed Run Tool's teleport, which can stay in the room (PageDown
+    // to 7A's next summit flag). Four cutscene changes run in OnEndOfFrame,
+    // after the update hook: the next fed frame reads the kind
+    private static void LevelOnLoadLevel(On.Celeste.Level.orig_LoadLevel orig, Level self,
+        Player.IntroTypes playerIntro, bool isFromLoader) {
+        orig(self, playerIntro, isFromLoader);
+        RoomLoad kind = isFromLoader ? RoomLoad.Loader
+            : playerIntro != Player.IntroTypes.Respawn ? RoomLoad.WalkIn
+            : reloading ? RoomLoad.Respawn
+            : RoomLoad.Teleport;
+        if (kind > roomLoad) {
+            roomLoad = kind;
+        }
+    }
+
+    private static void LevelOnReload(On.Celeste.Level.orig_Reload orig, Level self) {
+        reloading = true;
+        try {
+            orig(self);
+        } finally {
+            reloading = false;
+        }
+    }
+
+    // Restart Chapter makes the new session with no room, with or without the
+    // wipe; a golden berry restart names its room. Nothing updates the old
+    // session afterwards, so its time is the run's last chapter time
+    private static Session SessionOnRestart(On.Celeste.Session.orig_Restart orig, Session self, string intoLevel) {
+        Session restarted = orig(self, intoLevel);
+        if (intoLevel == null) {
+            chapterRestarted = true;
+            restartedTime = self.Time;
+            restartedArea = self.Area;
+        }
+
+        return restarted;
     }
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
-        // switched off: no capture, and the run in progress is simply left
-        // where it is — turning the mod back on resumes from the timer's own
-        // state, which is SpeedrunTool's, not ours
-        if (!SrsModule.Settings.Enabled) {
+        // switched off: nothing is fed, and the next frame fed drops what was
+        // open, since the events missed meanwhile would close it wrongly. Moved
+        // is set on every frame off, so a savestate made or loaded meanwhile
+        // opens nothing. Without Speed Run Tool's SaveLoad a load could not be
+        // seen: never fed
+        if (!SrsModule.Settings.Enabled || saveLoadAction == null) {
+            // cleared after orig too: a LoadLevel or a restart inside it would set them
+            fedLastFrame = false;
+            restoredWipe = null;
             orig(self);
+            roomLoad = RoomLoad.None;
+            chapterRestarted = false;
+            Saved.Moved = true;
+            if (self.Tracker.GetEntity<Player>()?.StateMachine.State != Player.StReflectionFall) {
+                Saved.From = self.Session.Level;
+            }
+
             return;
         }
 
-        // the room timer as it stands *before* this frame is added to it.
-        // SpeedrunTool runs inside orig — srs loads after it, so its
-        // hook is the inner one — and on the frame a room condition fires it
-        // does exactly this: RoomTimerManager.Timing() freezes the displayed
-        // time first (UpdateTimerState), then adds the frame's delta. Reading
-        // GetRoomTime() after orig therefore handed srs one frame more than
-        // SpeedrunTool shows, and than the sheet's references, which are all
-        // recorded with SpeedrunTool. It is also the right time on its own
-        // terms: the frame Session.Level has already flipped is a frame spent
-        // in the *next* room, and does not belong to the segment
-        long timeBeforeUpdate = RoomTimerImports.GetRoomTime?.Invoke() ?? 0;
+        // before orig: the reading an end is timed from (Speed Run Tool freezes
+        // its display before it adds the frame), and the level and the Saved
+        // values as a load left them, before this frame can move the player
+        bool loaded = Saved.Stamp != stamp;
+        if (loaded) {
+            // a room loaded before the load belongs to the timeline it left
+            roomLoad = RoomLoad.None;
+        }
 
+        long before = self.Session.Time;
+        Player playerBefore = self.Tracker.GetEntity<Player>();
+        LevelData dataBefore = self.Session.LevelData;
+        string roomBefore = self.Session.Level;
+        int stateBefore = playerBefore?.StateMachine.State ?? -1;
+        Vector2? exactBefore = playerBefore?.ExactPosition;
+        bool controlBefore = !self.InCutscene && !NoControlStates.Contains(stateBefore);
+        bool stoppedBefore = self.TimerStopped || self.Completed;
+        // a player load's own wipe
+        bool loadWiping = self.Wipe != null && self.Wipe != restoredWipe;
+        restoredWipe = null;
+        string from = Saved.From;
+        bool movedAtLoad = Saved.Moved;
+        Vector2 spawnAtLoad = Saved.SpawnAt;
+
+        frameStart = before;
+        inUpdate = true;
         orig(self);
+        inUpdate = false;
 
-        long time = RoomTimerImports.GetRoomTime?.Invoke() ?? 0;
-        if (time == 0) {
-            // armed (or reset — timer clear, savestate load back to zero):
-            // whatever run was tracked is discarded, detection resumes
-            startRoom = null;
-            completed = false;
-            hasCapture = false;
-            return;
+        Session session = self.Session;
+        long after = session.Time;
+        string scope = SegmentAutoDetect.ScopeOf(session);
+        string room = session.Level;
+        Player player = self.Tracker.GetEntity<Player>();
+        int state = player?.StateMachine.State ?? -1;
+        bool control = !self.InCutscene && !NoControlStates.Contains(state);
+        bool launching = state == Player.StIntroJump;
+        bool stopped = self.TimerStopped || self.Completed;
+        tracker.Rooms = RoomMap.For(session);
+        EndState end = EndState.With(session.Inventory.Dashes);
+        RoomLoad load = roomLoad;
+        roomLoad = RoomLoad.None;
+        // a room change no LoadLevel walked into is a teleport too. Not on a
+        // load: the state's room is not a room change
+        bool teleported = Saved.Stamp == stamp
+                          && (load == RoomLoad.Teleport
+                              || (fedLastFrame && room != lastRoom && load < RoomLoad.WalkIn));
+
+        bool feed = false;
+        // a new attempt landed this frame, so the player appears now if they
+        // have control
+        bool restarted = false;
+        // this frame's control and state edges are the player's own: not on a
+        // load inside orig, nor on the frame srs is switched back on
+        bool watched = true;
+        if (!loaded && Saved.Stamp != stamp) {
+            // a load inside orig: this frame's events would mix two timelines
+            tracker.Drop();
+            Latest = null;
+            watched = false;
+        } else if (loaded) {
+            // every load is a new attempt. With control, the room's Current Room
+            // segment opens if the player has not moved since appearing on its
+            // start spawn; without, it waits for the appearance that follows
+            bool wipeEnd = loadWiping
+                           && SpeedrunToolSettings.Instance?.FreezeAfterLoadStateType == FreezeAfterLoadStateType.Off;
+            if (controlBefore) {
+                tracker.Restart(scope, roomBefore, before - (wipeEnd ? WipeEndFrame : 0), true,
+                    stateBefore == Player.StIntroJump,
+                    movedAtLoad ? _ => false : AtStartSpawn(dataBefore, spawnAtLoad));
+            } else {
+                tracker.RestartAtAppearance(scope, roomBefore);
+            }
+
+            Latest = null;
+            // this frame's events start from the level the load left
+            lastRoom = roomBefore;
+            lastState = stateBefore;
+            lastControl = controlBefore;
+            lastStopped = stoppedBefore;
+            feed = scope != null;
+        } else if (load == RoomLoad.Loader) {
+            // entering a chapter, a restart, a console load, the debug map: the
+            // spawn tested is the one the player appears at (an intro starts off
+            // screen). A checkpoint entered from chapter select counts without
+            // its wake-up (owner decision)
+            Latest = null;
+            // == and not Equals: AreaKey.Equals(object) always returns false
+            if (chapterRestarted && restartedArea == session.Area) {
+                // the rows ending on Restart Chapter close first, on the old
+                // session's time; the restart then drops the rest unrecorded
+                Emit(session, tracker.ChapterRestarted(restartedTime, end));
+            }
+
+            tracker.Restart(scope, room, before, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
+            restarted = true;
+        } else if (teleported) {
+            // Speed Run Tool's room teleport skips rooms without lowering chapter
+            // time: a new attempt from the spawn it put the player on
+            tracker.Restart(scope, room, before, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
+            Latest = null;
+            restarted = true;
+        } else if (!fedLastFrame) {
+            // switched back on: whatever was open missed events
+            tracker.Drop();
+            Latest = null;
+            watched = false;
+        } else if (after < before) {
+            // Level.Reload zeroes chapter time on a death in the first room
+            // with nothing collected: a new attempt from the spawn, which
+            // without control waits for ControlReturned
+            tracker.Restart(scope, room, after, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
+            Latest = null;
+            restarted = true;
+        } else {
+            feed = scope != null;
         }
 
-        // 0 -> >0 edge: the timing just started, and it started from the room
-        // the session is in on this very frame (SpeedrunTool starts a Next
-        // Room timer on the same frame Session.Level flips to the new room).
-        // A savestate load restores startRoom directly instead
-        startRoom ??= self.Session.Level;
+        if (feed) {
+            if (state == Player.StReflectionFall && lastState != Player.StReflectionFall) {
+                // 6A's watched fall is not a run of 6a Start (owner decision):
+                // disqualified, not dropped, so it still closes in Lake's start
+                // room and Lake opens there
+                tracker.Disqualify();
+            }
 
-        // timeBeforeUpdate == 0 is that very edge frame: the timing starts
-        // here, so there is no run to finish yet
-        if (!completed && timeBeforeUpdate > 0) {
-            CheckRoomConditions(self, timeBeforeUpdate);
+            // closes before opens: the stop edge, then the room entry (which
+            // closes before it opens), then the starts waiting
+            if (stopped && !lastStopped) {
+                Emit(session, tracker.ChapterTimeStopped(before, end));
+            }
+
+            if (room != lastRoom && load == RoomLoad.WalkIn) {
+                Emit(session, tracker.RoomEntered(scope, from, room, before, control, launching, end));
+            }
+
+            // the state changes during this frame's update, and a savestate
+            // saved at the end of this frame times from the next frame: the
+            // start reading is the one after it
+            if (lastState == Player.StIntroJump && !launching) {
+                tracker.LaunchEnded(scope, room, after);
+            }
+
+            if (!lastControl && control) {
+                tracker.ControlReturned(room, after, AtStartSpawn(session.LevelData, player?.ExactPosition));
+            }
         }
+
+        // the player appears when control returns, when the intro jump ends
+        // (1A's too), and when a restart lands with control; a load restores
+        // the last appearance. A loader, a teleport, a death and the switch
+        // back on set Moved, before an appearance of the same frame
+        bool appeared = restarted
+            ? control
+            : watched && ((!lastControl && control) || (lastState == Player.StIntroJump && !launching));
+        bool disturbed = load is RoomLoad.Respawn or RoomLoad.Teleport or RoomLoad.Loader || teleported || !fedLastFrame;
+        (float X, float Y)? at = player == null ? null : (player.ExactPosition.X, player.ExactPosition.Y);
+        // a restart that has control already appears where the frame began, so
+        // a direction held into its first frame is a move
+        (float X, float Y)? appearedAt = restarted && control && exactBefore is { } start ? (start.X, start.Y) : at;
+        Stillness still = new Stillness(Saved.SpawnAt.X, Saved.SpawnAt.Y, Saved.Moved)
+            .After(disturbed, appeared, appearedAt)
+            .After(false, false, at);
+        Saved.SpawnAt = new Vector2(still.X, still.Y);
+        Saved.Moved = still.Moved;
+
+        Saved.Stamp = ++stamp;
+        // during 6A's watched fall the rooms passed through are not where the
+        // run comes from: 00 is entered from start, as after either skip
+        if (restarted || !watched || state != Player.StReflectionFall) {
+            Saved.From = room;
+        }
+
+        lastRoom = room;
+        lastState = state;
+        lastControl = control;
+        lastStopped = stopped;
+        chapterRestarted = false;
+        fedLastFrame = true;
     }
 
-    // the room-shaped condition, polled like SpeedrunTool polls its own room
-    // count: entering the end room (Session.Level flips on the same frame
-    // SpeedrunTool counts the room), or the chapter's completion when the
-    // segment has no next checkpoint to end at
-    private static void CheckRoomConditions(Level level, long time) {
-        SheetSegment segment = SelectedSegmentFor(level.Session);
-        if (segment == null) {
-            return;
+    // owner decision: a savestate further into the room does not play the
+    // room. The point must be on a start spawn, or at the measured offset from
+    // one. A "Start" row's are the room's default spawn (the game's own,
+    // Level.DefaultSpawnPoint) and the spawn beside each checkpoint; a wake-up
+    // row's is its WakeUpSpawns entry
+    private static Func<SegmentRule, bool> AtStartSpawn(LevelData data, Vector2? point) =>
+        rule => point is { } at && AtStartSpawn(data, at, rule);
+
+    private static bool AtStartSpawn(LevelData data, Vector2 point, SegmentRule rule) {
+        if (data == null || data.Spawns.Count == 0) {
+            return false;
         }
 
-        switch (segment.End) {
-            case EndCondition.Checkpoint:
-                string endRoom = EndRoomOf(segment, level.Session);
-                // no next checkpoint (chapter finals, Granny) ⇒ the chapter's
-                // completion ends the run instead.
-                // A run never ends in the room its own timing started from:
-                // on the frame a Next Room timer starts (the transition into
-                // the segment's first room), the selection can still be the
-                // previous segment — whose end room is exactly the room being
-                // entered. That entry is the start of this run, not the end
-                // of the previous one
-                if (endRoom == null ? level.Completed
-                        : level.Session.Level == endRoom && endRoom != startRoom) {
-                    Complete(level.Session, segment, time);
-                }
+        (int x, int y) = SegmentAutoDetect.SpawnOffsets.GetValueOrDefault((rule.Scope, rule.Anchor));
+        Vector2 offset = new(x, y);
+        bool On(Vector2 spawn) => Near(point, spawn) || Near(point, spawn + offset);
 
-                break;
+        if (rule.Anchor != "Start") {
+            return SegmentAutoDetect.WakeUpSpawns.TryGetValue((rule.Scope, rule.Anchor), out (int X, int Y) wakeUp)
+                   && On(new Vector2(wakeUp.X, wakeUp.Y));
         }
+
+        if (On(data.Spawns.ClosestTo(new Vector2(data.Bounds.Left, data.Bounds.Bottom)))) {
+            return true;
+        }
+
+        foreach (EntityData entity in data.Entities) {
+            if (entity.Name == "checkpoint" && On(data.Spawns.ClosestTo(data.Position + entity.Position))) {
+                return true;
+            }
+        }
+
+        return false;
     }
+
+    private static bool Near(Vector2 a, Vector2 b) => Math.Abs(a.X - b.X) <= 1f && Math.Abs(a.Y - b.Y) <= 1f;
 
     private static void OnRegisterCassette(On.Celeste.SaveData.orig_RegisterCassette orig, SaveData self, AreaKey area) {
         orig(self, area);
-        OnCollect(EndCondition.Cassette);
+        OnCollect(Collectibles.Cassette);
     }
 
     private static void OnRegisterHeart(On.Celeste.HeartGem.orig_RegisterAsCollected orig, HeartGem self, Level level, string poemId) {
         orig(self, level, poemId);
-        OnCollect(EndCondition.Heart);
+        OnCollect(Collectibles.Heart);
     }
 
-    // collect events land between updates; the capture happens right here so
-    // the time is the collect frame's, not the next update's
-    private static void OnCollect(EndCondition condition) {
-        // gated here as well: this runs from the collect hooks, not from the
-        // update one, so a switched-off mod would still freeze a capture that
-        // nothing cleared before the switch came back on
-        if (!SrsModule.Settings.Enabled || completed || Engine.Scene is not Level level) {
+    // collects land inside an update (entity updates) or between two; inside
+    // one, the frame's start reading, as for every other end
+    private static void OnCollect(Collectibles kind) {
+        if (!SrsModule.Settings.Enabled || saveLoadAction == null || !fedLastFrame || Saved.Stamp != stamp
+            || Engine.Scene is not Level level) {
             return;
         }
 
-        long time = RoomTimerImports.GetRoomTime?.Invoke() ?? 0;
-        if (time == 0) {
+        tracker.Rooms = RoomMap.For(level.Session);
+        long reading = inUpdate ? frameStart : level.Session.Time;
+        Emit(level.Session, tracker.Collected(kind, reading, EndState.With(level.Session.Inventory.Dashes)));
+    }
+
+    private static void Emit(Session session, List<SegmentRecord> records) {
+        if (records.Count == 0) {
             return;
         }
 
-        SheetSegment segment = SelectedSegmentFor(level.Session);
-        if (segment != null && segment.End == condition) {
-            Complete(level.Session, segment, time);
-        }
+        SessionBests.Record(records, session);
+        Latest = records[Specificity.MostSpecific(records.ConvertAll(record => record.Rule))];
     }
-
-    private static void Complete(Session session, SheetSegment segment, long time) {
-        completed = true;
-        capturedChapter = segment.Chapter;
-        capturedName = segment.Name;
-
-        // start guard: a tier only makes sense for a run of the whole
-        // segment. The time freezes either way — the greyed row is the
-        // visible cue that the run ended but did not start at the segment's
-        // first room
-        hasCapture = startRoom != null && startRoom == ExpectedStartRoom(segment, session);
-
-        // add back the head of the segment srs does not time (7A Start), so
-        // the frozen time is the one the sheet's thresholds describe. Only
-        // for a run that did start at the segment's start room: a time that
-        // earns no tier is not a segment time, and padding it would only
-        // make the greyed row lie about what the timer showed
-        capturedTicks = time + (hasCapture ? UntimedHeadOf(segment, session).Ticks : 0L);
-
-        // only a run that started at the segment's first room is a segment
-        // time, so only that one is worth exporting
-        if (hasCapture) {
-            SessionBests.Record(segment, capturedTicks, session);
-        }
-    }
-
-    private static TimeSpan UntimedHeadOf(SheetSegment segment, Session session) {
-        string gameName = GameAnchorOf(segment, session);
-        return gameName != null
-               && SegmentAutoDetect.UntimedSegmentHead.TryGetValue(
-                   (SegmentAutoDetect.ScopeOf(session), gameName), out TimeSpan head)
-            ? head
-            : TimeSpan.Zero;
-    }
-
-    // the selected segment, but only while the session is actually playing its
-    // chapter — a cassette grabbed in 3A must not complete a Hollows Tape run
-    private static SheetSegment SelectedSegmentFor(Session session) {
-        SheetSegment segment = SegmentSelector.Current;
-        if (segment == null
-            || !SegmentAutoDetect.ChapterMap.TryGetValue((session.Area.ID, session.Area.Mode),
-                out (string Chapter, string Side) chapter)
-            || chapter.Chapter != segment.Chapter) {
-            return null;
-        }
-
-        return segment;
-    }
-
-    // the room a full run of the segment starts in: the game checkpoint the
-    // segment is anchored to (variants inherit their plain sibling's — that is
-    // the whole point of the Category selector)
-    private static string ExpectedStartRoom(SheetSegment segment, Session session) {
-        string gameName = GameAnchorOf(segment, session);
-        return gameName == null ? null : StartRoomOf(gameName, session);
-    }
-
-    // the room a run anchored at this game checkpoint is timed from: the
-    // override when the sheet does not start the segment at the checkpoint's
-    // own room (2A Awake, 7A Start), the map's first room for "Start" — which is
-    // the only anchor with no CheckpointData — the checkpoint's room otherwise
-    private static string StartRoomOf(string gameName, Session session) {
-        if (SegmentAutoDetect.StartRoomOverrides.TryGetValue(
-                (SegmentAutoDetect.ScopeOf(session), gameName), out string overridden)) {
-            return overridden;
-        }
-
-        if (gameName == "Start") {
-            return session.MapData.StartLevel()?.Name;
-        }
-
-        CheckpointData[] checkpoints = Checkpoints(session);
-        if (checkpoints != null) {
-            foreach (CheckpointData checkpoint in checkpoints) {
-                if (EnglishName(checkpoint) == gameName) {
-                    return checkpoint.Level;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    // where a Checkpoint segment ends: exactly where the next segment starts,
-    // resolved from AreaData at runtime — zero hand-entered data beyond the
-    // overrides, which both ends read, so the finish line moves with the start
-    // line and the two segments never overlap. Null = no next checkpoint (the
-    // chapter ends the run instead)
-    private static string EndRoomOf(SheetSegment segment, Session session) {
-        string gameName = GameAnchorOf(segment, session);
-        CheckpointData[] checkpoints = Checkpoints(session);
-        if (gameName == null || checkpoints == null || checkpoints.Length == 0) {
-            return null;
-        }
-
-        // a checkpoint the sheet cuts in two ends where its own second half
-        // starts (8A's Heart of the Mountain), not at the next game checkpoint
-        if (SegmentAutoDetect.SplitCheckpoints.TryGetValue(
-                (SegmentAutoDetect.ScopeOf(session), gameName), out string secondHalf)) {
-            return StartRoomOf(secondHalf, session);
-        }
-
-        // CheckpointData only lists the non-start checkpoints, so the segment
-        // starting at "Start" ends where the first of them begins
-        if (gameName == "Start") {
-            return StartRoomOf(EnglishName(checkpoints[0]), session);
-        }
-
-        for (int i = 0; i < checkpoints.Length - 1; i++) {
-            if (EnglishName(checkpoints[i]) == gameName) {
-                return StartRoomOf(EnglishName(checkpoints[i + 1]), session);
-            }
-        }
-
-        return null;
-    }
-
-    private static string GameAnchorOf(SheetSegment segment, Session session) {
-        string scope = SegmentAutoDetect.ScopeOf(session);
-        return scope == null ? null : SegmentAutoDetect.GameNameOf(scope, segment.Name);
-    }
-
-    private static CheckpointData[] Checkpoints(Session session) =>
-        AreaData.Get(session.Area)?.Mode[(int)session.Area.Mode]?.Checkpoints;
-
-    // CheckpointData.Name is a dialog key, translated — the tables must not
-    // depend on the player's language (same rule as SegmentAutoDetect)
-    private static string EnglishName(CheckpointData checkpoint) =>
-        Dialog.Clean(checkpoint.Name, Dialog.Languages["english"]);
 }

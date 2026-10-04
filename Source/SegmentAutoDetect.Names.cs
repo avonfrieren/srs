@@ -3,208 +3,140 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// The game-to-sheet checkpoint name table, split from the rest of
-// SegmentAutoDetect (which needs Celeste and SpeedrunTool types) so the tests
-// can check every name it points at still exists in the imported sheet.
+// The checkpoint name tables, split from the rest of SegmentAutoDetect (which
+// needs Celeste types) so the tests can check them against the row table.
 public static partial class SegmentAutoDetect {
-    // (side or chapter, game checkpoint name) -> sheet checkpoint name.
-    // Deliberately a hardcoded table, no name normalization (owner
-    // decision). "Start" stands for the
-    // session's first room (which has no CheckpointData). Game checkpoints
-    // not imported from the sheet are simply not listed — reaching them
-    // leaves the selection where it was. The
-    // cassette and heart checkpoints start at the same in-game checkpoint as
-    // their plain sibling ("Hollows Tape" at 6A's Hollows, "Huge Mess Heart"
-    // at 3A's Huge Mess) — nothing observable tells them apart, so this table
-    // maps to the plain name and the player's Category setting picks the
-    // variant through CategoryVariants. "HotM Horizontal" is the one key that
-    // is not a game checkpoint name at all: it is a virtual one the sheet
-    // needs (see SplitCheckpoints), recognised by its StartRoomOverrides room
-    internal static readonly Dictionary<(string Scope, string GameName), string> CheckpointMap = new() {
-        [("Prologue", "Start")] = "Granny",
-        [("1a", "Start")] = "Start",
-        [("1a", "Crossing")] = "Crossing",
-        [("1a", "Chasm")] = "Chasm",
-        [("2a", "Start")] = "Start",
-        [("2a", "Intervention")] = "Intervention",
-        [("2a", "Awake")] = "Awake",
-        [("3a", "Start")] = "Start",
-        [("3a", "Huge Mess")] = "Huge Mess",
-        [("3a", "Elevator Shaft")] = "Elevator Shaft",
-        [("3a", "Presidential Suite")] = "Presidential Suite",
-        [("4a", "Start")] = "Start",
-        [("4a", "Shrine")] = "Shrine",
-        [("4a", "Old Trail")] = "Old Trail",
-        [("4a", "Cliff Face")] = "Cliff Face",
-        [("5a", "Start")] = "5a Start",
-        [("5a", "Depths")] = "Depths",
-        [("5a", "Unravelling")] = "Unravelling",
-        [("5a", "Search")] = "Search",
-        [("5a", "Rescue")] = "Rescue",
-        [("5b", "Start")] = "5b Start",
-        [("5b", "Central Chamber")] = "Central Chamber",
-        [("5b", "Through the Mirror")] = "Through the Mirror",
-        [("5b", "Mix Master")] = "Mix Master",
-        [("6a", "Start")] = "6a Start",
-        [("6a", "Lake")] = "Lake",
-        [("6a", "Hollows")] = "Hollows",
-        [("6a", "Reflection")] = "Reflection",
-        [("6a", "Rock Bottom")] = "6a Rock Bottom",
-        [("6a", "Resolution")] = "Resolution",
-        [("6b", "Start")] = "6b Start",
-        [("6b", "Reflection")] = "Falling", // the sheet's name for 6B Reflection
-        [("6b", "Rock Bottom")] = "6b Rock Bottom",
-        [("6b", "Reprieve")] = "Reprieve",
-        [("7a", "Start")] = "7a Start",
-        [("7a", "500 M")] = "500m",
-        [("7a", "1000 M")] = "1000m",
-        [("7a", "1500 M")] = "1500m",
-        [("7a", "2000 M")] = "2000m",
-        [("7a", "2500 M")] = "2500m",
-        [("7a", "3000 M")] = "3000m",
-        [("8a", "Start")] = "Start",
-        [("8a", "Into the Core")] = "Into the Core",
-        [("8a", "Hot and Cold")] = "Hot and Cold",
-        [("8a", "Heart of the Mountain")] = "HotM Vertical",
-        [("8a", "HotM Horizontal")] = "HotM Horizontal",
-        [("Farewell", "Start")] = "Start",
-        [("Farewell", "Singular")] = "Singular",
-        [("Farewell", "Power Source")] = "Power Source",
-        [("Farewell", "Remembered")] = "Remembered",
-        [("Farewell", "Event Horizon")] = "Event Horizon",
-        [("Farewell", "Determination")] = "Determination",
-        [("Farewell", "Stubbornness")] = "Stubbornness",
-        [("Farewell", "Reconciliation")] = "Reconciliation",
-        [("Farewell", "Farewell")] = "Farewell",
-    };
-
-    // (category, mod chapter, sheet name from CheckpointMap) -> the category's
-    // variant of that checkpoint. The variant wins when the imported sheet has
-    // it; every unlisted triple keeps the plain row, so a category is exactly
-    // "any% plus what it lists" — True Ending owns Core and Farewell without a
-    // single entry here, because nothing else has a segment starting at those
-    // checkpoints. The chapter is part of the key because plain checkpoint
-    // names repeat across chapters, "Start" in nearly all of them
-    internal static readonly Dictionary<(SegmentCategory Category, string Chapter, string SheetName), string>
-        CategoryVariants = new() {
-            [(SegmentCategory.Cassette, "5a/b", "Depths")] = "Depths Tape",
-            [(SegmentCategory.Cassette, "6a/b", "Hollows")] = "Hollows Tape",
-            // the 3A and 4A hearts are collected on every True Ending route, and
-            // 2A's on the 6a route only: srs cannot tell 6a from 6b at 2A, so it
-            // assumes 6a. DTS is a Farewell skip, it changes nothing before it
-            [(SegmentCategory.TrueEnding, "2a", "Start")] = "Start Heart RC",
-            [(SegmentCategory.TrueEndingDts, "2a", "Start")] = "Start Heart RC",
-            [(SegmentCategory.TrueEnding, "3a", "Huge Mess")] = "Huge Mess Heart",
-            [(SegmentCategory.TrueEnding, "4a", "Shrine")] = "Shrine Heart",
-            [(SegmentCategory.TrueEndingDts, "3a", "Huge Mess")] = "Huge Mess Heart",
-            [(SegmentCategory.TrueEndingDts, "4a", "Shrine")] = "Shrine Heart",
-            // the skip runs from Farewell's start to Determination; the three
-            // segments after it are the same in both True Ending categories
-            [(SegmentCategory.TrueEndingDts, "Farewell", "Start")] = "Start DTS",
-            [(SegmentCategory.TrueEndingDts, "Farewell", "Singular")] = "Singular DTS",
-            [(SegmentCategory.TrueEndingDts, "Farewell", "Power Source")] = "Power Source DTS",
-            [(SegmentCategory.TrueEndingDts, "Farewell", "Remembered")] = "Remembered DTS",
-            [(SegmentCategory.TrueEndingDts, "Farewell", "Event Horizon")] = "Event Horizon DTS",
-            [(SegmentCategory.TrueEndingDts, "Farewell", "Determination")] = "Determination DTS",
-        };
-
     // (scope, game checkpoint) -> the virtual checkpoint the sheet inserts
-    // right after it. The game gives 8A's finale a single "Heart of the
-    // Mountain" checkpoint; the sheet times its vertical climb and its
-    // horizontal chase as two segments, so "HotM Horizontal" exists only here
-    // and in CheckpointMap, anchored by its StartRoomOverrides room. That one
-    // room is read by both ends, exactly like a real checkpoint's: it is where
-    // the second half starts and where the first half's run ends. Only
-    // virtual checkpoints closing their chapter are supported — nothing
-    // resolves the end room of one followed by a real checkpoint
+    // after it: the game's one "Heart of the Mountain" is two segments on the
+    // sheet. The second half exists only here and in SheetRows, anchored by its
+    // StartRoomOverrides room, which both halves read. Only a virtual
+    // checkpoint closing its chapter is supported: nothing resolves the end
+    // room of one followed by a real checkpoint
     internal static readonly Dictionary<(string Scope, string GameName), string> SplitCheckpoints = new() {
         [("8a", "Heart of the Mountain")] = "HotM Horizontal",
     };
 
-    // (scope, game checkpoint name) -> the room a run of that checkpoint's
-    // segment really starts in, for the segments the sheet does not time from
-    // the checkpoint's own room. Keyed by *game* name, not sheet
-    // name, so both ends of a segment read the same entry: a segment ends
-    // exactly where the next one starts, so an override moves the previous
-    // segment's finish line with it, and the two never overlap. Variants
-    // inherit it like they inherit their anchor
+    // (scope, game checkpoint) -> the room a segment really starts in, where
+    // the sheet does not time it from the checkpoint's own room. Keyed by game
+    // name, so the segment before ends there too: the two never overlap
     internal static readonly Dictionary<(string Scope, string GameName), string> StartRoomOverrides = new() {
-        // the sheet times "Awake" from the moment Madeline wakes up, three
-        // rooms before the game's Awake checkpoint: end_0 is the campfire
-        // room right after the dream section, then end_1, end_2, and only
-        // then end_3, which carries the checkpoint. Corollary: a run of
-        // Intervention ends on entering end_0, not end_3
+        // the sheet times Awake from the wake-up in end_0, three rooms before
+        // the checkpoint's end_3: Intervention ends on entering end_0
         [("2a", "Awake")] = "end_0",
-        // 7A opens on a-00-intro, but neither that room nor Madeline's
-        // landing animation in a-00 is timed — the sheet adds their time
-        // afterwards, so they are none of this mod's business. Runs start
-        // from a savestate placed after the landing with a Current Room
-        // timer, which puts the start of the run in a-00
+        // neither a-00-intro nor the landing in a-00 is timed: the sheet adds
+        // them (UntimedSegmentHead)
         [("7a", "Start")] = "a-00",
-        // 8A's HotM Horizontal has no checkpoint of its own to start from
-        // (see SplitCheckpoints): d-08 is where the climb of the d rooms tops
-        // out and the chase to the right begins
+        // HotM Horizontal has no checkpoint of its own: d-08 is where the chase
+        // to the right begins
         [("8a", "HotM Horizontal")] = "d-08",
     };
 
-    // (scope, game checkpoint name) -> the head of the segment srs does not
-    // time, added back to the captured time so the tier is read off the same
-    // number the sheet's thresholds describe. Only 7A Start so far: the sheet
-    // starts it at a-00 (see StartRoomOverrides) and adds a fixed 5.508s
-    // afterwards for the intro room plus Madeline's landing animation. The
-    // mod cannot time that part — the run is practiced from a savestate
-    // placed after the landing — but it must still count it, otherwise a run
-    // is compared against thresholds that include it and lands several tiers
-    // too high
+    // (scope, game checkpoint) -> the sheet's own constant for the head of a
+    // segment srs does not time, added to the reading so the tier is read off
+    // the number the thresholds describe. 7A from a-00, after the intro room
+    // and the landing; the Prologue as file time, which counts the 61 frames
+    // of the intro before its savestate
     internal static readonly Dictionary<(string Scope, string GameName), TimeSpan> UntimedSegmentHead = new() {
         [("7a", "Start")] = new TimeSpan(0, 0, 0, 5, 508),
+        [("Prologue", "Start")] = new TimeSpan(0, 0, 0, 1, 37),
     };
 
-    // StartRoomOverrides read backwards: the game checkpoint whose segment is
-    // timed from this room, or null. This is what lets the auto-detection move
-    // the selection when the override room is entered — three rooms before the
-    // game checkpoint would otherwise still read as the previous segment
-    internal static string OverriddenCheckpointAt(string scope, string room) {
-        foreach (KeyValuePair<(string Scope, string GameName), string> entry in StartRoomOverrides) {
-            if (entry.Key.Scope == scope && entry.Value == room) {
-                return entry.Key.GameName;
-            }
-        }
+    // (scope, game checkpoint) -> the end of a segment the timer does not
+    // count, added like a head: the Prologue's file time runs 33 frames past
+    // the timer's last tick, to the LevelExit, skipped or watched
+    internal static readonly Dictionary<(string Scope, string GameName), TimeSpan> UntimedSegmentTail = new() {
+        [("Prologue", "Start")] = new TimeSpan(0, 0, 0, 0, 561),
+    };
 
-        return null;
-    }
+    // (scope, game checkpoint) of the segments that open once the launch into
+    // their room is over: 7A's head already counts the landing in a-00, and
+    // opening on the entry would count it twice
+    internal static readonly HashSet<(string Scope, string GameName)> AfterLaunchStarts = [
+        ("7a", "Start"),
+    ];
 
-    // variant -> plain sibling ("Depths Tape" -> "Depths"); plain names come
-    // back unchanged. This is how a variant inherits its in-game anchor: both
-    // start at the same checkpoint. Matched on the variant name alone, without
-    // the key's chapter: two categories may point at the same variant row (the
-    // hearts do), but a variant name is unique across the sheet — the mod's
-    // own addressing already depends on it (ImportedCheckpointsAreUniquely-
-    // Addressed), so the plain sibling it comes back to is unambiguous
-    internal static string PlainNameOf(string sheetName) {
-        foreach (KeyValuePair<(SegmentCategory Category, string Chapter, string SheetName), string> entry
-                 in CategoryVariants) {
-            if (entry.Value == sheetName) {
-                return entry.Key.SheetName;
-            }
-        }
+    // (scope, game checkpoint) of the segments valid from their start point,
+    // beyond every chapter's "Start": the segments after a wake-up (owner)
+    internal static readonly HashSet<(string Scope, string GameName)> CurrentRoomStarts = [
+        ("2a", "Awake"),
+        ("5a", "Unravelling"),
+        ("5b", "Through the Mirror"),
+    ];
 
-        return sheetName;
-    }
+    // (scope, game checkpoint) -> the room a segment's first room must be
+    // entered from for it to open, and for the one before to close with a
+    // time. Every Next Room segment and every segment after a wake-up has one;
+    // a chapter's Start and 7A's start have none. A room reached by a cutscene
+    // is entered from the room the cutscene starts in
+    internal static readonly Dictionary<(string Scope, string GameName), string> EntryRooms = new() {
+        [("1a", "Crossing")] = "5",
+        [("1a", "Chasm")] = "9",
+        [("2a", "Intervention")] = "3x",
+        [("2a", "Awake")] = "13",
+        [("3a", "Huge Mess")] = "07-a",
+        [("3a", "Elevator Shaft")] = "09-b",
+        [("3a", "Presidential Suite")] = "02-d",
+        [("4a", "Shrine")] = "a-09",
+        [("4a", "Old Trail")] = "b-08",
+        // d-00 is also entered from c-10, the berry room beside c-08: only the
+        // berry routes, which are not imported, go that way (owner)
+        [("4a", "Cliff Face")] = "c-08",
+        [("5a", "Depths")] = "a-13",
+        [("5a", "Unravelling")] = "void",
+        [("5a", "Search")] = "c-13",
+        // e-00 is also reached up the shaft of d-01, which no route takes (owner)
+        [("5a", "Rescue")] = "d-20",
+        [("5b", "Central Chamber")] = "a-02",
+        [("5b", "Through the Mirror")] = "b-09",
+        [("5b", "Mix Master")] = "c-04",
+        // 00 shares an edge only with a room of its own segment: it is reached
+        // by the fall from start, watched or skipped
+        [("6a", "Lake")] = "start",
+        [("6a", "Hollows")] = "02b",
+        [("6a", "Reflection")] = "20",
+        [("6a", "Rock Bottom")] = "b-03",
+        [("6a", "Resolution")] = "boss-20",
+        [("6b", "Reflection")] = "a-06",
+        [("6b", "Rock Bottom")] = "b-10",
+        [("6b", "Reprieve")] = "c-04",
+        [("7a", "500 M")] = "a-06",
+        [("7a", "1000 M")] = "b-09",
+        [("7a", "1500 M")] = "c-09",
+        [("7a", "2000 M")] = "d-11",
+        [("7a", "2500 M")] = "e-13",
+        [("7a", "3000 M")] = "f-11",
+        [("8a", "Into the Core")] = "02",
+        [("8a", "Hot and Cold")] = "b-07",
+        [("8a", "Heart of the Mountain")] = "c-04",
+        [("8a", "HotM Horizontal")] = "d-07",
+        [("Farewell", "Singular")] = "intro-03-space",
+        [("Farewell", "Power Source")] = "b-07",
+        [("Farewell", "Remembered")] = "e-00y",
+        [("Farewell", "Event Horizon")] = "e-08",
+        [("Farewell", "Determination")] = "g-06",
+        [("Farewell", "Stubbornness")] = "h-10",
+        [("Farewell", "Reconciliation")] = "i-05",
+        [("Farewell", "Farewell")] = "j-15",
+    };
 
-    // CheckpointMap read backwards: the game checkpoint a sheet segment starts
-    // at, inside one scope (game names repeat across scopes — "Start" — so the
-    // scope is required). Null when the sheet name is not anchored in this
-    // scope. RunWatcher resolves rooms from this: the start room of the run,
-    // and the end room of Checkpoint segments (the next checkpoint's room)
-    internal static string GameNameOf(string scope, string sheetName) {
-        string plain = PlainNameOf(sheetName);
-        foreach (KeyValuePair<(string Scope, string GameName), string> entry in CheckpointMap) {
-            if (entry.Key.Scope == scope && entry.Value == plain) {
-                return entry.Key.GameName;
-            }
-        }
+    // (scope, game checkpoint) -> the spawn a wake-up puts the player on, in
+    // world coordinates: the only spawn a Current Room start that is not a
+    // "Start" opens from. Not the default spawn: in 5A's and 5B's c-00 that is
+    // the bottom one, and the wake-up uses the top one. One missing here never
+    // opens on a restart
+    internal static readonly Dictionary<(string Scope, string GameName), (int X, int Y)> WakeUpSpawns = new() {
+        [("2a", "Awake")] = (144, 1880),
+        [("5a", "Unravelling")] = (-832, 1688),
+        [("5b", "Through the Mirror")] = (3680, -984),
+    };
 
-        return null;
-    }
+    // (scope, game checkpoint) -> where the player stands, relative to a spawn
+    // of the start room, on the first frame with control; every other Current
+    // Room start measured is on the spawn
+    internal static readonly Dictionary<(string Scope, string GameName), (int X, int Y)> SpawnOffsets = new() {
+        [("Farewell", "Start")] = (8, 0),
+        // the campfire cutscene ends with the player at the bonfire, watched
+        // or skipped (CS06_Campfire.OnEnd), 172 px right of the room's spawn
+        [("6a", "Start")] = (172, 0),
+    };
 }

@@ -6,9 +6,9 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// The one place a tick count becomes a string a player sees or the sheet
 /// receives.
 public static class TimeFormat {
-    /// SpeedrunTool's own formatter, installed by SrsModule.Load: it measured
-    /// the segment, so what it prints is what the player watched. A delegate
-    /// rather than a call, for the reason ExportProtocol.Localize is one.
+    /// Speed Run Tool's own formatter, installed by SrsModule.Load, so a time
+    /// reads as its timer would show it. A delegate rather than a call, for the
+    /// reason ExportProtocol.Localize is one.
     public static Func<long, string> Format;
 
     public static string FromTicks(long ticks) =>

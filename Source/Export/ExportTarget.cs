@@ -33,20 +33,37 @@ internal static class ExportTarget {
         }
     }
 
-    public static void Set(string value) {
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
-        string tmp = FilePath + ".tmp";
-        File.WriteAllText(tmp, value);
-        File.Move(tmp, FilePath, overwrite: true);
+    /// False when the file could not be written, and the URL held is then
+    /// unchanged. Called from a menu press, on the game thread.
+    public static bool Set(string value) {
+        if (!AtomicFile.TryWrite(FilePath, value, out Exception error, out Exception leftover)) {
+            Logger.Log(LogLevel.Warn, LogTag, $"could not write the export URL file: {error.GetType().Name}");
+            if (leftover != null) {
+                // it holds the URL: say that it is still there, never what it holds
+                Logger.Log(LogLevel.Warn, LogTag,
+                    $"could not delete the temporary export URL file: {leftover.GetType().Name}");
+            }
+
+            return false;
+        }
+
         url = value;
+        return true;
     }
 
-    public static void Forget() {
-        url = "";
+    /// False when the file could not be deleted, and the URL held then stays:
+    /// the next launch would read it back.
+    public static bool Forget() {
         try {
-            File.Delete(FilePath);
+            if (File.Exists(FilePath)) {
+                File.Delete(FilePath);
+            }
         } catch (Exception e) {
             Logger.Log(LogLevel.Warn, LogTag, $"could not delete the export URL file: {e.GetType().Name}");
+            return false;
         }
+
+        url = "";
+        return true;
     }
 }

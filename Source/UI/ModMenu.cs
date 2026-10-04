@@ -5,11 +5,9 @@ using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// the whole Mod Options section, built by hand instead of letting Everest
-// generate the toggles: the master switch has to hide every other entry, which
-// means holding them all in one list. Nothing is auto-generated any more, so
-// the key bindings Everest would append are gone too — they are combos now,
-// bound from CelesteHotkeys' screen
+// the whole Mod Options section, built by hand: the master switch has to hide
+// every other entry. The key bindings are combos, bound from CelesteHotkeys'
+// screen
 internal static class ModMenu {
     internal static void CreateMenu(TextMenu menu, bool inGame) {
         SrsSettings settings = SrsModule.Settings;
@@ -24,14 +22,9 @@ internal static class ModMenu {
         showTier.Change(on => settings.ShowTier = on);
         menu.Add(showTier);
 
-        TextMenu.OnOff showSelection = new(Dialog.Clean("MODOPTIONS_SRS_SHOWSELECTION"), settings.ShowSelection);
-        showSelection.Change(on => settings.ShowSelection = on);
-        menu.Add(showSelection);
-
-        SegmentSelector.CreateMenuEntries(menu);
         Action updateStandards = SheetImporter.CreateMenuEntries(menu);
 
-        // ExportUrlMenu keeps these two hidden until an export URL is set
+        // ExportUrlMenu keeps the Forget button hidden until an export URL is set
         List<TextMenu.Item> urlDependent = ExportUrlMenu.CreateMenuEntries(menu);
 
         // in game only: the export screen needs a level, and it saves binding a
@@ -61,11 +54,11 @@ internal static class ModMenu {
         // the only way to bind the [SettingIgnore] hotkeys: last, at the root of
         // the section and inside the range the master switch hides. Never in a
         // submenu, which keeps reading input under the screen it opens
-        menu.Add(HotkeyMenu.OpenButton(menu, Hotkeys.Set, Hotkeys.Text, SrsModule.Instance.SaveSettings));
+        menu.Add(HotkeyMenu.OpenButton(menu, Hotkeys.Set, Hotkeys.Text, () => SrsModule.TrySaveSettings("the hotkeys")));
 
-        // taken as a range rather than listed entry by entry: SegmentSelector
-        // adds nothing at all when no sheet data is loaded, so the list cannot
-        // be written out by hand without going out of step with what is there
+        // taken as a range rather than listed entry by entry: the entries added
+        // since `first` come from several builders, and a hand-written list
+        // would go out of step with them
         List<TextMenu.Item> subOptions = menu.Items.GetRange(first, menu.Items.Count - first);
 
         enabled.Change(on => {

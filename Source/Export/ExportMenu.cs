@@ -16,60 +16,19 @@ internal sealed class UpdateRow : TextMenu.Item {
 
     private readonly ExportColumns columns;
     private readonly bool odd;
-    // the list Submit reads: retargeting replaces this row's entry in it, so
-    // reading through the list is what keeps the two in step
-    private readonly List<PendingUpdate> slot;
-    private readonly int index;
+    private readonly PendingUpdate update;
 
-    private readonly List<SheetSegment> candidates;
-    private readonly Session session;
-    private int candidate;
-
-    public PendingUpdate Update => slot[index];
-
-    public UpdateRow(List<PendingUpdate> slot, int index, ExportColumns columns, bool odd, Session session) {
-        this.slot = slot;
-        this.index = index;
+    public UpdateRow(PendingUpdate update, ExportColumns columns, bool odd) {
+        this.update = update;
         this.columns = columns;
         this.odd = odd;
-        this.session = session;
-        candidates = ExportSource.CandidatesFor(slot[index].Segment, session);
-        // by name, not by reference: SheetImporter.Data is reassigned from a
-        // worker, and the fresh SheetSegment instances have no Equals, so
-        // IndexOf would return -1 and left/right would die without a word
-        candidate = candidates.FindIndex(other => other.Name == slot[index].Segment?.Name);
         // false on the base item: without it the cursor never lands on the row
         Selectable = true;
     }
 
     public override void ConfirmPressed() {
-        Update.Selected = !Update.Selected;
-        Audio.Play(Update.Selected ? "event:/ui/main/button_toggle_on" : "event:/ui/main/button_toggle_off");
-    }
-
-    // auto-detect cannot tell two segments sharing a start room apart; left and
-    // right move the time onto another row anchored on the same checkpoint
-    public override void LeftPressed() => Retarget(-1);
-    public override void RightPressed() => Retarget(1);
-
-    private bool CanRetarget => candidates.Count > 1 && candidate >= 0;
-
-    private void Retarget(int direction) {
-        if (!CanRetarget) {
-            return;
-        }
-
-        candidate = (candidate + direction + candidates.Count) % candidates.Count;
-        SheetSegment segment = candidates[candidate];
-        if (!SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)) {
-            return;
-        }
-
-        PendingUpdate next = ExportSource.Build(row, segment, Update.LocalTicks, session);
-        // carry the tick over, never onto a row it would not improve
-        next.Selected = Update.Selected && next.WillImprove;
-        slot[index] = next;
-        Audio.Play(direction < 0 ? "event:/ui/main/rollover_up" : "event:/ui/main/rollover_down");
+        update.Selected = !update.Selected;
+        Audio.Play(update.Selected ? "event:/ui/main/button_toggle_on" : "event:/ui/main/button_toggle_off");
     }
 
     public override float LeftWidth() => columns.TotalWidth;
@@ -77,7 +36,6 @@ internal sealed class UpdateRow : TextMenu.Item {
 
     public override void Render(Vector2 position, bool highlighted) {
         float alpha = Container.Alpha;
-        PendingUpdate update = Update;
 
         // both parities banded: one stripe over bare background reads as a
         // tinted list, two read as a grid
@@ -90,19 +48,14 @@ internal sealed class UpdateRow : TextMenu.Item {
 
         Color text = Color.White * alpha;
         ExportColumns.Text(update.Label, position, columns.LabelX, text, alpha, left: true);
-        if (CanRetarget && highlighted) {
-            ExportColumns.Arrows(position, columns, update.Label, text, alpha);
-        }
-
         ExportColumns.Text(update.RemoteText, position, columns.RemoteX, Color.Gray * alpha, alpha);
         ExportColumns.Text(update.LocalText, position, columns.LocalX, text, alpha);
         ExportColumns.Text(update.DeltaText, position, columns.DeltaX, DeltaColor(update) * alpha, alpha);
     }
 
-    // neutral when there is nothing to compare against and when the times are
-    // equal: "+0.000" in red says a regression that did not happen. An
-    // unreadable cell lands here through RemoteTicks staying null, and its "?"
-    // is a refusal rather than a regression
+    // neutral with nothing to compare against and on equal times: "+0.000" in
+    // red says a regression that did not happen, and an unreadable cell's "?"
+    // is a refusal
     private static Color DeltaColor(PendingUpdate update) {
         if (update.RemoteTicks == null || update.LocalTicks == update.RemoteTicks.Value) {
             return Color.Gray;
@@ -149,8 +102,8 @@ internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
 /// TextMenu hands an item the vertical CENTRE of its slot, so everything here
 /// is anchored on that: text justifies at y = 0.5, bands and rules are centred.
 ///
-/// ⚠️ Widths are measured across a list even though SessionBests holds exactly
-/// one segment. Do not collapse the geometry to a single row: the list is what
+/// ⚠️ Widths are measured across a list even though the screen shows one row
+/// for now. Do not collapse the geometry to a single row: the list is what
 /// the next feature needs (owner decision).
 internal sealed class ExportColumns {
     public const float Gap = 18f;
@@ -205,35 +158,18 @@ internal sealed class ExportColumns {
         }
     }
 
-    private static float ArrowWidth => Width("<");
-
-    /// The "< label >" affordance vanilla's Option draws, on the label cell.
-    /// Both are drawn from their left edge, so the left one is pulled back by
-    /// its own width to leave a real gap rather than butt against the checkbox.
-    public static void Arrows(Vector2 position, ExportColumns columns, string label, Color color, float alpha) {
-        Text("<", position, columns.LabelX - Gap - ArrowWidth, color, alpha, left: true);
-        Text(">", position, columns.LabelX + Width(label) + Gap, color, alpha, left: true);
-    }
-
     private static float Width(string text) => ActiveFont.Measure(text).X * Scale;
 
-    public static ExportColumns Measure(List<PendingUpdate> updates, Session session) {
+    public static ExportColumns Measure(List<PendingUpdate> updates) {
         List<string> labels = [];
         foreach (PendingUpdate u in updates) {
             labels.Add(u.Label);
-            // every row the arrows can reach, so the column does not resize
-            // under a retarget
-            foreach (SheetSegment other in ExportSource.CandidatesFor(u.Segment, session)) {
-                labels.Add(ExportSource.DisplayName(other, session));
-            }
         }
 
         // floors, so a column does not resize when the fetch lands and the
         // sheet column goes from "" to real times
         float floor = Width("00:00.000");
-        // no floor on the label column: the three time columns have a header to
-        // stay at least as wide as, this one has none, and flooring it on
-        // another column's header was a copy-paste that only made it wide
+        // no floor on the label column: it has no header to stay as wide as
         float label = 0f;
         float remote = Math.Max(floor, Width(Dialog.Clean("SRS_EXPORT_COL_SHEET")));
         float local = Math.Max(floor, Width(Dialog.Clean("SRS_EXPORT_COL_LOCAL")));
@@ -242,15 +178,12 @@ internal sealed class ExportColumns {
             label = Math.Max(label, Width(text));
         }
 
-        // the trailing arrow lives inside the label column, so the times never
-        // move when it appears; the leading one is budgeted in labelX below
-        label += Gap + ArrowWidth;
         foreach (PendingUpdate u in updates) {
             remote = Math.Max(remote, Width(u.RemoteText));
             local = Math.Max(local, Width(u.LocalText));
             delta = Math.Max(delta, Width(u.DeltaText));
         }
-        float labelX = Pad + RowHeight * BoxRatio + Gap + ArrowWidth + Gap;
+        float labelX = Pad + RowHeight * BoxRatio + Gap;
         float remoteX = labelX + label + Gap + remote;   // right edge
         float localX = remoteX + Gap + local;            // right edge
         return new ExportColumns {
@@ -267,19 +200,15 @@ internal sealed class ExportColumns {
 /// it pauses the level, and Hotkeys reads HoldsThePause to keep that one combo
 /// alive behind the pause it caused. Cancel, Back/ESC and pause close it too.
 ///
-/// ⚠️ Must load after Hotkeys: it reads OpenExportMenu.Pressed on the frame
-/// Hotkeys produced it.
+/// ⚠️ Hook order: see SrsModule.Load.
 internal static class ExportMenu {
     private const string LogTag = "srs";
 
     private static TextMenu menu;
 
-    // the Level the screen is open on, and whether it was already paused before
-    // Open() forced it, so Close() restores the prior state.
-    //
-    // ⚠️ A Level is normally never held across frames: the scene can be
-    // replaced between two of them. Nothing replaces it while the screen is up, and that guarantee is
-    // SpeedrunTool's rather than ours; OnLevelUpdate closes on menu.Scene != self
+    // the Level the screen is open on, and whether it was paused before Open()
+    // forced it. ⚠️ A Level is normally never held across frames: OnLevelUpdate
+    // closes the screen when this one is replaced under it
     private static Level openLevel;
     private static bool pausedBeforeOpen;
 
@@ -323,9 +252,8 @@ internal static class ExportMenu {
     private static volatile int generation;
 
     public static void Load() {
-        // Dialog loads after the mods do, and the launch refresh below can be
-        // answered before it: Dialog.Clean then throws on a null Language, which
-        // turned a plain 404 at boot into an exception. The key is logged instead
+        // Dialog loads after the mods do, and the launch refresh can be answered
+        // before it, when Dialog.Clean throws: the key is logged instead
         ExportProtocol.Localize = key => Dialog.Language == null ? key : Dialog.Clean(key);
 
         On.Celeste.Level.Update += OnLevelUpdate;
@@ -441,14 +369,11 @@ internal static class ExportMenu {
     private static void OnLevelUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         orig(self);
 
-        // a level replaced under an open screen leaves the menu an entity of the
-        // old one: it vanishes while `menu` stays non null and Open() refuses for
-        // the rest of the session. No path there is known -- the savestate load is
-        // refused by SpeedrunTool's own !scene.Paused gate (3.27.17), in a
-        // dependency everest.yaml pins only a minimum of
+        // a level replaced under an open screen would leave `menu` set and Open()
+        // refusing for the session. A console load reaches it. Speed Run Tool
+        // 3.27.17 refuses its own loads while paused, which is its guarantee and
+        // not ours (everest.yaml pins only a minimum), and Open refuses under a wipe
         if (menu != null && menu.Scene != self) {
-            // logged because nothing is known to trigger it: silent, the path
-            // could neither be tested nor caught doing its job
             Logger.Log(LogLevel.Warn, LogTag, "the level was replaced under the export screen; closed it");
             Close();
         }
@@ -497,6 +422,12 @@ internal static class ExportMenu {
             return;
         }
 
+        // a wipe keeps running under the pause, and the one after a death ends
+        // in Level.Reload, which removes the screen with every other entity
+        if (level.Wipe != null) {
+            return;
+        }
+
         if (!ExportUrlMenu.HasUrl) {
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NEEDS_URL"), null);
             return;
@@ -539,8 +470,7 @@ internal static class ExportMenu {
         string url = ExportTarget.Url;
         _ = ExportClient.FetchAsync(url).ContinueWith(task => {
             if (fetch != generation) {
-                // an older answer would overwrite a newer one. Logged for the
-                // same reason as the guard above: silent, it cannot be seen work
+                // an older answer would overwrite a newer one
                 Logger.Log(LogLevel.Info, LogTag, "a fetch resolved after its screen was replaced; discarded");
                 return;
             }
@@ -605,37 +535,37 @@ internal static class ExportMenu {
         menu = newMenu;
     }
 
-    /// keepSelection is the row the cursor was on, for a rebuild that leaves
-    /// the table's shape alone. Without one the screen opens on the run itself.
     private static void Build(Level level, List<PendingUpdate> updates) {
         awaitingRows = false;
-        ExportColumns columns = ExportColumns.Measure(updates, level.Session);
+        ExportColumns columns = ExportColumns.Measure(updates);
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
         newMenu.Add(new TextMenu.SubHeader(StatusLine()));
 
         string chapter = null;
         bool odd = false;
-        for (int i = 0; i < updates.Count; i++) {
-            PendingUpdate update = updates[i];
+        foreach (PendingUpdate update in updates) {
             string group = string.IsNullOrEmpty(update.Row.Chapter) ? update.Row.Tab : update.Row.Chapter;
             if (group != chapter) {
                 chapter = group;
                 newMenu.Add(new GroupRow(columns, group));
             }
 
-            newMenu.Add(new UpdateRow(updates, i, columns, odd, level.Session));
+            newMenu.Add(new UpdateRow(update, columns, odd));
             odd = !odd;
         }
 
         newMenu.Add(new TableFooter(columns));
 
-        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = !RemoteBests.IsResolved };
+        // rows built on no answer compared against nothing, and an answer
+        // landing later does not rebuild them: such a table never exports
+        bool builtOnAnswer = RemoteBests.IsResolved;
+        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = !builtOnAnswer };
         exportButton.OnUpdate = () => {
             exportButton.Label = ExportLabel(updates);
-            exportButton.Disabled = !RemoteBests.IsResolved;
+            exportButton.Disabled = !builtOnAnswer || !RemoteBests.IsResolved;
         };
-        exportButton.Pressed(() => Submit(level, updates));
+        exportButton.Pressed(() => Submit(level, updates, builtOnAnswer));
         newMenu.Add(exportButton);
 
         TextMenu.Button cancelButton = new(Dialog.Clean("SRS_EXPORT_CANCEL"));
@@ -673,19 +603,16 @@ internal static class ExportMenu {
         _ => "",
     };
 
-    private static void Submit(Level level, List<PendingUpdate> updates) {
+    private static void Submit(Level level, List<PendingUpdate> updates, bool builtOnAnswer) {
         if (submitting) {
-            // saying nothing here read as a dead button, and it could last the
-            // whole 60 s timeout
+            // a write can last the whole 60 s timeout: say so rather than nothing
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_WRITING"), null);
             return;
         }
 
-        // unresolved rows pre-select as "improves" without ever having been
-        // compared, so submitting one can overwrite a better sheet time.
-        // Unreachable (Export is Disabled on the same condition), kept because
-        // it guards a data-loss path
-        if (!RemoteBests.IsResolved) {
+        // unreachable, as Export is Disabled on the same condition; kept because
+        // rows built on no answer pre-tick and would overwrite a better time
+        if (!builtOnAnswer || !RemoteBests.IsResolved) {
             Logger.Log(LogLevel.Warn, LogTag, "submit reached the unresolved guard: " + RemoteBests.State);
             return;
         }
@@ -737,36 +664,43 @@ internal static class ExportMenu {
                 return;
             }
 
-            (string body, string error) = task.Result;
             submitting = false;
 
-            if (error != null) {
-                Logger.Log(LogLevel.Warn, LogTag, "export failed: " + error);
-                QueueSummary([error]);
-                return;
-            }
+            // nothing above this continuation observes a throw: the screen
+            // would stay on "Writing..." until the player leaves it
+            try {
+                (string body, string error) = task.Result;
+                if (error != null) {
+                    Logger.Log(LogLevel.Warn, LogTag, "export failed: " + error);
+                    QueueSummary([error]);
+                    return;
+                }
 
-            if (!ExportProtocol.TryParseResponse(body, out ExportResponse response, out string parseError)) {
-                Logger.Log(LogLevel.Warn, LogTag, "unreadable answer: " + parseError);
-                QueueSummary([parseError]);
-                return;
-            }
+                if (!ExportProtocol.TryParseResponse(body, out ExportResponse response, out string parseError)) {
+                    Logger.Log(LogLevel.Warn, LogTag, "unreadable answer: " + parseError);
+                    QueueSummary([parseError]);
+                    return;
+                }
 
-            // the status is translated, the script's own reason is not: we do
-            // not author it, and a pasted report has to carry its words
-            foreach (ExportResult r in response.Results) {
-                Logger.Log(LogLevel.Info, LogTag, $"  {RowLabel(r)}: {r.Status}" +
-                    (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
-            }
+                // the status is translated, the script's own reason is not: we do
+                // not author it, and a pasted report has to carry its words
+                foreach (ExportResult r in response.Results) {
+                    Logger.Log(LogLevel.Info, LogTag, $"  {RowLabel(r)}: {r.Status}" +
+                        (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
+                }
 
-            List<string> lines = response.Results
-                .Select(r => $"{RowLabel(r)}: {StatusText(r.Status)}" +
-                    (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"))
-                .ToList();
-            if (lines.Count == 0) {
-                lines.Add(Dialog.Clean("SRS_EXPORT_DONE"));
+                List<string> lines = response.Results
+                    .Select(r => $"{RowLabel(r)}: {StatusText(r.Status)}" +
+                        (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"))
+                    .ToList();
+                if (lines.Count == 0) {
+                    lines.Add(Dialog.Clean("SRS_EXPORT_DONE"));
+                }
+                QueueSummary(lines);
+            } catch (Exception e) {
+                Logger.Log(LogLevel.Warn, LogTag, "an export answer could not be shown: " + e);
+                QueueSummary([$"{Dialog.Clean("SRS_EXPORT_ERR_UNREADABLE")} {e.GetType().Name}"]);
             }
-            QueueSummary(lines);
         });
     }
 
@@ -802,8 +736,6 @@ internal static class ExportMenu {
         Show(level, newMenu);
     }
 
-    // a line-per-row summary of the result plus a Close button; reached only
-    // from OnLevelUpdate, on the game thread
     // a SubHeader draws on one line and never wraps. The script's own
     // reasons are long English sentences; the full text is in log.txt
     private const float SummaryMaxWidth = 1600f;

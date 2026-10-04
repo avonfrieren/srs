@@ -24,19 +24,16 @@ public class SrsModule : EverestModule {
         ExportTarget.Load();
         // Level.Update hook order matters: each later Load wraps the previous
         // hooks, so after orig the frame runs innermost-first — Hotkeys reads
-        // the frame's input before anything consumes it, RunWatcher captures
-        // the finished run, TierComparison computes the tier from it,
-        // SegmentAutoDetect moves the selection last (suspended while a
-        // completed run's tier is shown)
+        // the frame's input before anything consumes it, RunWatcher feeds
+        // the tracker, TierComparison computes the tier from its latest record,
+        // and ExportMenu reads its hotkey last
         Hotkeys.Load();
         RunWatcher.Load();
         TierComparison.Load();
-        SegmentAutoDetect.Load();
-        // last: like every hook above it, this one reads Hotkeys on the frame
-        // Hotkeys updated it, so it must stay outside Hotkeys' hook. Nothing
-        // else constrains it, it only reads what the others produced
+        // last: it reads Hotkeys on the frame Hotkeys updated it, and only reads
+        // what the others produced
         ExportMenu.Load();
-        // no Level.Update hook of its own: an Everest exit event, so it is
+        // no Level.Update hook of its own: an Everest enter event, so it is
         // outside the ordering the comment above describes
         SessionBests.Load();
     }
@@ -44,21 +41,18 @@ public class SrsModule : EverestModule {
     public override void Unload() {
         SessionBests.Unload();
         ExportMenu.Unload();
-        SegmentAutoDetect.Unload();
         TierComparison.Unload();
         RunWatcher.Unload();
         Hotkeys.Unload();
         SheetImporter.Unload();
     }
 
-    /// srs exports the string SpeedrunTool printed, so it takes the formatter
-    /// rather than copying it. By reflection because there is no other way in:
+    /// srs prints its times in Speed Run Tool's format, so it takes the
+    /// formatter rather than copying it. By reflection, the only way in:
     /// RoomTimerData.FormatTime is public, its class is not, the ModInterop
-    /// exports the stopwatch and not its rendering, and a Publicizer is ruled
-    /// out project-wide.
+    /// does not export it, and a Publicizer is ruled out.
     ///
-    /// isPbTime: false — the true branch returns "" for a zero, which is how
-    /// SpeedrunTool draws an absent PB, and srs has its own rule for that.
+    /// isPbTime false: true returns "" for a zero, Speed Run Tool's absent PB.
     private static void AdoptSpeedrunToolsTimeFormat() {
         try {
             Assembly assembly = Everest.Modules
@@ -88,10 +82,8 @@ public class SrsModule : EverestModule {
     public override void LoadSettings() {
         base.LoadSettings();
 
-        // the tab URLs are stored settings, so the defaults above reach nobody
-        // who has ever saved: without this, every existing player stays on the
-        // workbook frozen on 2026-08-28, which still answers and silently stops
-        // receiving retimings
+        // a stored URL beats a new default (SheetUrls): without this, a player
+        // who ever saved stays on the frozen workbook
         MigrateSheetUrls();
     }
 
@@ -122,14 +114,20 @@ public class SrsModule : EverestModule {
         }
 
         Logger.Log(LogLevel.Info, "srs", "Repointed the stored sheet urls at the current reference workbook");
+        // a save that fails leaves the migration in memory, and it runs again
+        // next launch
+        TrySaveSettings("the migrated sheet urls");
+    }
+
+    /// Everest catches the write itself, but not the File.Delete and
+    /// CreateDirectory it does first: every save srs asks for goes through
+    /// here, or a locked or read-only Saves folder crashes the game from a menu
+    /// press or a hook. What was changed still holds in memory.
+    internal static void TrySaveSettings(string what) {
         try {
-            SaveSettings();
+            Instance.SaveSettings();
         } catch (Exception e) {
-            // Everest catches the write itself, but not the File.Delete and
-            // CreateDirectory it does first: those throw out of LoadSettings,
-            // which would take the whole mod down over a settings file. The
-            // migration already holds in memory, and runs again next launch
-            Logger.Log(LogLevel.Warn, "srs", $"Could not persist the migrated sheet urls: {e}");
+            Logger.Log(LogLevel.Warn, "srs", $"could not save the settings ({what}): {e.GetType().Name}");
         }
     }
 

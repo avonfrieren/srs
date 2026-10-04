@@ -45,9 +45,9 @@ you are authorising is yours, not somebody else's. Click **Advanced**, then **Go
 it asks for more than this endpoint uses:
 
 - *See, edit, create, and delete all your Google Sheets spreadsheets.* This one is for the
-  **sheet's own** scripts, not srs. They read the shared reference workbook to refresh your
-  standards, and *Import from old sheet* reads another, both second documents, and they write formatting through an interface that
-  cannot be narrowed to one file.
+  **sheet's own** scripts, not srs. They read two other documents: the shared reference
+  workbook, to refresh your standards, and your old sheet, for *Import from old sheet*. They
+  also write formatting through an interface that cannot be narrowed to one file.
 - *Display and run third-party web content in prompts and sidebars.* The sheet's own menus
   and dialogs.
 

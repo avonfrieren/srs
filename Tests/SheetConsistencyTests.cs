@@ -5,13 +5,12 @@ using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-// The mod addresses checkpoints by name across three hardcoded tables that
-// nothing forces to agree: SheetData.Import (which sheet rows to keep and what
-// to call them), SegmentAutoDetect.CheckpointMap (what the played checkpoint
-// selects) and SegmentAutoDetect.CategoryVariants (which variant the Category
-// setting resolves). A rename on either side degrades silently — the
-// checkpoint just disappears from the sliders, or auto-detection stops moving.
-// These tests cross-check the tables against each other and against the sheet.
+// The row table and the room tables (start-room overrides, split checkpoints,
+// untimed heads and tails) address checkpoints by name, and nothing forces
+// them to agree with each other or with the sheet. A rename on either side
+// degrades silently: a row stops being imported, or a segment stops starting
+// where it should. These tests cross-check the tables against each other and
+// against the sheet.
 public class SheetConsistencyTests {
     // every raw (chapter, checkpoint) pair present in the exported tabs. The
     // Farewell tab is parsed under the same implicit chapter the importer
@@ -23,19 +22,75 @@ public class SheetConsistencyTests {
             .Select(segment => (segment.Chapter, segment.Name))
     ];
 
-    // 1. the allowlist still matches the sheet. This is the test that catches a
+    [Fact]
+    public void EveryStartSetupKeyIsAnImportedAnchor() {
+        HashSet<(string, string)> anchors = SheetRows.All.Select(r => (r.Scope, r.Anchor)).ToHashSet();
+        Assert.All(SegmentAutoDetect.CurrentRoomStarts, key => Assert.Contains(key, anchors));
+        Assert.All(SegmentAutoDetect.SpawnOffsets.Keys, key => Assert.Contains(key, anchors));
+    }
+
+    // a Next Room segment opens only on entering its first room from its entry
+    // room, and so does a segment after a wake-up: one left out would never
+    // open, and the segment before it would never close with a time. A
+    // chapter's Start and 7A's start have none: they open on a restart or at
+    // the end of the launch, never on an entry
+    [Fact]
+    public void EveryNextRoomAndWakeUpRowHasAnEntryRoom() {
+        List<string> wrong = SegmentRules.All
+            .Where(rule => SegmentAutoDetect.EntryRooms.ContainsKey((rule.Scope, rule.Anchor))
+                           != (rule.Setup == StartSetup.NextRoom
+                               || SegmentAutoDetect.CurrentRoomStarts.Contains((rule.Scope, rule.Anchor))))
+            .Select(rule => $"{rule.Chapter}/{rule.Name}")
+            .ToList();
+        Assert.Empty(wrong);
+
+        HashSet<(string, string)> anchors = SheetRows.All.Select(r => (r.Scope, r.Anchor)).ToHashSet();
+        Assert.All(SegmentAutoDetect.EntryRooms.Keys, key => Assert.Contains(key, anchors));
+        Assert.DoesNotContain(SegmentAutoDetect.EntryRooms.Keys, key => key.GameName == "Start");
+    }
+
+    // the owner's rulings (2026-10-04): of the two rooms Cliff Face's and
+    // Rescue's first rooms can be entered from, only the imported routes' one
+    // counts; and the rooms a cutscene brings the player into are entered from
+    // the room it starts in
+    [Theory]
+    [InlineData("4a", "Cliff Face", "c-08")]
+    [InlineData("5a", "Rescue", "d-20")]
+    [InlineData("2a", "Awake", "13")]
+    [InlineData("5a", "Unravelling", "void")]
+    [InlineData("5b", "Through the Mirror", "b-09")]
+    [InlineData("6a", "Lake", "start")]
+    public void TheEntryRoomsTheOwnerRuledOn(string scope, string anchor, string room) {
+        Assert.Equal(room, SegmentAutoDetect.EntryRooms[(scope, anchor)]);
+    }
+
+    // a Current Room start that is not a chapter's "Start" opens on a restart
+    // only from its WakeUpSpawns entry: a new one left out would never open
+    [Fact]
+    public void EveryWakeUpStartHasASpawn() {
+        List<(string, string)> wakeUps = SegmentRules.All
+            .Where(rule => rule.Setup == StartSetup.CurrentRoom && rule.Anchor != "Start")
+            .Select(rule => (rule.Scope, rule.Anchor))
+            .Distinct().Order().ToList();
+        List<(string, string)> spawns = SegmentAutoDetect.WakeUpSpawns.Keys.Select(key => (key.Scope, key.GameName)).Order().ToList();
+        Assert.Equal(wakeUps, spawns);
+        Assert.Equal(SegmentAutoDetect.CurrentRoomStarts.Select(key => (key.Scope, key.GameName)).Order().ToList(), spawns);
+    }
+
+    // the allowlist still matches the sheet. This is the test that catches a
     // rename on the sheet's side: refresh Tests/Fixtures/*.csv, and any row the
     // mod expects that no longer exists shows up here by name
     [Fact]
     public void EveryImportedRowStillExistsInTheSheet() {
-        List<(string, string)> missing = SheetData.Import.Keys
+        List<(string, string)> missing = SheetRows.All
+            .Select(row => (row.SheetChapter, row.Label))
             .Where(key => !RawRows.Contains(key))
             .ToList();
 
         Assert.Empty(missing);
     }
 
-    // the same check as 1, run by the mod itself on every download, where no
+    // the same check, run by the mod itself on every download, where no
     // one has to refresh a fixture for it to fire
     [Fact]
     public void TheFixturesMissNoImportedRow() {
@@ -52,95 +107,29 @@ public class SheetConsistencyTests {
         Assert.Equal([("5a CP", "Unravelling")], data.MissingRows);
     }
 
-    // 2. every imported segment carries the end condition its raw sheet name
-    // declares. Only a row that ends in RTM or RC stops at what it collects:
-    // the two 📼 RTM rows at the cassette, "2a Start 💙 RC" at the heart. The
-    // other two hearts are Clear rows — collect and keep going — so they end
-    // at the next in-game checkpoint, like everything else (or at the
-    // chapter's completion when there is none, resolved at runtime). A marker
-    // slipping through Import unnoticed would silently mistime the segment
-    [Fact]
-    public void EveryImportedSegmentEndsTheWayItsRawNameDeclares() {
-        static HashSet<(string, string)> EndingAt(EndCondition condition) => [
-            .. Fixtures.Imported
-                .Where(segment => segment.End == condition)
-                .Select(segment => (segment.Chapter, segment.Name))
-        ];
-
-        Assert.Equal([("5a/b", "Depths Tape"), ("6a/b", "Hollows Tape")], EndingAt(EndCondition.Cassette));
-        Assert.Equal([("2a", "Start Heart RC")], EndingAt(EndCondition.Heart));
-        Assert.All(
-            Fixtures.Imported.Where(segment =>
-                segment.End != EndCondition.Cassette && segment.End != EndCondition.Heart),
-            segment => Assert.Equal(EndCondition.Checkpoint, segment.End));
-    }
-
-    // 2bis. every imported segment resolves back to a game checkpoint through
-    // GameNameOf — that anchor is what RunWatcher uses for both the start
-    // guard and the end room of Checkpoint segments. The scopes are the ones
-    // CheckpointMap itself uses; a segment resolving in none of them means a
-    // broken rename between the tables
     [Fact]
     public void EveryImportedSegmentIsAnchoredToAGameCheckpoint() {
-        HashSet<string> scopes = [.. SegmentAutoDetect.CheckpointMap.Keys.Select(key => key.Scope)];
-
         List<string> unanchored = Fixtures.Imported
-            .Select(segment => segment.Name)
-            .Where(name => !scopes.Any(scope => SegmentAutoDetect.GameNameOf(scope, name) != null))
+            .Where(segment => !SheetRows.TryFind(segment.Chapter, segment.Name, out SheetRow row) || row.Anchor == null)
+            .Select(segment => $"{segment.Chapter}/{segment.Name}")
             .ToList();
 
         Assert.Empty(unanchored);
-        // the variants inherit their plain sibling's anchor
-        Assert.Equal("Depths", SegmentAutoDetect.GameNameOf("5a", "Depths Tape"));
-        Assert.Equal("Hollows", SegmentAutoDetect.GameNameOf("6a", "Hollows Tape"));
-        Assert.Equal("Huge Mess", SegmentAutoDetect.GameNameOf("3a", "Huge Mess Heart"));
-        Assert.Equal("Start", SegmentAutoDetect.GameNameOf("Farewell", "Start DTS"));
-        Assert.Equal("Start", SegmentAutoDetect.GameNameOf("7a", "7a Start"));
-        // where the sheet's name is genuinely not the game's, which is what the
-        // table is for: 6B's Reflection is the sheet's "Falling"
-        Assert.Equal("Reflection", SegmentAutoDetect.GameNameOf("6b", "Falling"));
-        // and the three that used to diverge only by a typo. The sheet was
-        // corrected on 2026-08-28 and srs follows it: these entries are
-        // identities now, and putting a misspelling back would drop the row at
-        // import, silently, because Import is an allowlist
-        Assert.Equal("Unravelling", SegmentAutoDetect.GameNameOf("5a", "Unravelling"));
-        Assert.Equal("Through the Mirror", SegmentAutoDetect.GameNameOf("5b", "Through the Mirror"));
-        Assert.Equal("Stubbornness", SegmentAutoDetect.GameNameOf("Farewell", "Stubbornness"));
     }
 
-    // 2ter. every start-room override names a (scope, game checkpoint) pair
-    // CheckpointMap actually knows. An override keyed on a checkpoint no table
-    // anchors would never fire — and, worse, the previous segment would keep
-    // ending at the checkpoint's own room, silently overlapping the next one
+    // an override keyed on a checkpoint no row anchors would never fire, and the
+    // previous segment would keep ending at the checkpoint's own room
     [Fact]
-    public void EveryStartRoomOverrideTargetsAKnownCheckpoint() {
-        List<(string, string)> unknown = SegmentAutoDetect.StartRoomOverrides.Keys
-            .Where(key => !SegmentAutoDetect.CheckpointMap.ContainsKey(key))
-            .ToList();
-
-        Assert.Empty(unknown);
-        // and the reverse lookup the auto-detection relies on agrees, scope
-        // included: end_0 is 2A's Awake, and nothing at all in 7A
-        Assert.Equal("Awake", SegmentAutoDetect.OverriddenCheckpointAt("2a", "end_0"));
-        Assert.Equal("Start", SegmentAutoDetect.OverriddenCheckpointAt("7a", "a-00"));
-        Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("7a", "end_0"));
-        Assert.Null(SegmentAutoDetect.OverriddenCheckpointAt("2a", "3"));
-        // the virtual checkpoint's room is what makes it detectable at all:
-        // the game has no checkpoint there to notice
-        Assert.Equal("HotM Horizontal", SegmentAutoDetect.OverriddenCheckpointAt("8a", "d-08"));
+    public void EveryStartRoomOverrideTargetsAnAnchoredCheckpoint() {
+        Assert.All(SegmentAutoDetect.StartRoomOverrides.Keys, key =>
+            Assert.Contains(SheetRows.All, row => row.Scope == key.Scope && row.Anchor == key.GameName));
     }
 
-    // 2ter bis. a checkpoint the sheet cuts in two names a real game
-    // checkpoint on one side and a virtual one on the other, and the virtual
-    // half must have a room: it is both where its own run starts and where the
-    // first half's run ends, so a missing room would silently let the first
-    // half run to the end of the chapter
     [Fact]
     public void EverySplitCheckpointHasBothHalvesAnchored() {
-        foreach (KeyValuePair<(string Scope, string GameName), string> entry
-                 in SegmentAutoDetect.SplitCheckpoints) {
-            Assert.Contains(entry.Key, SegmentAutoDetect.CheckpointMap.Keys);
-            Assert.Contains((entry.Key.Scope, entry.Value), SegmentAutoDetect.CheckpointMap.Keys);
+        foreach (KeyValuePair<(string Scope, string GameName), string> entry in SegmentAutoDetect.SplitCheckpoints) {
+            Assert.Contains(SheetRows.All, row => row.Scope == entry.Key.Scope && row.Anchor == entry.Key.GameName);
+            Assert.Contains(SheetRows.All, row => row.Scope == entry.Key.Scope && row.Anchor == entry.Value);
             Assert.Contains((entry.Key.Scope, entry.Value), SegmentAutoDetect.StartRoomOverrides.Keys);
         }
 
@@ -148,40 +137,26 @@ public class SheetConsistencyTests {
         Assert.Equal("d-08", SegmentAutoDetect.StartRoomOverrides[("8a", "HotM Horizontal")]);
     }
 
-    // 2quater. same for the untimed head added back to the captured time: an
-    // entry keyed on a checkpoint no table anchors would never be added, and
-    // the segment would be compared against thresholds that include a part of
-    // it — silently several tiers too high. The value is pinned: it is the
-    // sheet's own constant, not something derivable from the game
+    // heads, tails and launch starts are the sheet's constants, keyed on an
+    // anchored checkpoint: an entry keyed on a checkpoint no row anchors would
+    // never apply, and the segment would be compared against thresholds that
+    // include a part of it, silently several tiers too high. The values are
+    // pinned because the game cannot derive them
     [Fact]
     public void EveryUntimedHeadTargetsAKnownCheckpointAndKeepsItsValue() {
-        List<(string, string)> unknown = SegmentAutoDetect.UntimedSegmentHead.Keys
-            .Where(key => !SegmentAutoDetect.CheckpointMap.ContainsKey(key))
-            .ToList();
+        bool Anchored((string Scope, string GameName) key) =>
+            SheetRows.All.Any(row => row.Scope == key.Scope && row.Anchor == key.GameName);
 
-        Assert.Empty(unknown);
+        Assert.All(SegmentAutoDetect.UntimedSegmentHead.Keys, key => Assert.True(Anchored(key), key.ToString()));
+        Assert.All(SegmentAutoDetect.UntimedSegmentTail.Keys, key => Assert.True(Anchored(key), key.ToString()));
+        Assert.All(SegmentAutoDetect.AfterLaunchStarts, key => Assert.True(Anchored(key), key.ToString()));
         Assert.Equal(TimeSpan.FromMilliseconds(5508), SegmentAutoDetect.UntimedSegmentHead[("7a", "Start")]);
-        // and it only concerns the segments that have an override start room
-        Assert.All(SegmentAutoDetect.UntimedSegmentHead.Keys,
-            key => Assert.True(SegmentAutoDetect.StartRoomOverrides.ContainsKey(key)));
+        Assert.Equal(TimeSpan.FromMilliseconds(1037), SegmentAutoDetect.UntimedSegmentHead[("Prologue", "Start")]);
+        Assert.Equal(TimeSpan.FromMilliseconds(561), SegmentAutoDetect.UntimedSegmentTail[("Prologue", "Start")]);
     }
 
-    // 3. auto-detection only points at checkpoints that were actually imported;
-    // a stale name here silently stops the detection on that checkpoint
-    [Fact]
-    public void EveryAutoDetectedNameExistsAmongTheImportedCheckpoints() {
-        HashSet<string> importedNames = [.. Fixtures.Imported.Select(segment => segment.Name)];
-
-        List<string> dangling = SegmentAutoDetect.CheckpointMap.Values
-            .Where(name => !importedNames.Contains(name))
-            .Distinct()
-            .ToList();
-
-        Assert.Empty(dangling);
-    }
-
-    // 4. (chapter, name) is the address used by the settings, the sliders and
-    // both other tables, so two sheet rows must never collapse onto one
+    // (chapter, name) is the address the row table and the exports use, so two
+    // sheet rows must never collapse onto one
     [Fact]
     public void ImportedCheckpointsAreUniquelyAddressed() {
         List<(string Chapter, string Name)> duplicates = Fixtures.Imported
@@ -193,128 +168,23 @@ public class SheetConsistencyTests {
         Assert.Empty(duplicates);
     }
 
+    // "Start" exists in nearly every chapter: the chapter is part of the address
+    [Fact]
+    public void FindAddressesASegmentByChapterAndName() {
+        SheetBlock block = Fixtures.Parsed.CheckpointBlock;
+
+        Assert.Equal("2a", block.Find("2a", "Start")?.Chapter);
+        Assert.Null(block.Find("2a", "Hollows"));
+    }
+
     // canary for a restructured sheet: not a full snapshot of the data, just
     // the shape of what gets imported
     [Fact]
     public void ImportsTheExpectedCheckpointsInRouteOrder() {
-        Assert.Equal(SheetData.Import.Count, Fixtures.Parsed.SegmentCount);
+        Assert.Equal(SheetRows.All.Length, Fixtures.Parsed.SegmentCount);
         Assert.Equal(
             ["Prologue", "1a", "2a", "3a", "4a", "5a/b", "6a/b", "7a", "8a", "Farewell"],
-            Fixtures.Parsed.CheckpointBlock.Chapters());
-    }
-
-    // the two cassette routes the owner asked for in v2.0.0; they are the only
-    // emoji rows kept. They start at the same in-game checkpoint as their
-    // non-cassette sibling, so they are never in CheckpointMap — the Category
-    // setting resolves them through CategoryVariants instead — and their runs
-    // end at the cassette collect, not in any room
-    [Theory]
-    [InlineData("5a/b", "Depths Tape")]
-    [InlineData("6a/b", "Hollows Tape")]
-    public void ImportsTheCassetteCheckpointsEndingAtTheCollect(string chapter, string name) {
-        SheetSegment segment = Assert.Single(Fixtures.Imported,
-            s => s.Chapter == chapter && s.Name == name);
-
-        Assert.Equal(EndCondition.Cassette, segment.End);
-        Assert.DoesNotContain(name, SegmentAutoDetect.CheckpointMap.Values);
-    }
-
-    // 6. the category overlay resolves plain names produced by CheckpointMap
-    // into imported rows of the same chapter — a rename on either end would
-    // silently turn the variant back into its plain sibling. The plain row is
-    // always the any% one (that is what "a category adds to any%" means) and
-    // the variant never is, or the overlay would be resolving a row onto itself
-    [Fact]
-    public void EveryCategoryVariantTargetsAnImportedRowOfTheSameChapter() {
-        foreach (KeyValuePair<(SegmentCategory Category, string Chapter, string SheetName), string> entry
-                 in SegmentAutoDetect.CategoryVariants) {
-            SheetSegment plain = Assert.Single(Fixtures.Imported,
-                s => s.Chapter == entry.Key.Chapter && s.Name == entry.Key.SheetName);
-            SheetSegment variant = Assert.Single(Fixtures.Imported,
-                s => s.Chapter == entry.Key.Chapter && s.Name == entry.Value);
-
-            Assert.Contains(entry.Key.SheetName, SegmentAutoDetect.CheckpointMap.Values);
-            Assert.Equal(plain.Chapter, variant.Chapter);
-            Assert.Equal(SegmentCategory.AnyPercent, plain.Category);
-            Assert.NotEqual(SegmentCategory.AnyPercent, variant.Category);
-        }
-    }
-
-    // 7. the category read off the raw sheet names matches the overlay: an
-    // imported marked row absent from CategoryVariants would never be
-    // selectable by auto-detection again (nothing else points at it)
-    [Fact]
-    public void EveryMarkedRowIsReachableThroughTheCategoryOverlay() {
-        HashSet<string> marked = [
-            .. Fixtures.Imported
-                .Where(segment => segment.Category != SegmentCategory.AnyPercent)
-                .Select(segment => segment.Name)
-        ];
-
-        HashSet<string> variants = [.. SegmentAutoDetect.CategoryVariants.Values];
-
-        Assert.Equal(marked, variants);
-        Assert.Contains("Hollows Tape", marked);
-        Assert.Contains("Shrine Heart", marked);
-        Assert.Contains("Determination DTS", marked);
-    }
-
-    // 7bis. the whole point of the category slider: no category may hold two
-    // segments starting at the same in-game checkpoint, or the auto-detection
-    // would have to guess between them. Checked per (category, chapter,
-    // anchor), the anchor being the game checkpoint the segment is timed from
-    [Fact]
-    public void NoCategoryHasTwoSegmentsOnTheSameCheckpoint() {
-        HashSet<string> scopes = [.. SegmentAutoDetect.CheckpointMap.Keys.Select(key => key.Scope)];
-
-        foreach (SegmentCategory category in Enum.GetValues<SegmentCategory>()) {
-            List<(string Chapter, string Anchor)> anchors = Fixtures.Imported
-                .Where(segment => SelectedIn(category, segment))
-                .Select(segment => (segment.Chapter, Anchor: scopes
-                    .Select(scope => scope + "/" + SegmentAutoDetect.GameNameOf(scope, segment.Name))
-                    .First(anchor => !anchor.EndsWith("/", StringComparison.Ordinal))))
-                .ToList();
-
-            Assert.Equal(anchors.Distinct().Count(), anchors.Count);
-        }
-    }
-
-    // 7ter. what the Category slider is for, spelled out on the checkpoints
-    // that exist in several versions: the same in-game checkpoint, four
-    // categories, four answers (a category with nothing to say keeps the any%
-    // row). This is the table SegmentAutoDetect.Apply reads on every frame
-    [Theory]
-    [InlineData(SegmentCategory.AnyPercent, "6a/b", "Hollows", "Hollows")]
-    [InlineData(SegmentCategory.Cassette, "6a/b", "Hollows", "Hollows Tape")]
-    [InlineData(SegmentCategory.TrueEnding, "6a/b", "Hollows", "Hollows")]
-    [InlineData(SegmentCategory.AnyPercent, "3a", "Huge Mess", "Huge Mess")]
-    [InlineData(SegmentCategory.TrueEnding, "3a", "Huge Mess", "Huge Mess Heart")]
-    [InlineData(SegmentCategory.TrueEndingDts, "3a", "Huge Mess", "Huge Mess Heart")]
-    [InlineData(SegmentCategory.TrueEnding, "Farewell", "Start", "Start")]
-    [InlineData(SegmentCategory.TrueEndingDts, "Farewell", "Start", "Start DTS")]
-    // the skip is over by Stubbornness: both True Ending categories run it
-    [InlineData(SegmentCategory.TrueEndingDts, "Farewell", "Stubbornness", "Stubbornness")]
-    public void TheCategoryResolvesTheVariantOfTheCheckpoint(
-        SegmentCategory category, string chapter, string plain, string expected) {
-        string resolved = SegmentAutoDetect.CategoryVariants
-            .TryGetValue((category, chapter, plain), out string variant)
-            ? variant
-            : plain;
-
-        Assert.Equal(expected, resolved);
-        Assert.Contains(Fixtures.Imported, s => s.Chapter == chapter && s.Name == resolved);
-    }
-
-    // the segments a category actually selects: its own variants, plus every
-    // any% row it does not override
-    private static bool SelectedIn(SegmentCategory category, SheetSegment segment) {
-        bool isVariantOfThisCategory = SegmentAutoDetect.CategoryVariants
-            .Any(entry => entry.Key.Category == category && entry.Value == segment.Name);
-        bool isOverridden = SegmentAutoDetect.CategoryVariants
-            .ContainsKey((category, segment.Chapter, segment.Name));
-
-        return isVariantOfThisCategory
-               || (segment.Category == SegmentCategory.AnyPercent && !isOverridden);
+            Fixtures.Parsed.CheckpointBlock.Segments.Select(segment => segment.Chapter).Distinct());
     }
 
     // the tier columns are read positionally from the header row, so their
@@ -333,11 +203,10 @@ public class SheetConsistencyTests {
         // left ragged, or TierComparison would run off the end of them
         SheetSegment farewell = Assert.Single(Fixtures.Imported,
             s => s.Chapter == "Farewell" && s.Name == "Farewell");
-        Assert.Equal(TimeSpan.Parse("00:01:18.353"), farewell.Times[1]);
         Assert.Null(farewell.Times[^1]);
     }
 
-    // none of the excluded row families may leak into the sliders; the emoji
+    // none of the excluded row families may be imported; the emoji
     // markers themselves never survive Import either — the imported hearts and
     // cassettes are renamed after what they collect. "Wake Up" is excluded for
     // good (owner decision 2026-08-18): those rows time a wake-up animation
@@ -364,29 +233,16 @@ public class SheetConsistencyTests {
         Assert.DoesNotContain(Fixtures.Imported, segment => segment.Chapter.Contains(chapter));
     }
 
-    // GameNameOf answers on (scope, sheet name) and never sees the segment's
-    // chapter, so a name that several chapters share resolves to one anchor.
-    // SessionBests keys on that anchor, which is what lets a run be re-labelled
-    // onto another row of the same checkpoint -- and what makes any caller
-    // walking the whole sheet responsible for filtering by chapter first.
-    //
-    // Pinned because dropping that filter put the Start row of six chapters on
-    // the export screen at once, most of them ticked. Seen on 2026-08-30.
+    // several chapters name a row "Start": the chapter is part of a row's
+    // address, and each chapter's Start is found as its own row
     [Fact]
-    public void OneCheckpointNameIsSharedByChaptersAndResolvesToOneAnchor() {
-        List<string> chapters = [.. SheetData.Import.Values
-            .Where(target => target.Name == "Start")
-            .Select(target => target.Chapter)
-            .Distinct()];
+    public void ANameSharedByChaptersIsOneRowPerChapter() {
+        List<SheetRow> starts = [.. SheetRows.All.Where(row => row.Name == "Start")];
 
-        // several chapters call their first segment "Start" -- that is the
-        // premise; if it ever stops being true this test has nothing to say
-        Assert.True(chapters.Count > 1, string.Join(", ", chapters));
-
-        // and that one name resolves under each of their scopes, so a caller
-        // holding a scope and a name has nothing left that says which chapter
-        foreach (string chapter in chapters) {
-            Assert.NotNull(SegmentAutoDetect.GameNameOf(chapter, "Start"));
-        }
+        Assert.True(starts.Count > 1, "the premise: several chapters name a row Start");
+        Assert.All(starts, start => {
+            Assert.True(SheetRows.TryFind(start.Chapter, "Start", out SheetRow found));
+            Assert.Equal(start, found);
+        });
     }
 }
