@@ -24,14 +24,12 @@ public class SrsModule : EverestModule {
         ExportTarget.Load();
         // Level.Update hook order matters: each later Load wraps the previous
         // hooks, so after orig the frame runs innermost-first — Hotkeys reads
-        // the frame's input before anything consumes it, RunWatcher captures
-        // the finished run, TierComparison computes the tier from it,
-        // SegmentAutoDetect moves the selection last (suspended while a
-        // completed run's tier is shown)
+        // the frame's input before anything consumes it, RunWatcher feeds
+        // the tracker, TierComparison computes the tier from its latest record,
+        // and ExportMenu reads its hotkey last
         Hotkeys.Load();
         RunWatcher.Load();
         TierComparison.Load();
-        SegmentAutoDetect.Load();
         // last: like every hook above it, this one reads Hotkeys on the frame
         // Hotkeys updated it, so it must stay outside Hotkeys' hook. Nothing
         // else constrains it, it only reads what the others produced
@@ -44,7 +42,6 @@ public class SrsModule : EverestModule {
     public override void Unload() {
         SessionBests.Unload();
         ExportMenu.Unload();
-        SegmentAutoDetect.Unload();
         TierComparison.Unload();
         RunWatcher.Unload();
         Hotkeys.Unload();

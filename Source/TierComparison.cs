@@ -8,32 +8,20 @@ using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// When RunWatcher captures a finished run of
-// the selected segment, compare the final time against the segment's sheet
-// tiers and draw the time + the reached tier's name in the tier's color under
-// the timer, like srta's delta row. srs is the holder of the reference time —
+// The row shows the latest record's time and tier: the time of the segment
+// RunWatcher last closed, compared against the segment's sheet tiers, drawn
+// with the reached tier's name in the tier's color under the timer, like
+// srta's delta row. srs is the holder of the reference time —
 // SpeedrunTool's own display keeps obeying its Number of Rooms setting, which
 // srs no longer touches.
-// Owner of every row srs adds to the timer stack: the tier row and, under it,
-// the greyed selection row. They share the same slot geometry and the
-// same visibility gate, so they are drawn from one hook rather than two.
 public static class TierComparison {
     private static SrsSettings Settings => SrsModule.Settings;
 
-    // recomputed every frame from RunWatcher's capture (srta-style), so the
-    // row reacts instantly to selection changes and sheet re-imports; derived
-    // state only, deliberately not registered with save states (the capture
-    // itself is, in RunWatcher)
+    // recomputed every frame from RunWatcher.Latest (srta-style), so the row
+    // reacts instantly to sheet re-imports; session display only, not
+    // registered with save states
     private static string rowText = "";
     private static Color tierColor = Color.White;
-
-    // "category - checkpoint" of the armed comparison, recomputed the
-    // same way — auto-detection moves the selection from under it constantly
-    private static string selectionText = "";
-
-    // dimmer than the tierless grey: this row is a reminder, it must never
-    // read as a result. The black outline keeps it legible over any background
-    private static readonly Color SelectionColor = Calc.HexToColor("6f6f6f");
 
     // drop the row below srta's delta row when srta is present; resolved on
     // first render (mod load order between srs and srta is not guaranteed)
@@ -41,7 +29,7 @@ public static class TierComparison {
 
     public static void Load() {
         // after RunWatcher's Level.Update hook: this one wraps it, so after
-        // orig the frame's capture is already settled when the tier computes
+        // orig the frame's records are already settled when the tier computes
         On.Celeste.Level.Update += LevelOnUpdate;
         On.Celeste.SpeedrunTimerDisplay.Render += SpeedrunTimerDisplayOnRender;
     }
@@ -60,7 +48,7 @@ public static class TierComparison {
 
         // srta-style hotkey: flip the toggle and confirm with SpeedrunTool's
         // popup, so the row can be hidden without leaving the game. Hotkeys
-        // already answers false while paused, so the rows cannot be toggled
+        // already answers false while paused, so the row cannot be toggled
         // from behind the pause menu
         if (Hotkeys.Pressed(Hotkeys.ToggleShowTier)) {
             Settings.ShowTier = !Settings.ShowTier;
@@ -69,58 +57,21 @@ public static class TierComparison {
                 Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
         }
 
-        if (Hotkeys.Pressed(Hotkeys.ToggleShowSelection)) {
-            Settings.ShowSelection = !Settings.ShowSelection;
-            SrsModule.Instance.SaveSettings();
-            PopupMessageUtils.ShowOptionState(Dialog.Clean("MODOPTIONS_SRS_SHOWSELECTION"),
-                Dialog.Clean(Settings.ShowSelection ? DialogIds.On : DialogIds.Off));
-        }
-
         ComputeTier();
-        ComputeSelection();
     }
 
-    // the segment the next run will be compared against, named the way the two
-    // things that pick it are: the Category setting (hotkey or slider) and the
-    // sheet's own checkpoint name (so a variant reads "Any% Cassettes -
-    // Hollows Tape", not "Hollows"). Empty while nothing is armed — no sheet
-    // data yet, or a selection the imported data no longer has: there is no
-    // comparison to announce then, and the tier row would stay empty too
-    private static void ComputeSelection() {
-        SheetSegment segment = SegmentSelector.Current;
-        selectionText = segment == null
-            ? ""
-            : $"{SegmentCategories.NameOf(Settings.Category)} - {segment.Name}";
-    }
-
-    // first tier column whose threshold is >= the captured time wins; slower
-    // than every threshold (i.e. beyond Red 3) is Unranked. The Hidden column
-    // is 0:00.000 everywhere and never matches; empty/unparseable cells (null)
-    // are skipped. The captured time is drawn left of the tier name, in the
-    // tier's color — srs's frozen reference time, since SpeedrunTool's own
-    // display no longer freezes on the segment's real end. A completed run
-    // that failed the start guard (savestate planted mid-segment) shows its
-    // frozen time alone, greyed: the end of the run stays visible, the grey
-    // says it earned no tier
+    // first tier column whose threshold is >= the time wins; past every one,
+    // Unranked. The row is the latest record's, looked up by name in the sheet
+    // as it is now, since SheetImporter.Data is reassigned from a worker
     private static void ComputeTier() {
         rowText = "";
-        if (!RunWatcher.Completed) {
-            return;
-        }
-
-        TimeSpan time = TimeSpan.FromTicks(RunWatcher.CapturedTicks);
-        if (!RunWatcher.HasCapture) {
-            rowText = FormatTime(time);
-            tierColor = Color.Gray;
-            return;
-        }
-
         SheetBlock block = SheetImporter.Data?.CheckpointBlock;
-        SheetSegment segment = RunWatcher.CapturedSegment;
-        if (block == null || segment == null) {
+        if (RunWatcher.Latest is not { } record || block == null
+            || block.Find(record.Rule.Chapter, record.Rule.Name) is not { } segment) {
             return;
         }
 
+        TimeSpan time = TimeSpan.FromTicks(record.Ticks);
         SetTier(time, SheetData.TierOf(block.Columns, segment.Times, time));
     }
 
@@ -184,22 +135,14 @@ public static class TierComparison {
             return;
         }
 
-        // fixed slots, not a stack that closes up: the selection row is a
-        // landmark read mid-run, and a run completing must not slide it out
-        // from under the eye. It stays on the second slot, the tier's one
-        // simply being empty until a run finishes
         if (Settings.ShowTier && rowText.Length > 0) {
             DrawRow(self, 0, rowText, tierColor);
-        }
-
-        if (Settings.ShowSelection && selectionText.Length > 0) {
-            DrawRow(self, 1, selectionText, SelectionColor);
         }
     }
 
     // row below SpeedrunTool's time + PB rows (below srta's delta row when srta
-    // is installed), same background and sliding animation; row 0 is the first
-    // slot srs owns, each following one sits a row lower
+    // is installed), same background and sliding animation; row 0 is the only
+    // slot srs owns, each further one would sit a row lower
     private static void DrawRow(SpeedrunTimerDisplay self, int row, string text, Color color) {
         const float topTimeHeight = 38f;
         const float timeMarginLeft = 32f;

@@ -24,11 +24,6 @@ internal static class ModMenu {
         showTier.Change(on => settings.ShowTier = on);
         menu.Add(showTier);
 
-        TextMenu.OnOff showSelection = new(Dialog.Clean("MODOPTIONS_SRS_SHOWSELECTION"), settings.ShowSelection);
-        showSelection.Change(on => settings.ShowSelection = on);
-        menu.Add(showSelection);
-
-        SegmentSelector.CreateMenuEntries(menu);
         Action updateStandards = SheetImporter.CreateMenuEntries(menu);
 
         // ExportUrlMenu keeps these two hidden until an export URL is set
@@ -63,8 +58,8 @@ internal static class ModMenu {
         // submenu, which keeps reading input under the screen it opens
         menu.Add(HotkeyMenu.OpenButton(menu, Hotkeys.Set, Hotkeys.Text, SrsModule.Instance.SaveSettings));
 
-        // taken as a range rather than listed entry by entry: SegmentSelector
-        // adds nothing at all when no sheet data is loaded, so the list cannot
+        // taken as a range rather than listed entry by entry: SheetImporter's
+        // entries depend on the data loaded, so the list cannot
         // be written out by hand without going out of step with what is there
         List<TextMenu.Item> subOptions = menu.Items.GetRange(first, menu.Items.Count - first);
 

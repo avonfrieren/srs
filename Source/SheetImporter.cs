@@ -130,7 +130,7 @@ public static class SheetImporter {
             string[] tabs = await Task.WhenAll(aTask, bTask, farewellTask);
             string aSides = tabs[0], bSides = tabs[1], farewell = tabs[2];
             // all or nothing: a half-updated cache would silently drop whole
-            // chapters from the sliders
+            // rows from the tracked set
             if (aSides == null || bSides == null || farewell == null) {
                 return false;
             }

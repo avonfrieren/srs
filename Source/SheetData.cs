@@ -4,50 +4,9 @@ using System.Globalization;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// the category a sheet row belongs to, read from the marker in its raw name
-// ("Hollows 📼 RTM" is the cassette variant of "Hollows"; no marker = plain
-// any% standard). A row can be practiced in several categories — the heart
-// rows belong to both True Ending variants — so this is only the category the
-// marker *denotes*; CategoryVariants is what says which categories point at
-// it. The 💎 gem rows will appear here when they get imported
-public enum SegmentCategory {
-    AnyPercent,
-    Cassette,
-    TrueEnding,
-    TrueEndingDts,
-}
-
-// how the categories are shown and walked through. The names are the sheet's
-// own vocabulary, deliberately untranslated, and both the Mod Options slider
-// and the cycle hotkey read them from here so the two never drift apart. Kept
-// game-free like the rest of this file: a test checks the table still covers
-// every enum value
-public static class SegmentCategories {
-    // indexed by SegmentCategory. "Any% Cassettes": the 5A and 6A cassettes are part of the any% run, so the
-    // name says which run these segments belong to rather than pretending to
-    // be a category of its own. The rule the split enforces is that no
-    // category ever holds two segments starting at the same in-game
-    // checkpoint — wider categories are described by what they *add*, and
-    // fall back to the any% row everywhere they add nothing: "True Ending"
-    // only names the hearts, since Core and Farewell start
-    // at checkpoints no other category has a segment for. "True Ending DTS"
-    // is that same run with the double-dash skip, which the sheet times
-    // separately from Farewell's Start to Determination. The enum member
-    // keeps its short name: it is what gets persisted in the settings file
-    public static readonly string[] Names = ["Any%", "Any% Cassettes", "True Ending", "True Ending DTS"];
-
-    public static string NameOf(SegmentCategory category) =>
-        (int)category >= 0 && (int)category < Names.Length ? Names[(int)category] : category.ToString();
-
-    // the hotkey walks the slider's order and wraps around; driven by the enum
-    // rather than by Names so a category added without its label still cycles
-    public static SegmentCategory Next(SegmentCategory category) =>
-        (SegmentCategory)(((int)category + 1) % Enum.GetValues(typeof(SegmentCategory)).Length);
-}
-
 // what finishes a run of the segment: derived from the sheet's own
-// naming vocabulary, evaluated by RunWatcher — SpeedrunTool's Number of Rooms
-// plays no part anymore.
+// naming vocabulary, read by SegmentRules to know whether a row ends at a
+// collect — SpeedrunTool's Number of Rooms plays no part anymore.
 public enum EndCondition {
     // ends where the next in-game checkpoint starts; resolved at runtime from
     // AreaData (no next checkpoint ⇒ the chapter's completion ends the run)
@@ -71,7 +30,7 @@ public class SheetData {
 
     /// The SheetRows keys none of the parsed tabs had. A row the
     /// sheet renamed misses the allowlist without a sound and drops out of the
-    /// sliders, the tier and auto-detection; this is how it gets noticed.
+    /// tracked rows and the tier; this is how it gets noticed.
     /// Covers only what was given: parse two tabs, and the third one's rows
     /// are all here.
     public readonly List<(string Chapter, string Name)> MissingRows = [];
@@ -133,7 +92,7 @@ public class SheetData {
                         imported.Add((tab, segment.Chapter, segment.Name));
                         merged.Segments.Add(new SheetSegment(row.Chapter, row.Name,
                             Realigned(segment.Times, merged.Columns.Count),
-                            CategoryOf(segment.Name), EndConditionOf(segment.Name)));
+                            EndConditionOf(segment.Name)));
                     }
                 }
             }
@@ -163,36 +122,14 @@ public class SheetData {
         return aligned;
     }
 
-    // the raw sheet name carries the category as an emoji marker; matched with
-    // Contains — the sheet's own spacing around the marker is inconsistent
-    // ("📼 RTM", "📼Clear"), so no exact-name matching here. The Farewell tab
-    // marks its double-dash-skip rows with a plain " DTS" suffix instead
-    // ("Start DTS"), which is exact enough to match on: the four SoB/IL totals
-    // that start with "DTS" are not imported anyway
-    internal static SegmentCategory CategoryOf(string rawName) {
-        string name = rawName.TrimEnd();
-        if (name.Contains("📼")) {
-            return SegmentCategory.Cassette;
-        }
-
-        if (name.EndsWith(" DTS", StringComparison.Ordinal)) {
-            return SegmentCategory.TrueEndingDts;
-        }
-
-        // the heart rows are run by both True Ending variants; the category
-        // here is only the one the marker denotes, CategoryVariants lists the
-        // categories that actually point at the row
-        return name.Contains("💙") ? SegmentCategory.TrueEnding : SegmentCategory.AnyPercent;
-    }
-
     // the end of the run is in the raw name too, and "RTM" and "RC" are the
     // only things that end one early: the sheet's markers for "collect, then
     // return to map" or "restart the chapter", and the community convention is
     // that the segment stops at the collect (the menuing after it is not
     // gameplay and is never timed). Every other
     // row runs to the end of its segment — the next in-game checkpoint, or
-    // the chapter itself when there is none, which RunWatcher resolves at
-    // runtime with no help from here.
+    // the chapter itself when there is none, which SegmentRules resolves
+    // with no help from here.
     // A "Clear" suffix on a checkpoint row is *not* the chapter's completion,
     // whatever it reads like: "Shrine 💙 Clear" (27.5s) cannot contain Old
     // Trail and Cliff Face (78s of run after it), and the sheet's own chapter
@@ -388,16 +325,14 @@ public class SheetBlock(string name, int tierStart, bool hasCheckpoints) {
 }
 
 public class SheetSegment(string chapter, string name, List<TimeSpan?> times = null,
-    SegmentCategory category = SegmentCategory.AnyPercent, EndCondition end = EndCondition.Checkpoint) {
+    EndCondition end = EndCondition.Checkpoint) {
     // owning chapter; equals Name in chapter-only blocks
     public readonly string Chapter = chapter;
     public readonly string Name = name;
     // aligned with the owning block's Columns; null = empty or unparseable cell
     public readonly List<TimeSpan?> Times = times ?? [];
     // derived from the raw sheet name's marker at import (raw blocks keep the
-    // defaults: their names still carry the marker itself). Only the tests read
-    // Category: the mod picks a variant through CategoryVariants, not this
-    public readonly SegmentCategory Category = category;
+    // default: their names still carry the marker itself)
     public readonly EndCondition End = end;
 }
 

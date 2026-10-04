@@ -8,9 +8,8 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// are cut on the player's setting and describe no sheet segment.
 internal static class ExportSource {
     /// The one row there is to export: the row whose session best improved
-    /// last, whatever the selection has moved to since. The selection is not
-    /// the run: a category switch after a Hollows Tape run would label the
-    /// cassette time Hollows.
+    /// last. Labelled by the row the run closed, never by its checkpoint: a
+    /// Hollows Tape run must not label its time Hollows.
     public static List<PendingUpdate> Collect(Session session) {
         List<PendingUpdate> updates = [];
 
