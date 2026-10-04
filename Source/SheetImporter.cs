@@ -55,13 +55,9 @@ public static class SheetImporter {
         } catch (Exception e) {
             Logger.Log(LogLevel.Warn, LogTag, $"Failed to load sheet cache: {e}");
         } finally {
-            // the sheet is retimed and extended regularly, so every launch
-            // refreshes it in the background. The cache above is
-            // already serving by then, and a failed download leaves it
-            // untouched — offline play is unaffected, and a first launch with
-            // no cache at all still ends up with data. Skipped while the mod is
-            // switched off — nothing reads the result, and an off mod has no
-            // business on the network; the master switch runs it on the way back on
+            // every launch refreshes the sheet in the background, behind the
+            // cache already serving: a failed download leaves it untouched. Not
+            // while the mod is off: the master switch runs it on the way back on
             if (SrsModule.Settings.Enabled) {
                 BeginUpdate(null);
             }

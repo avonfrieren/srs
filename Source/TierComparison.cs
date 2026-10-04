@@ -8,18 +8,13 @@ using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// The row shows the latest record's time and tier: the time of the segment
-// RunWatcher last closed, compared against the segment's sheet tiers, drawn
-// with the reached tier's name in the tier's color under the timer, like
-// srta's delta row. srs is the holder of the reference time —
-// SpeedrunTool's own display keeps obeying its Number of Rooms setting, which
-// srs no longer touches.
+// The row under Speed Run Tool's timer: the latest record's time, and the tier
+// it reached in the tier's color, like srta's delta row.
 public static class TierComparison {
     private static SrsSettings Settings => SrsModule.Settings;
 
-    // recomputed every frame from RunWatcher.Latest (srta-style), so the row
-    // reacts instantly to sheet re-imports; session display only, not
-    // registered with save states
+    // recomputed every frame from RunWatcher.Latest, so a sheet re-import shows
+    // at once; session display, not registered with save states
     private static string rowText = "";
     private static Color tierColor = Color.White;
 
@@ -28,8 +23,7 @@ public static class TierComparison {
     private static bool? srtaLoaded;
 
     public static void Load() {
-        // after RunWatcher's Level.Update hook: this one wraps it, so after
-        // orig the frame's records are already settled when the tier computes
+        // hook order: see SrsModule.Load
         On.Celeste.Level.Update += LevelOnUpdate;
         On.Celeste.SpeedrunTimerDisplay.Render += SpeedrunTimerDisplayOnRender;
     }
@@ -46,10 +40,8 @@ public static class TierComparison {
             return;
         }
 
-        // srta-style hotkey: flip the toggle and confirm with SpeedrunTool's
-        // popup, so the row can be hidden without leaving the game. Hotkeys
-        // already answers false while paused, so the row cannot be toggled
-        // from behind the pause menu
+        // flip the toggle and confirm with Speed Run Tool's popup; Hotkeys
+        // answers false while paused
         if (Hotkeys.Pressed(Hotkeys.ToggleShowTier)) {
             Settings.ShowTier = !Settings.ShowTier;
             SrsModule.TrySaveSettings("Show Tier");
@@ -60,9 +52,8 @@ public static class TierComparison {
         ComputeTier();
     }
 
-    // first tier column whose threshold is >= the time wins; past every one,
-    // Unranked. The row is the latest record's, looked up by name in the sheet
-    // as it is now, since SheetImporter.Data is reassigned from a worker
+    // the latest record's row, looked up by name (see SheetBlock.Find), and the
+    // tier its time reached (SheetData.TierOf)
     private static void ComputeTier() {
         rowText = "";
         SheetBlock block = SheetImporter.Data?.CheckpointBlock;
@@ -161,14 +152,10 @@ public static class TierComparison {
             y += rowHeight + 1f;
         }
 
-        // SpeedrunTool's own PB-row width heuristic, read off 3.27.17, not the
-        // measured text width: the background is a
-        // 288px strip that fades out to the right, and every row of the stack is
-        // meant to end *inside* the text, letting the tail sit over the fade.
-        // Measuring the text put the whole fade past the last character instead,
-        // making this row visibly longer than the ones above it. Nothing rechecks
-        // the formula against SpeedrunTool, so a release that changes it brings
-        // that back with no test failing
+        // Speed Run Tool's PB-row width formula (3.27.17), not the text's width:
+        // the 288 px background fades out to the right, and each row of the
+        // stack ends inside its text, the tail over the fade. Nothing checks
+        // the formula against a newer Speed Run Tool
         float width = 60f + Math.Max(0f, 18f * (text.Length - 8));
         Draw.Rect(x, y - 1f, width + bg.Width * scale, 1f, Color.Black);
         Draw.Rect(x, y, width + 2f, rowHeight, Color.Black);

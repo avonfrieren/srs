@@ -5,11 +5,9 @@ using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// the whole Mod Options section, built by hand instead of letting Everest
-// generate the toggles: the master switch has to hide every other entry, which
-// means holding them all in one list. Nothing is auto-generated any more, so
-// the key bindings Everest would append are gone too — they are combos now,
-// bound from CelesteHotkeys' screen
+// the whole Mod Options section, built by hand: the master switch has to hide
+// every other entry. The key bindings are combos, bound from CelesteHotkeys'
+// screen
 internal static class ModMenu {
     internal static void CreateMenu(TextMenu menu, bool inGame) {
         SrsSettings settings = SrsModule.Settings;
@@ -26,7 +24,7 @@ internal static class ModMenu {
 
         Action updateStandards = SheetImporter.CreateMenuEntries(menu);
 
-        // ExportUrlMenu keeps these two hidden until an export URL is set
+        // ExportUrlMenu keeps the Forget button hidden until an export URL is set
         List<TextMenu.Item> urlDependent = ExportUrlMenu.CreateMenuEntries(menu);
 
         // in game only: the export screen needs a level, and it saves binding a

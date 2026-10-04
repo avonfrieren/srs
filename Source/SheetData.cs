@@ -38,13 +38,9 @@ public class SheetData {
     }
 
     // never throws on malformed content: unparseable cells become null times,
-    // rows outside any block or absent from the SheetRows allowlist are skipped.
-    // Segments from the three tabs land in one merged block, in tab row order
-    // (A, then B, then Farewell), so the B-side rows of the folded chapters
-    // follow their A-side ones like on the old sheet and Farewell closes the
-    // chapter list. All three tabs share the same tier columns; the merged
-    // header is taken from the first tab that has one. Farewell is the tab
-    // whose rows carry no chapter cell (see ParseBlocks)
+    // and rows outside any block or off the SheetRows allowlist are skipped.
+    // The three tabs merge into one block in tab order (A, B, Farewell), under
+    // the header of the first tab that has one
     public static SheetData Parse(string aSidesCsv, string bSidesCsv, string farewellCsv = null) {
         SheetData data = new();
         SheetBlock merged = null;
@@ -91,12 +87,9 @@ public class SheetData {
         return data;
     }
 
-    // one segment's times, stretched (or cut) to the merged block's tier
-    // columns. The tabs do not all end on the same column: Farewell stops at
-    // "Red 3" where the A and B tabs have a trailing "Unranked". Since
-    // "Unranked" is a column with no values anyway (the tier beyond Red 3),
-    // padding with nulls is exactly what a missing column means — and it keeps
-    // the block's promise that Times is indexable by Columns
+    // one segment's times, padded or cut to the merged block's columns:
+    // Farewell stops at Red 3 where the other tabs end on an empty "Unranked",
+    // and Times must stay indexable by Columns
     private static List<TimeSpan?> Realigned(List<TimeSpan?> times, int columns) {
         List<TimeSpan?> aligned = new(columns);
         for (int i = 0; i < columns; i++) {
@@ -106,13 +99,10 @@ public class SheetData {
         return aligned;
     }
 
-    // raw pass shared by the three tabs: split the CSV into blocks of segments,
-    // one block per header row, keeping the sheet's own chapter/checkpoint
-    // names. internal rather than private so the tests can check the SheetRows
-    // allowlist against the raw rows of the sheet.
-    // implicitChapter is for the Farewell tab, which has no Chapter column at
-    // all: its rows read like the "Chapter Times" ones (a single label column)
-    // but each label is a checkpoint of that one chapter
+    // the raw pass: the CSV's blocks of segments, one per header row, under the
+    // sheet's own names (internal for the allowlist tests). implicitChapter is
+    // the Farewell tab's, which has no Chapter column: each label is a
+    // checkpoint of that one chapter
     internal static List<SheetBlock> ParseBlocks(string csvText, string implicitChapter = null) {
         List<SheetBlock> blocks = [];
         SheetBlock currentBlock = null;
@@ -194,8 +184,7 @@ public class SheetData {
 
     // accepts the sheet's mixed formats: "28", "28.1", "00:56", "1:05.5", "24:06.802"
     public static TimeSpan? TryParseTime(string cell) {
-        // null is not only a CSV thing any more: the export asks about a cell
-        // the sheet may not have at all, and "no cell" parses like an empty one
+        // no cell at all, which the export asks about, parses like an empty one
         if (string.IsNullOrWhiteSpace(cell)) {
             return null;
         }
@@ -243,11 +232,10 @@ public class SheetBlock(int tierStart, bool hasCheckpoints) {
     public readonly List<string> Columns = [];
     public readonly List<SheetSegment> Segments = [];
 
-    // checkpoint names repeat across chapters ("Start" in nearly all of
-    // them), so checkpoints are always addressed by (chapter, name)
-    /// The segment of that chapter and name, or null. Callers address segments
-    /// by name, never by reference: SheetImporter.Data is reassigned from a
-    /// worker, and the new instances are not equal to the old ones.
+    /// The segment of that chapter and name ("Start" is in nearly every
+    /// chapter), or null. Callers address segments by name, never by reference:
+    /// SheetImporter.Data is reassigned from a worker, and the new instances are
+    /// not equal to the old ones.
     public SheetSegment Find(string chapter, string name) {
         foreach (SheetSegment segment in Segments) {
             if (segment.Chapter == chapter && segment.Name == name) {

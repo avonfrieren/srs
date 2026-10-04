@@ -27,9 +27,8 @@ internal static class ExportClient {
             if (string.IsNullOrWhiteSpace(url)) {
                 return (null, ExportProtocol.Localize("SRS_EXPORT_ERR_NO_URL"));
             }
-            // the round trip is the whole of the wait the player sees, and
-            // nothing measured it: an Apps Script cold start and an oversized
-            // payload look the same from the game
+            // timed: an Apps Script cold start and an oversized payload look the
+            // same from the game
             Stopwatch clock = Stopwatch.StartNew();
             try {
                 using HttpResponseMessage response = json == null

@@ -104,15 +104,13 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
             rule => rule.Setup == StartSetup.CurrentRoom, fromLoad: true);
     }
 
-    /// The player walked into this room from another: a transition, or a room
-    /// change the game makes in a cutscene. Closes first, then opens: the
-    /// segment ending here is never the one starting here. Only an entry from
-    /// the entry room of a segment starting here counts. It closes the segment
-    /// ending here with a time and opens the one starting here. Any other way
-    /// in may be a shortcut: it drops the segment ending here unrecorded and
-    /// opens nothing, so a backtrack or a return to the chapter's first room
-    /// opens nothing either. A Restart row whose segment ends here is dropped
-    /// on any way in: a restart after it is not a run of the row.
+    /// The player walked into this room from another. Closes first, then opens:
+    /// the segment ending here is never the one starting here. Only an entry
+    /// from the entry room of a segment starting here counts: it closes the
+    /// segment ending here with a time and opens the one starting here. Any
+    /// other way in may be a shortcut, and drops the segment ending here
+    /// unrecorded. A Restart row whose segment ends here is dropped on any way
+    /// in: a restart after it is not a run of the row.
     public List<SegmentRecord> RoomEntered(string scope, string from, string room, long reading, bool control,
         bool launching, EndState end) {
         bool entry = IsEntry(scope, from, room);
@@ -281,7 +279,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         return ticks < Longest ? ticks : null;
     }
 
-    // a berry still following at the end counts (owner, 2026-10-03)
+    // a berry still following at the end counts (owner decision)
     private bool HasEveryBerry(OpenSegment segment, EndState end) {
         foreach (string berry in Rooms.BerriesOf(segment.Rule)) {
             if (!segment.Berries.Contains(berry) && !Contains(end.FollowingBerries, berry)) {

@@ -1,10 +1,8 @@
 namespace Celeste.Mod.SpeedrunSheet;
 
 public class SrsSettings : EverestModuleSettings {
-    // master switch. Off, the mod is inert — no HUD row, no run tracking, no
-    // hotkey, no startup refresh — and Mod Options shows nothing but this
-    // toggle. Built by hand in ModMenu, which needs the Change handler to hide
-    // the rest of the section
+    // master switch: off, the mod is inert and Mod Options shows only this
+    // toggle. Built by hand in ModMenu, whose Change handler hides the rest
     [SettingIgnore]
     public bool Enabled { get; set; } = true;
 
@@ -20,11 +18,8 @@ public class SrsSettings : EverestModuleSettings {
     public const string DefaultFarewellUrl =
         SheetUrls.EditUrlPrefix + "1826331297";
 
-    // full Google Sheets edit URLs (spreadsheet id + gid are extracted from
-    // them); not editable in-game — change them in the settings file to read
-    // another workbook. These are stored values: a player who has saved
-    // settings keeps theirs, which is why SrsModule migrates the id of the
-    // workbook srs read before 2026-08-28 (SheetUrls)
+    // full edit URLs, editable only in the settings file. Stored values: see
+    // SheetUrls for why SrsModule migrates them
     [SettingIgnore]
     public string ASidesUrl { get; set; } = DefaultASidesUrl;
 

@@ -53,10 +53,9 @@ internal sealed class UpdateRow : TextMenu.Item {
         ExportColumns.Text(update.DeltaText, position, columns.DeltaX, DeltaColor(update) * alpha, alpha);
     }
 
-    // neutral when there is nothing to compare against and when the times are
-    // equal: "+0.000" in red says a regression that did not happen. An
-    // unreadable cell lands here through RemoteTicks staying null, and its "?"
-    // is a refusal rather than a regression
+    // neutral with nothing to compare against and on equal times: "+0.000" in
+    // red says a regression that did not happen, and an unreadable cell's "?"
+    // is a refusal
     private static Color DeltaColor(PendingUpdate update) {
         if (update.RemoteTicks == null || update.LocalTicks == update.RemoteTicks.Value) {
             return Color.Gray;
@@ -170,9 +169,7 @@ internal sealed class ExportColumns {
         // floors, so a column does not resize when the fetch lands and the
         // sheet column goes from "" to real times
         float floor = Width("00:00.000");
-        // no floor on the label column: the three time columns have a header to
-        // stay at least as wide as, this one has none, and flooring it on
-        // another column's header was a copy-paste that only made it wide
+        // no floor on the label column: it has no header to stay as wide as
         float label = 0f;
         float remote = Math.Max(floor, Width(Dialog.Clean("SRS_EXPORT_COL_SHEET")));
         float local = Math.Max(floor, Width(Dialog.Clean("SRS_EXPORT_COL_LOCAL")));
@@ -203,19 +200,15 @@ internal sealed class ExportColumns {
 /// it pauses the level, and Hotkeys reads HoldsThePause to keep that one combo
 /// alive behind the pause it caused. Cancel, Back/ESC and pause close it too.
 ///
-/// ⚠️ Must load after Hotkeys: it reads OpenExportMenu.Pressed on the frame
-/// Hotkeys produced it.
+/// ⚠️ Hook order: see SrsModule.Load.
 internal static class ExportMenu {
     private const string LogTag = "srs";
 
     private static TextMenu menu;
 
-    // the Level the screen is open on, and whether it was already paused before
-    // Open() forced it, so Close() restores the prior state.
-    //
-    // ⚠️ A Level is normally never held across frames: the scene can be
-    // replaced between two of them. Nothing replaces it while the screen is up, and that guarantee is
-    // SpeedrunTool's rather than ours; OnLevelUpdate closes on menu.Scene != self
+    // the Level the screen is open on, and whether it was paused before Open()
+    // forced it. ⚠️ A Level is normally never held across frames: OnLevelUpdate
+    // closes the screen when this one is replaced under it
     private static Level openLevel;
     private static bool pausedBeforeOpen;
 
@@ -259,9 +252,8 @@ internal static class ExportMenu {
     private static volatile int generation;
 
     public static void Load() {
-        // Dialog loads after the mods do, and the launch refresh below can be
-        // answered before it: Dialog.Clean then throws on a null Language, which
-        // turned a plain 404 at boot into an exception. The key is logged instead
+        // Dialog loads after the mods do, and the launch refresh can be answered
+        // before it, when Dialog.Clean throws: the key is logged instead
         ExportProtocol.Localize = key => Dialog.Language == null ? key : Dialog.Clean(key);
 
         On.Celeste.Level.Update += OnLevelUpdate;
@@ -377,14 +369,11 @@ internal static class ExportMenu {
     private static void OnLevelUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         orig(self);
 
-        // a level replaced under an open screen leaves the menu an entity of the
-        // old one: it vanishes while `menu` stays non null and Open() refuses for
-        // the rest of the session. No path there is known -- the savestate load is
-        // refused by SpeedrunTool's own !scene.Paused gate (3.27.17), in a
-        // dependency everest.yaml pins only a minimum of
+        // a level replaced under an open screen would leave `menu` set and Open()
+        // refusing for the session. A console load reaches it. Speed Run Tool
+        // 3.27.17 refuses its own loads while paused, which is its guarantee and
+        // not ours (everest.yaml pins only a minimum), and Open refuses under a wipe
         if (menu != null && menu.Scene != self) {
-            // logged because nothing is known to trigger it: silent, the path
-            // could neither be tested nor caught doing its job
             Logger.Log(LogLevel.Warn, LogTag, "the level was replaced under the export screen; closed it");
             Close();
         }
@@ -481,8 +470,7 @@ internal static class ExportMenu {
         string url = ExportTarget.Url;
         _ = ExportClient.FetchAsync(url).ContinueWith(task => {
             if (fetch != generation) {
-                // an older answer would overwrite a newer one. Logged for the
-                // same reason as the guard above: silent, it cannot be seen work
+                // an older answer would overwrite a newer one
                 Logger.Log(LogLevel.Info, LogTag, "a fetch resolved after its screen was replaced; discarded");
                 return;
             }
@@ -617,16 +605,13 @@ internal static class ExportMenu {
 
     private static void Submit(Level level, List<PendingUpdate> updates, bool builtOnAnswer) {
         if (submitting) {
-            // saying nothing here read as a dead button, and it could last the
-            // whole 60 s timeout
+            // a write can last the whole 60 s timeout: say so rather than nothing
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_WRITING"), null);
             return;
         }
 
-        // unresolved rows pre-select as "improves" without ever having been
-        // compared, so submitting one can overwrite a better sheet time.
-        // Unreachable (Export is Disabled on the same condition), kept because
-        // it guards a data-loss path
+        // unreachable, as Export is Disabled on the same condition; kept because
+        // rows built on no answer pre-tick and would overwrite a better time
         if (!builtOnAnswer || !RemoteBests.IsResolved) {
             Logger.Log(LogLevel.Warn, LogTag, "submit reached the unresolved guard: " + RemoteBests.State);
             return;
@@ -751,8 +736,6 @@ internal static class ExportMenu {
         Show(level, newMenu);
     }
 
-    // a line-per-row summary of the result plus a Close button; reached only
-    // from OnLevelUpdate, on the game thread
     // a SubHeader draws on one line and never wraps. The script's own
     // reasons are long English sentences; the full text is in log.txt
     private const float SummaryMaxWidth = 1600f;

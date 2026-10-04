@@ -32,9 +32,7 @@ public static class Hotkeys {
         // screen, where these used to be set, records it unfiltered
         Bindable.Sanitize(SrsModule.Settings);
 
-        // loaded first, so this hook is the innermost one: after orig the
-        // hotkeys are updated before RunWatcher, TierComparison
-        // and ExportMenu read them on the same frame
+        // hook order: see SrsModule.Load
         On.Celeste.Level.Update += LevelOnUpdate;
     }
 

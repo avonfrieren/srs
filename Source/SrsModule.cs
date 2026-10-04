@@ -30,9 +30,8 @@ public class SrsModule : EverestModule {
         Hotkeys.Load();
         RunWatcher.Load();
         TierComparison.Load();
-        // last: like TierComparison, this one reads Hotkeys on the frame
-        // Hotkeys updated it, so it must stay outside Hotkeys' hook. Nothing
-        // else constrains it, it only reads what the others produced
+        // last: it reads Hotkeys on the frame Hotkeys updated it, and only reads
+        // what the others produced
         ExportMenu.Load();
         // no Level.Update hook of its own: an Everest enter event, so it is
         // outside the ordering the comment above describes
@@ -48,14 +47,12 @@ public class SrsModule : EverestModule {
         SheetImporter.Unload();
     }
 
-    /// srs exports the string SpeedrunTool printed, so it takes the formatter
-    /// rather than copying it. By reflection because there is no other way in:
+    /// srs prints its times in Speed Run Tool's format, so it takes the
+    /// formatter rather than copying it. By reflection, the only way in:
     /// RoomTimerData.FormatTime is public, its class is not, the ModInterop
-    /// exports the stopwatch and not its rendering, and a Publicizer is ruled
-    /// out project-wide.
+    /// does not export it, and a Publicizer is ruled out.
     ///
-    /// isPbTime: false — the true branch returns "" for a zero, which is how
-    /// SpeedrunTool draws an absent PB, and srs has its own rule for that.
+    /// isPbTime false: true returns "" for a zero, Speed Run Tool's absent PB.
     private static void AdoptSpeedrunToolsTimeFormat() {
         try {
             Assembly assembly = Everest.Modules
@@ -85,10 +82,8 @@ public class SrsModule : EverestModule {
     public override void LoadSettings() {
         base.LoadSettings();
 
-        // the tab URLs are stored settings, so the defaults above reach nobody
-        // who has ever saved: without this, every existing player stays on the
-        // workbook frozen on 2026-08-28, which still answers and silently stops
-        // receiving retimings
+        // a stored URL beats a new default (SheetUrls): without this, a player
+        // who ever saved stays on the frozen workbook
         MigrateSheetUrls();
     }
 

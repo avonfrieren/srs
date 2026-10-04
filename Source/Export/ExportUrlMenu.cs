@@ -6,10 +6,8 @@ using SDL2;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// Mod Options entries for the export target (ExportTarget). The URL is a bearer
-// credential (no auth on the Apps Script Web App side), so it must never be
-// shown, logged, or pre-filled: it is read from the clipboard and never
-// rendered back.
+// Mod Options entries for the export target. The URL is the credential
+// (ExportTarget): read from the clipboard, never rendered back.
 public static class ExportUrlMenu {
     private const string LogTag = "srs";
 
@@ -46,11 +44,10 @@ public static class ExportUrlMenu {
             Visible = HasUrl,
         };
 
-        // the only place `message` and `checking` are read.
-        //
-        // ⚠️ TextMenu calls OnUpdate on every item each frame, visible or not,
-        // so this owns `status.Visible`: whatever ModMenu's master switch sets
-        // is undone next frame unless the switch is read here too
+        // the only place `message` and `checking` are read. ⚠️ TextMenu calls
+        // OnUpdate on every item each frame, visible or not, so this owns
+        // `status.Visible`: the master switch must be read here too, or what it
+        // sets is undone next frame
         setButton.OnUpdate = () => {
             if (!SrsModule.Settings.Enabled) {
                 return;

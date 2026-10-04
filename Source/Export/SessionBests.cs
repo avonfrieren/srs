@@ -37,8 +37,7 @@ internal static class SessionBests {
         }
     }
 
-    /// The row whose best improved last, looked up by name in the sheet as it
-    /// is now: SheetImporter.Data is reassigned from a worker.
+    /// The row whose best improved last, looked up by name (see SheetBlock.Find).
     public static bool TryGet(out SheetSegment segment, out long ticks) {
         segment = null;
         ticks = 0;
