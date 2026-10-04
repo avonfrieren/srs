@@ -1,6 +1,6 @@
 # srs — Contexte & architecture
 
-Mod Everest **Speedrun Sheet** (`srs`), dépendant de SpeedrunTool : importe les temps de référence d'une practice sheet communautaire (Google Sheets → CSV local) et colore le temps final d'un segment (temps de chapitre ; seule la ligne affichée est sous le room timer de SpeedrunTool) selon les paliers de la sheet.
+Mod Everest **Speedrun Sheet** (`srs`), dépendant de SpeedrunTool : importe les temps de référence d'une practice sheet communautaire (Google Sheets → CSV local) et colore le temps final d'un segment (temps de chapitre, affiché au-dessus du room timer de SpeedrunTool) selon les paliers de la sheet.
 Le `README.md` sert de **notes d'utilisation** et `CHANGELOG.md` de **changelog** : mettre ce dernier à jour à chaque feature.
 
 ## Build
@@ -47,7 +47,7 @@ Le code porte ses justifications en commentaires ; ici, seules celles qui dépas
   - **La table n'est pas construite avant que la sheet ait répondu**, et une table construite sans réponse n'exporte jamais (ses lignes se pré-cochent toutes). **Tout ce qui revient d'un `ContinueWith` passe par un drapeau `volatile` consommé dans le hook `Level.Update`** : un `TextMenu` ne se touche jamais hors du thread de jeu, et l'arrivée d'une réponse **relit le master switch**.
   - `ExportTarget` écrit l'URL par `AtomicFile`, qui ne lève jamais et efface le `.tmp` : il contient l'URL.
 - `AppsScript/SETUP.md` — le déploiement du Web App par le joueur. **Le script n'est pas dans ce dépôt** : le template de la sheet le porte (`srsExport.gs`). Il apparie les lignes **par libellé normalisé**, jamais par position, et aucun test d'ici ne le fait tourner.
-- `TierComparison.cs` — **une seule** ligne sous le timer, **décalée d'une ligne si srta est chargé**. Largeur du fond = la formule de SpeedrunTool 3.27.17 (`60 + 18*(len-8)`), **surtout pas la largeur mesurée du texte** (le dégradé doit passer *sous* la fin du texte).
+- `TierComparison.cs` — **au-dessus** du timer. Le PB lit `RemoteBests` **une fois** par record, pour qu'un export ne l'ôte pas. Fond : formule de SpeedrunTool 3.27.17 à l'échelle, **surtout pas la largeur mesurée du texte** (le dégradé passe *sous* la fin du texte).
 - `Dialog/English.txt` + `French.txt` — pas de placeholders `{0}` (`Dialog.Clean` efface les accolades) : composer en code. **Une exception** : `SRS_KEYBIND_TIMEOUT`, que CelesteHotkeys lit brut par `Dialog.Get`.
 
 ## Données de la sheet
@@ -59,7 +59,7 @@ Le code porte ses justifications en commentaires ; ici, seules celles qui dépas
 - Les colonnes **sont** les noms des paliers (`Hidden, WR, Gold, Pink, Purple 1-3, …, Red 1-3, Unranked`) ⇒ `TierColors` est indexée par nom de colonne **complet**, le suffixe de rang compte. Farewell n'a pas de colonne `Chapter` et s'arrête à `Red 3` ⇒ `Realigned` complète les temps. Le nom de chapitre n'est que sur la 1re ligne d'un groupe ⇒ reporté au parsing.
 - Variantes marquées par emoji (`💙` cœur, `📼` cassette, `💎` gem) à l'**espacement irrégulier** ⇒ `Contains`. **L'emoji ne survit jamais à l'import** : `ActiveFont` saute en silence un caractère absent de son atlas, donc les lignes gardées sont renommées d'après ce qu'elles collectent (`Hollows Tape`, `Shrine Heart`). `Start Heart RC` garde son `RC`, seul marqueur ASCII importé.
 - **`RTM` et `RC` sont les seuls suffixes qui arrêtent une run avant la fin de son segment** (`RTM` au collect, `RC` au Restart Chapter, seulement sur `2a Start 💙 RC`). `Clear` veut dire « on ramasse et on continue », *pas* « fin du chapitre » (cf. `SegmentRules.EndOf`).
-- Les lignes `Wake Up` **ne s'importent pas** (décision du propriétaire, épinglée par `LeavesTheNotYetSupportedRowsOut`). `Hidden` vaut `0:00.000` partout, et certains `WR` aussi ⇒ ignorés (`threshold > TimeSpan.Zero`). **Premier seuil ≥ temps réalisé ⇒ palier atteint.**
+- Les lignes `Wake Up` **ne s'importent pas** (décision du propriétaire, épinglée par `LeavesTheNotYetSupportedRowsOut`). `Hidden` vaut `0:00.000` partout, et certains `WR` aussi ⇒ ignorés (`threshold > TimeSpan.Zero`). **Palier atteint : temps strictement sous le seuil, sauf WR (égalité comprise)**, comme la sheet.
 
 ## Repères SpeedrunTool
 
@@ -67,7 +67,6 @@ Le code porte ses justifications en commentaires ; ici, seules celles qui dépas
 - **Le format des temps est celui de SpeedrunTool, atteint par réflexion** (`SrsModule.AdoptSpeedrunToolsTimeFormat`, avant tout le reste du `Load`). **srs ne garde aucune copie du format** : si la recherche échoue, `Load` lève — un second formateur dériverait en silence et écrirait dans la sheet un temps qui ne correspond plus au timer (décision maintenue : ne pas proposer de formateur local). La doublure des tests (`Tests/TimeFormatStandIn.cs`) **n'est pas une spécification** : n'y adosser aucune assertion sur une chaîne de temps exacte.
 - ModInterop `SpeedrunTool.SaveLoad` : **l'état statique qui décrit l'état de jeu et est muté en gameplay doit y être enregistré** (`RegisterStaticTypes`) sous peine de desync ; `RunWatcher` n'y enregistre que `Saved`. **Ce qui décrit la *session* en est exclu, volontairement** (`SessionBests`, `RemoteBests`) : la question est « un retour en arrière du jeu doit-il l'annuler ? ». Ne pas écrire qu'un load restaure `Session.Time` : sous `SaveTimeAndDeaths` off il garde le plus grand des deux, et rien n'en dépend puisqu'aucun temps ne traverse un load.
 - **Téléport de room** (PageUp/PageDown, `TeleportRoomUtils.TeleportTo`) : `LoadLevel(Respawn)` sans loader, `Session.Time` jamais baissé, **puis `level.Update()` direct depuis sa hotkey (dans `MInput.Update`) : tous les hooks `Level.Update` de srs tournent deux fois sur cette frame**. Rien d'autre ne signale le téléport, d'où `teleported` dans `RunWatcher`.
-- HUD : dessiner après `orig` de `On.Celeste.SpeedrunTimerDisplay.Render`.
 - **Pris hors interop, donc à revérifier à chaque release de SpeedrunTool** : `SpeedrunToolSettings.Instance` (`RoomTimerType`, `FreezeAfterLoadStateType`), `PopupMessageUtils`, `DialogIds`, `RoomTimerData.FormatTime` par réflexion, le comportement de `TeleportRoomUtils`, et le refus d'un load pendant la pause (dont `ExportMenu` dépend). Rien ne les enveloppe : un renommage casse srs.
 
 ## Checklist « nouvelle fonctionnalité »

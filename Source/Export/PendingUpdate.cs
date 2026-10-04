@@ -18,19 +18,26 @@ public sealed class PendingUpdate {
     public string DeltaText { get; private init; }
     public bool Selected { get; set; }
 
+    /// The time a sheet cell holds, or null when it holds none srs can read:
+    /// empty, 0:00.000 or unreadable.
+    public static long? TicksOf(string remoteCell) => Read(remoteCell).Ticks;
+
+    // an hour or more is unreadable too: Speed Run Tool's format has no hours,
+    // and would show the cell an hour short
+    private static (bool Unreadable, long? Ticks) Read(string remoteCell) {
+        long? parsed = SheetData.TryParseTime(remoteCell)?.Ticks;
+        bool unreadable = (parsed == null && !string.IsNullOrWhiteSpace(remoteCell)) || parsed >= TimeSpan.TicksPerHour;
+        return (unreadable, unreadable || parsed == 0 ? null : parsed);
+    }
+
     /// remoteCell is the cell as the script read it, never a parsed time.
     ///
     /// ⚠️ Empty and unreadable must not be confused: an unreadable cell counted
     /// as empty ticks the row and overwrites it, which a Google locale writing
     /// 8,704 does on every row. 0:00.000 counts as empty, the sheet's own idiom
-    /// for "no time yet" (as in TierComparison's threshold > TimeSpan.Zero).
+    /// for "no time yet".
     public static PendingUpdate Create(SheetRowRef row, string label, long localTicks, string remoteCell) {
-        long? parsedTicks = SheetData.TryParseTime(remoteCell)?.Ticks;
-        // an hour or more is unreadable too: Speed Run Tool's format has no
-        // hours, and would show the cell an hour short
-        bool unreadable = (parsedTicks == null && !string.IsNullOrWhiteSpace(remoteCell))
-                          || parsedTicks >= TimeSpan.TicksPerHour;
-        long? remoteTicks = unreadable || parsedTicks == 0 ? null : parsedTicks;
+        (bool unreadable, long? remoteTicks) = Read(remoteCell);
 
         // an unreadable cell is never an improvement: we cannot tell, and the
         // safe default is to leave a time we do not understand alone

@@ -18,9 +18,14 @@ internal static class ModMenu {
         // everything added below the master switch is one of its sub-options
         int first = menu.Items.Count;
 
-        TextMenu.OnOff showTier = new(Dialog.Clean("MODOPTIONS_SRS_SHOWTIER"), settings.ShowTier);
-        showTier.Change(on => settings.ShowTier = on);
-        menu.Add(showTier);
+        // one switch per part of the rows above the timer, in the order drawn
+        AddSwitch(menu, "MODOPTIONS_SRS_SHOWCHECKPOINTNAME", settings.ShowCheckpointName,
+            on => settings.ShowCheckpointName = on);
+        AddSwitch(menu, "MODOPTIONS_SRS_SHOWTIME", settings.ShowTime, on => settings.ShowTime = on);
+        AddSwitch(menu, "MODOPTIONS_SRS_SHOWTIER", settings.ShowTier, on => settings.ShowTier = on);
+        AddSwitch(menu, "MODOPTIONS_SRS_SHOWPBIMPROVEMENT", settings.ShowPbImprovement,
+            on => settings.ShowPbImprovement = on);
+        AddSwitch(menu, "MODOPTIONS_SRS_SHOWDELTA", settings.ShowDelta, on => settings.ShowDelta = on);
 
         Action updateStandards = SheetImporter.CreateMenuEntries(menu);
 
@@ -87,5 +92,11 @@ internal static class ModMenu {
         foreach (TextMenu.Item item in items) {
             item.Visible = visible;
         }
+    }
+
+    private static void AddSwitch(TextMenu menu, string label, bool value, Action<bool> change) {
+        TextMenu.OnOff item = new(Dialog.Clean(label), value);
+        item.Change(change);
+        menu.Add(item);
     }
 }

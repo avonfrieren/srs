@@ -29,13 +29,27 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public string FarewellUrl { get; set; } = DefaultFarewellUrl;
 
-    // tier row drawn under the room timer for the latest record; menu toggle +
-    // rebindable hotkey, both handled in TierComparison
+    // the tier's name in the rows drawn above the room timer; a menu toggle
+    // and a rebindable hotkey, which TierComparison reads
     [SettingIgnore]
     public bool ShowTier { get; set; } = true;
 
     [SettingIgnore]
     public ButtonBinding ToggleShowTier { get; set; } = new();
+
+    // the rows' other parts ("1a Crossing", "14.875", "PB -0.214",
+    // "+0.140 to Purple 1"); menu toggles only
+    [SettingIgnore]
+    public bool ShowCheckpointName { get; set; } = true;
+
+    [SettingIgnore]
+    public bool ShowTime { get; set; } = true;
+
+    [SettingIgnore]
+    public bool ShowPbImprovement { get; set; } = true;
+
+    [SettingIgnore]
+    public bool ShowDelta { get; set; } = true;
 
     // local date the URL was last set, "yyyy-MM-dd". Display only: it lets the
     // status line say "set <date>" without showing the URL
