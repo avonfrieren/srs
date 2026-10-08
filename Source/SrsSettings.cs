@@ -61,4 +61,9 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public ButtonBinding OpenExportMenu { get; set; } = new();
 
+    // steps the rows above the timer back through the attempt's segments;
+    // unbound by default, a combo like the other two
+    [SettingIgnore]
+    public ButtonBinding PreviousSegment { get; set; } = new();
+
 }

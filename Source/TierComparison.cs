@@ -14,7 +14,7 @@ namespace Celeste.Mod.SpeedrunSheet;
 public static class TierComparison {
     private static SrsSettings Settings => SrsModule.Settings;
 
-    // recomputed every frame from RunWatcher.Latest, so a sheet re-import shows
+    // recomputed every frame from RunWatcher.Attempt, so a sheet re-import shows
     // at once; session display, not registered with save states
     private static TierRows? rows;
     private static string segmentName = "";
@@ -31,12 +31,20 @@ public static class TierComparison {
     private static readonly Color AheadColor = Calc.HexToColor("00cc36");
     private static readonly Color BehindColor = Calc.HexToColor("cc1200");
 
-    // the player's sheet time for the latest record, read when the record
-    // lands (or when the sheet first answers after it), never again: exporting
-    // this very time must not take its PB away
-    private static int sheetSerial = -1;
-    private static bool sheetResolved;
-    private static long? sheetTicks;
+    // the player's sheet time for each record of the attempt, by serial, read
+    // when the record lands (or when the sheet first answers after it), never
+    // again: exporting this very time must not take its PB away
+    private static readonly Dictionary<int, (bool Resolved, long? Ticks)> sheetTimes = [];
+    private static int sheetTimesFrom = -1;
+
+    // whether the rows were drawn last frame: the hotkey steps only what shows
+    private static bool drawn;
+
+    // how far back from the latest record the rows show, and its place in
+    // the attempt ("2/3"), empty when the attempt has one record
+    private static int stepsBack;
+    private static int steppedSerial = -1;
+    private static string place = "";
 
     public static void Load() {
         // hook order: see SrsModule.Load
@@ -65,32 +73,60 @@ public static class TierComparison {
                 Dialog.Clean(Settings.ShowTier ? DialogIds.On : DialogIds.Off));
         }
 
+        // a new record shows itself; the hotkey steps back from it and wraps,
+        // while the rows are up
+        if (RunWatcher.LatestSerial != steppedSerial) {
+            steppedSerial = RunWatcher.LatestSerial;
+            stepsBack = 0;
+        }
+
+        if (Hotkeys.Pressed(Hotkeys.PreviousSegment) && drawn && RunWatcher.Attempt.Count > 1) {
+            stepsBack = (stepsBack + 1) % RunWatcher.Attempt.Count;
+        }
+
         ComputeTier(self.Session);
     }
 
-    // the latest record's row, looked up by name (see SheetBlock.Find), while
-    // the player is still in the room it closed in
+    // the shown record's row, looked up by name (see SheetBlock.Find), while
+    // the player is still in the room the latest closed in
     private static void ComputeTier(Session session) {
         rows = null;
         if (session.Level != RunWatcher.LatestRoom) {
             dismissedSerial = RunWatcher.LatestSerial;
         }
 
+        // the held sheet times are the current attempt's only
+        IReadOnlyList<(SegmentRecord Record, int Serial)> attempt = RunWatcher.Attempt;
+        int from = attempt.Count > 0 ? attempt[0].Serial : -1;
+        if (from != sheetTimesFrom) {
+            sheetTimes.Clear();
+            sheetTimesFrom = from;
+        }
+
         SheetBlock block = SheetImporter.Data?.CheckpointBlock;
-        if (RunWatcher.Latest is not { } record || RunWatcher.LatestSerial == dismissedSerial || block == null
+        if (attempt.Count == 0 || block == null) {
+            return;
+        }
+
+        foreach ((SegmentRecord landed, int serial) in attempt) {
+            if ((!sheetTimes.TryGetValue(serial, out var held) || (!held.Resolved && RemoteBests.IsResolved))
+                && block.Find(landed.Rule.Chapter, landed.Rule.Name) is { } row) {
+                sheetTimes[serial] = (RemoteBests.IsResolved, SheetTimeOf(row));
+            }
+        }
+
+        // every new record resets stepsBack before this; the guard is for the index
+        stepsBack = Math.Min(stepsBack, attempt.Count - 1);
+        (SegmentRecord record, int shownSerial) = attempt[attempt.Count - 1 - stepsBack];
+        if (RunWatcher.LatestSerial == dismissedSerial
             || block.Find(record.Rule.Chapter, record.Rule.Name) is not { } segment) {
             return;
         }
 
-        if (RunWatcher.LatestSerial != sheetSerial || (!sheetResolved && RemoteBests.IsResolved)) {
-            sheetSerial = RunWatcher.LatestSerial;
-            sheetResolved = RemoteBests.IsResolved;
-            sheetTicks = SheetTimeOf(segment);
-        }
-
-        TierRows built = TierLine.Build(block.Columns, segment.Times, record.Ticks, sheetTicks);
+        TierRows built = TierLine.Build(block.Columns, segment.Times, record.Ticks, sheetTimes[shownSerial].Ticks);
         rows = built;
         segmentName = TierLine.NameOf(record.Rule.Scope, record.Rule.Name);
+        place = attempt.Count > 1 ? $"{attempt.Count - stepsBack}/{attempt.Count}" : "";
         tierColor = built.Tier == SheetData.Unranked ? Color.Gray : TierColors.GetValueOrDefault(built.Tier, Color.White);
     }
 
@@ -142,6 +178,7 @@ public static class TierComparison {
 
     private static void SpeedrunTimerDisplayOnRender(On.Celeste.SpeedrunTimerDisplay.orig_Render orig, SpeedrunTimerDisplay self) {
         orig(self);
+        drawn = false;
 
         // hidden along with the room timer itself, and with the whole mod
         if (!Settings.Enabled || rows is not { } shown
@@ -165,13 +202,16 @@ public static class TierComparison {
             parts.Add((shown.Gap, shown.GapAhead ? AheadColor : BehindColor));
         }
 
+        drawn = true;
         int slot = 0;
         if (parts.Count > 0) {
             DrawRow(self, slot++, parts);
         }
 
         if (Settings.ShowCheckpointName) {
-            DrawRow(self, slot, [(segmentName, Color.White)]);
+            DrawRow(self, slot, place.Length > 0
+                ? [(place, Color.Gray), (segmentName, Color.White)]
+                : [(segmentName, Color.White)]);
         }
     }
 

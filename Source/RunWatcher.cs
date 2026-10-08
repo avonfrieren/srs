@@ -85,14 +85,16 @@ public static class RunWatcher {
     private static bool inUpdate;
     private static long frameStart;
 
-    /// The last segment closed with a time, the most specific of its frame;
-    /// null after a load. The HUD's tier row.
-    internal static SegmentRecord? Latest { get; private set; }
+    /// The segments closed with a time since the attempt started, oldest
+    /// first, the most specific of each frame, each with its serial; empty
+    /// after a load. The HUD's tier rows show the last and step back from it.
+    internal static IReadOnlyList<(SegmentRecord Record, int Serial)> Attempt => attempt;
+    private static readonly List<(SegmentRecord Record, int Serial)> attempt = [];
 
-    /// The room Latest closed in: the tier row shows until the player leaves it.
+    /// The room the last one closed in: the rows show until the player leaves it.
     internal static string LatestRoom { get; private set; }
 
-    /// Counts every Latest set, so a reader tells a new record from the same one.
+    /// Counts every record added, so a reader tells a new one from the same one.
     internal static int LatestSerial { get; private set; }
 
     // fields are filled at runtime by ModInterop()
@@ -278,7 +280,7 @@ public static class RunWatcher {
         if (!loaded && Saved.Stamp != stamp) {
             // a load inside orig: this frame's events would mix two timelines
             tracker.Drop();
-            Latest = null;
+            attempt.Clear();
             watched = false;
         } else if (loaded) {
             // every load is a new attempt. With control, the room's Current Room
@@ -294,7 +296,7 @@ public static class RunWatcher {
                 tracker.RestartAtAppearance(scope, roomBefore);
             }
 
-            Latest = null;
+            attempt.Clear();
             // this frame's events start from the level the load left
             lastRoom = roomBefore;
             lastState = stateBefore;
@@ -306,7 +308,7 @@ public static class RunWatcher {
             // spawn tested is the one the player appears at (an intro starts off
             // screen). A checkpoint entered from chapter select counts without
             // its wake-up (owner decision)
-            Latest = null;
+            attempt.Clear();
             // == and not Equals: AreaKey.Equals(object) always returns false
             if (chapterRestarted && restartedArea == session.Area) {
                 // the rows ending on Restart Chapter close first, on the old
@@ -320,19 +322,19 @@ public static class RunWatcher {
             // Speed Run Tool's room teleport skips rooms without lowering chapter
             // time: a new attempt from the spawn it put the player on
             tracker.Restart(scope, room, before, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
-            Latest = null;
+            attempt.Clear();
             restarted = true;
         } else if (!fedLastFrame) {
             // switched back on: whatever was open missed events
             tracker.Drop();
-            Latest = null;
+            attempt.Clear();
             watched = false;
         } else if (after < before) {
             // Level.Reload zeroes chapter time on a death in the first room
             // with nothing collected: a new attempt from the spawn, which
             // without control waits for ControlReturned
             tracker.Restart(scope, room, after, control, launching, AtStartSpawn(session.LevelData, session.RespawnPoint));
-            Latest = null;
+            attempt.Clear();
             restarted = true;
         } else {
             feed = scope != null;
@@ -467,8 +469,8 @@ public static class RunWatcher {
         }
 
         SessionBests.Record(records, session);
-        Latest = records[Specificity.MostSpecific(records.ConvertAll(record => record.Rule))];
         LatestRoom = session.Level;
         LatestSerial++;
+        attempt.Add((records[Specificity.MostSpecific(records.ConvertAll(record => record.Rule))], LatestSerial));
     }
 }
