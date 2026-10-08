@@ -11,6 +11,7 @@ public static class SheetLabels {
     public const string TabASides = "A Sides";
     public const string TabBCSides = "B+C Sides";
     public const string TabFarewell = "Farewell";
+    public const string TabArbFullClear = "ARB/Full Clear";
 
     public static bool TryMap(string srsChapter, string srsName, out SheetRowRef row) {
         if (SheetRows.TryFind(srsChapter, srsName, out SheetRow sheetRow)) {

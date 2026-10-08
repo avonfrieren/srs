@@ -2,7 +2,7 @@ using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-// The three tab urls are stored settings, so new defaults reach nobody who has
+// The tab urls are stored settings, so new defaults reach nobody who has
 // ever saved. Migrate is what actually moves a player off the workbook frozen
 // on 2026-08-28 — which still answers, so the failure it prevents is silent:
 // srs keeps importing, from a document that no longer moves.

@@ -1,16 +1,28 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-// the three tabs as they were last exported; refreshing them is how a
+// the six tabs as they were last exported; refreshing them is how a
 // change in the sheet becomes a failing test (see SheetConsistencyTests)
 internal static class Fixtures {
-    public static string ASides { get; } = Read("asides.csv");
-    public static string BSides { get; } = Read("bsides.csv");
-    public static string Farewell { get; } = Read("farewell.csv");
+    public static IReadOnlyDictionary<StandardsTab, string> ByTab { get; } =
+        StandardsTabs.All.ToDictionary(tab => tab.Tab, tab => Read(tab.CacheFile));
 
-    public static SheetData Parsed { get; } = SheetData.Parse(ASides, BSides, Farewell);
+    public static string ASides => ByTab[StandardsTab.ASides];
+    public static string BSides => ByTab[StandardsTab.BSides];
+    public static string Farewell => ByTab[StandardsTab.Farewell];
+
+    public static SheetData Parsed { get; } = SheetData.Parse(ByTab);
+
+    /// The three tabs srs has always read, by position, for tests about them.
+    public static SheetData Parse(string aSides, string bSides, string farewell = null) =>
+        SheetData.Parse(new Dictionary<StandardsTab, string> {
+            [StandardsTab.ASides] = aSides,
+            [StandardsTab.BSides] = bSides,
+            [StandardsTab.Farewell] = farewell,
+        });
 
     public static List<SheetSegment> Imported => Parsed.CheckpointBlock.Segments;
 

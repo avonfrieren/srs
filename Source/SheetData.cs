@@ -5,18 +5,17 @@ using System.Globalization;
 namespace Celeste.Mod.SpeedrunSheet;
 
 // parsed practice sheet: one block of checkpoint segments merged from the
-// three imported tabs ("A Sides Standards", "B Sides Standards" and
-// "Farewell Standards"), with a header of tier columns ("Hidden",
+// Standards tabs (StandardsTabs), with a header of tier columns ("Hidden",
 // "WR", "Gold", "Pink", "Purple 1", ... "Unranked")
 public class SheetData {
-    /// The one block Parse builds, checkpoint segments of all three tabs
+    /// The one block Parse builds, checkpoint segments of every tab
     /// merged under one header; null when nothing parsed.
     public SheetBlock CheckpointBlock { get; private set; }
 
     /// The SheetRows keys none of the parsed tabs had. A row the
     /// sheet renamed misses the allowlist without a sound and drops out of the
     /// tracked rows and the tier; this is how it gets noticed.
-    /// Covers only what was given: parse two tabs, and the third one's rows
+    /// Covers only what was given: the rows of a tab left out of the parse
     /// are all here.
     public readonly List<(string Chapter, string Name)> MissingRows = [];
 
@@ -62,26 +61,23 @@ public class SheetData {
 
     // never throws on malformed content: unparseable cells become null times,
     // and rows outside any block or off the SheetRows allowlist are skipped.
-    // The three tabs merge into one block in tab order (A, B, Farewell), under
-    // the header of the first tab that has one
-    public static SheetData Parse(string aSidesCsv, string bSidesCsv, string farewellCsv = null) {
+    // The tabs merge into one block in StandardsTabs' order, under the header
+    // of the first tab that has one. A tab missing from csvByTab, or blank, is
+    // skipped
+    public static SheetData Parse(IReadOnlyDictionary<StandardsTab, string> csvByTab) {
         SheetData data = new();
         SheetBlock merged = null;
         HashSet<(StandardsTab, string, string)> imported = [];
 
-        foreach ((string csv, StandardsTab tab, string implicitChapter) in new[] {
-                     (aSidesCsv, StandardsTab.ASides, (string)null),
-                     (bSidesCsv, StandardsTab.BSides, null),
-                     (farewellCsv, StandardsTab.Farewell, "Farewell"),
-                 }) {
-            if (string.IsNullOrWhiteSpace(csv)) {
+        foreach (StandardsTabInfo tab in StandardsTabs.All) {
+            if (!csvByTab.TryGetValue(tab.Tab, out string csv) || string.IsNullOrWhiteSpace(csv)) {
                 continue;
             }
 
-            foreach (SheetBlock raw in ParseBlocks(csv, implicitChapter)) {
-                // the "Chapter Times ..." blocks have no Checkpoint column —
-                // and neither has the Farewell tab, whose chapter is implicit
-                if (!raw.HasCheckpoints && implicitChapter == null) {
+            foreach (SheetBlock raw in ParseBlocks(csv, tab.ImplicitChapter)) {
+                // a block with no Checkpoint column is skipped, unless the
+                // whole tab is one chapter (Farewell)
+                if (!raw.HasCheckpoints && tab.ImplicitChapter == null) {
                     continue;
                 }
 
@@ -92,8 +88,8 @@ public class SheetData {
                 }
 
                 foreach (SheetSegment segment in raw.Segments) {
-                    if (SheetRows.TryRead(tab, segment.Chapter, segment.Name, out SheetRow row)) {
-                        imported.Add((tab, segment.Chapter, segment.Name));
+                    if (SheetRows.TryRead(tab.Tab, segment.Chapter, segment.Name, out SheetRow row)) {
+                        imported.Add((tab.Tab, segment.Chapter, segment.Name));
                         merged.Segments.Add(new SheetSegment(row.Chapter, row.Name,
                             Realigned(segment.Times, merged.Columns.Count)));
                     }
@@ -110,9 +106,8 @@ public class SheetData {
         return data;
     }
 
-    // one segment's times, padded or cut to the merged block's columns:
-    // Farewell stops at Red 3 where the other tabs end on an empty "Unranked",
-    // and Times must stay indexable by Columns
+    // one segment's times, padded or cut to the merged block's columns: Times
+    // must stay indexable by Columns, whatever the width of the row's own tab
     private static List<TimeSpan?> Realigned(List<TimeSpan?> times, int columns) {
         List<TimeSpan?> aligned = new(columns);
         for (int i = 0; i < columns; i++) {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.IO;
@@ -7,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// downloads the three practice sheet tabs as CSV (public "anyone with the
+// downloads the practice sheet's Standards tabs as CSV (public "anyone with the
 // link" sheet, no account/credentials involved) and keeps local caches so the
 // mod works offline
 public static class SheetImporter {
@@ -20,28 +21,32 @@ public static class SheetImporter {
 
     // the download in flight, shared by the startup refresh and the menu
     // button: pressing the button during the startup one joins it instead of
-    // downloading the same three tabs twice
+    // downloading the same tabs twice
     private static Task<bool> running;
     private static readonly object RunningGate = new();
 
     // the caches double as the manual-import fallback: dropping hand-exported
     // CSVs of the tabs at these paths is equivalent to pressing the update
-    // button once. A cache missing farewell.csv still loads everything else,
-    // and Farewell appears on the next update
-    public static string ACachePath => Path.Combine(Everest.PathSettings, "srs", "asides.csv");
-    public static string BCachePath => Path.Combine(Everest.PathSettings, "srs", "bsides.csv");
-    public static string FarewellCachePath => Path.Combine(Everest.PathSettings, "srs", "farewell.csv");
+    // button once. A cache missing some files still loads the others, and the
+    // rest appear on the next update
+    private static string CachePathOf(StandardsTabInfo tab) =>
+        Path.Combine(Everest.PathSettings, "srs", tab.CacheFile);
 
     public static void Load() {
         try {
-            string aSides = File.Exists(ACachePath) ? File.ReadAllText(ACachePath) : null;
-            string bSides = File.Exists(BCachePath) ? File.ReadAllText(BCachePath) : null;
-            string farewell = File.Exists(FarewellCachePath) ? File.ReadAllText(FarewellCachePath) : null;
-            if (aSides == null && bSides == null && farewell == null) {
+            Dictionary<StandardsTab, string> cached = [];
+            foreach (StandardsTabInfo tab in StandardsTabs.All) {
+                string path = CachePathOf(tab);
+                if (File.Exists(path)) {
+                    cached[tab.Tab] = File.ReadAllText(path);
+                }
+            }
+
+            if (cached.Count == 0) {
                 return;
             }
 
-            SheetData data = SheetData.Parse(aSides, bSides, farewell);
+            SheetData data = SheetData.Parse(cached);
             if (data.SegmentCount > 0) {
                 Data = data;
                 CacheTime = LatestCacheTime();
@@ -119,28 +124,31 @@ public static class SheetImporter {
 
     private static async Task<bool> UpdateFromSheet() {
         try {
-            // the three at once: each is a round trip to Google, and none
-            // depends on another
-            Task<string> aTask = DownloadTab(SrsModule.Settings.ASidesUrl, "A Sides");
-            Task<string> bTask = DownloadTab(SrsModule.Settings.BSidesUrl, "B Sides");
-            Task<string> farewellTask = DownloadTab(SrsModule.Settings.FarewellUrl, "Farewell");
-            string[] tabs = await Task.WhenAll(aTask, bTask, farewellTask);
-            string aSides = tabs[0], bSides = tabs[1], farewell = tabs[2];
+            // all at once: each is a round trip to Google, and none depends on
+            // another
+            StandardsTabInfo[] tabs = StandardsTabs.All;
+            string[] csvs = await Task.WhenAll(
+                tabs.Select(tab => DownloadTab(SrsModule.Settings.UrlOf(tab.Tab), tab.LogName)));
             // all or nothing: a half-updated cache would silently drop whole
             // rows from the tracked set
-            if (aSides == null || bSides == null || farewell == null) {
+            if (csvs.Contains(null)) {
                 return false;
             }
 
-            SheetData data = SheetData.Parse(aSides, bSides, farewell);
+            Dictionary<StandardsTab, string> downloaded = [];
+            for (int i = 0; i < tabs.Length; i++) {
+                downloaded[tabs[i].Tab] = csvs[i];
+            }
+
+            SheetData data = SheetData.Parse(downloaded);
             if (data.SegmentCount == 0) {
                 Logger.Log(LogLevel.Warn, LogTag, "Downloaded CSVs contain no recognizable segments");
                 return false;
             }
 
-            WriteCache(ACachePath, aSides);
-            WriteCache(BCachePath, bSides);
-            WriteCache(FarewellCachePath, farewell);
+            for (int i = 0; i < tabs.Length; i++) {
+                WriteCache(CachePathOf(tabs[i]), csvs[i]);
+            }
 
             Data = data;
             CacheTime = DateTime.Now;
@@ -171,7 +179,14 @@ public static class SheetImporter {
         }
 
         Logger.Log(LogLevel.Info, LogTag, $"Downloading {label} tab: {url}");
-        string csv = await Http.GetStringAsync(url);
+        string csv;
+        try {
+            csv = await Http.GetStringAsync(url);
+        } catch (Exception e) {
+            // here and not in UpdateFromSheet's catch, to name the tab
+            Logger.Log(LogLevel.Warn, LogTag, $"Download of the {label} tab failed: {e.GetType().Name}: {e.Message}");
+            return null;
+        }
 
         // a private sheet answers 200 with a Google sign-in page instead of CSV
         if (csv.TrimStart().StartsWith("<", StringComparison.Ordinal)) {
@@ -191,7 +206,7 @@ public static class SheetImporter {
 
     private static string CachePaths => string.Join(", ", CacheFiles);
 
-    private static string[] CacheFiles => [ACachePath, BCachePath, FarewellCachePath];
+    private static string[] CacheFiles => [.. StandardsTabs.All.Select(CachePathOf)];
 
     private static DateTime? LatestCacheTime() {
         DateTime? latest = null;

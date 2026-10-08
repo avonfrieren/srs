@@ -19,14 +19,14 @@ public class MalformedInputTests {
     // page; the importer rejects it, but the parser must not choke on it either
     [InlineData("<!DOCTYPE html><html><body>Sign in</body></html>", null)]
     public void ReturnsNoSegmentsInsteadOfThrowing(string aSides, string bSides) {
-        SheetData data = SheetData.Parse(aSides, bSides);
+        SheetData data = Fixtures.Parse(aSides, bSides);
 
         Assert.Equal(0, data.SegmentCount);
     }
 
     [Fact]
     public void SurvivesRowsCutShortOfTheHeader() {
-        SheetData data = SheetData.Parse(Header + "1a CP,1a Start,0:00.000", null);
+        SheetData data = Fixtures.Parse(Header + "1a CP,1a Start,0:00.000", null);
 
         SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
         // one time per declared tier column, the missing cells reading as null
@@ -36,9 +36,20 @@ public class MalformedInputTests {
         Assert.Null(segment.Times[2]);
     }
 
+    // TierComparison indexes a row's times by the merged header's columns
+    [Fact]
+    public void PadsTheRowsOfATabNarrowerThanTheHeader() {
+        SheetData data = Fixtures.Parse(Header + "1a CP,1a Start,0:00.000,10,20", null,
+            "Checkpoint,Hidden,WR\nSingular,0:00.000,30");
+
+        SheetSegment singular = data.CheckpointBlock.Find("Farewell", "Singular");
+        Assert.Equal(3, singular.Times.Count);
+        Assert.Null(singular.Times[2]);
+    }
+
     [Fact]
     public void TurnsBrokenFormulaCellsIntoNullThresholds() {
-        SheetData data = SheetData.Parse(Header + "1a CP,1a Start,0:00.000,#REF!,#REF!", null);
+        SheetData data = Fixtures.Parse(Header + "1a CP,1a Start,0:00.000,#REF!,#REF!", null);
 
         SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
         Assert.Null(segment.Times[1]);
@@ -49,7 +60,7 @@ public class MalformedInputTests {
     // before Farewell was imported at all): whatever is there still has to load
     [Fact]
     public void ParsesTheASidesTabOnItsOwn() {
-        SheetData data = SheetData.Parse(Fixtures.ASides, null);
+        SheetData data = Fixtures.Parse(Fixtures.ASides, null);
 
         Assert.NotEmpty(data.CheckpointBlock.Segments);
         Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Name == "5b Start");
@@ -57,7 +68,7 @@ public class MalformedInputTests {
 
     [Fact]
     public void ParsesTheBSidesTabOnItsOwn() {
-        SheetData data = SheetData.Parse(null, Fixtures.BSides);
+        SheetData data = Fixtures.Parse(null, Fixtures.BSides);
 
         Assert.NotEmpty(data.CheckpointBlock.Segments);
         Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "5b Start");
@@ -69,7 +80,7 @@ public class MalformedInputTests {
     // passed: every row would land outside the allowlist
     [Fact]
     public void ParsesTheFarewellTabOnItsOwn() {
-        SheetData data = SheetData.Parse(null, null, Fixtures.Farewell);
+        SheetData data = Fixtures.Parse(null, null, Fixtures.Farewell);
 
         Assert.All(data.CheckpointBlock.Segments, s => Assert.Equal("Farewell", s.Chapter));
         Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "Stubbornness");
@@ -82,7 +93,7 @@ public class MalformedInputTests {
     // A-side chapters must not go missing because Farewell arrived
     [Fact]
     public void KeepsTheOtherTabsWhenFarewellIsMissing() {
-        SheetData data = SheetData.Parse(Fixtures.ASides, Fixtures.BSides);
+        SheetData data = Fixtures.Parse(Fixtures.ASides, Fixtures.BSides);
 
         Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "HotM Horizontal");
         Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Chapter == "Farewell");
@@ -90,7 +101,7 @@ public class MalformedInputTests {
 
     [Fact]
     public void HasNoCheckpointBlockWhenThereIsNothingToParse() {
-        SheetData data = SheetData.Parse(null, null);
+        SheetData data = Fixtures.Parse(null, null);
 
         Assert.Null(data.CheckpointBlock);
     }
@@ -100,7 +111,7 @@ public class MalformedInputTests {
     // reach the parser
     [Fact]
     public void SurvivesAByteOrderMark() {
-        SheetData data = SheetData.Parse("\uFEFF" + Header + "1a CP,1a Start,0:00.000,13.906,14.5", null);
+        SheetData data = Fixtures.Parse("\uFEFF" + Header + "1a CP,1a Start,0:00.000,13.906,14.5", null);
 
         Assert.Equal(1, data.SegmentCount);
     }
@@ -108,7 +119,7 @@ public class MalformedInputTests {
     [Fact]
     public void SkipsRowsThatAreNotOnTheImportList() {
         // emoji variants and IL rows sit right next to the real checkpoints
-        SheetData data = SheetData.Parse(
+        SheetData data = Fixtures.Parse(
             Header + "1a CP,1a Start,0:00.000,13.906,14.5\n,Crossing 💙,0:00.000,0:00.000,\n1a IL,Clear,0:00.000,52.445,55.5", null);
 
         SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);

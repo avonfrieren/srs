@@ -2,13 +2,6 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// The Standards tab a row is read from; each is written to its own entry tab.
-public enum StandardsTab {
-    ASides,
-    BSides,
-    Farewell,
-}
-
 /// One row srs imports, described once for both documents: the Standards row
 /// it is read from (Tab, SheetChapter, Label) and the entry row it is written
 /// to (TargetOf). Scope, Chapter and Name are srs's own address, and Anchor is
@@ -136,12 +129,6 @@ internal static class SheetRows {
         string chapter = row.Tab == StandardsTab.Farewell ? ""
             : row.SheetChapter.EndsWith(" CP", System.StringComparison.Ordinal) ? row.SheetChapter[..^3]
             : row.SheetChapter;
-        return new SheetRowRef(EntryTab(row.Tab), chapter, row.Label);
+        return new SheetRowRef(StandardsTabs.Of(row.Tab).EntryTab, chapter, row.Label);
     }
-
-    private static string EntryTab(StandardsTab tab) => tab switch {
-        StandardsTab.ASides => SheetLabels.TabASides,
-        StandardsTab.BSides => SheetLabels.TabBCSides,
-        _ => SheetLabels.TabFarewell,
-    };
 }
