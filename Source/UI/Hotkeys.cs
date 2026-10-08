@@ -2,7 +2,7 @@ using Celeste.Mod.CelesteHotkeys;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// the two rebindable hotkeys, as a CelesteHotkeys table polled once per
+// the three rebindable hotkeys, as a CelesteHotkeys table polled once per
 // frame. The module reads a binding as a combo, which Everest's key config
 // screen cannot express: every binding is [SettingIgnore] and bound from the
 // module's own screen (ModMenu)
@@ -12,8 +12,11 @@ public static class Hotkeys {
     internal static readonly Keybind<SrsSettings> OpenExportMenu =
         new("MODOPTIONS_SRS_OPENEXPORTMENU", nameof(SrsSettings.OpenExportMenu));
 
+    internal static readonly Keybind<SrsSettings> PreviousSegment =
+        new("MODOPTIONS_SRS_PREVIOUSSEGMENT", nameof(SrsSettings.PreviousSegment));
+
     internal static readonly Keybind<SrsSettings>[] All =
-        [ToggleShowTier, OpenExportMenu];
+        [ToggleShowTier, PreviousSegment, OpenExportMenu];
 
     internal static readonly HotkeySet<SrsSettings> Set = new(() => SrsModule.Settings, All);
 
@@ -43,7 +46,7 @@ public static class Hotkeys {
     /// Whether the hotkey fired this frame. While the level is paused only the
     /// export screen's own hotkey answers, and only behind the pause that
     /// screen holds, or the combo that opened it could not close it. The other
-    /// one toggles the tier row, which the open screen hides anyway.
+    /// two act on the rows above the timer, which the open screen hides anyway.
     /// Polled through the pause rather than skipped, so a combo held across it
     /// does not fire when it ends.
     internal static bool Pressed(Keybind<SrsSettings> keybind) =>
