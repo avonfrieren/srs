@@ -95,26 +95,18 @@ public class SrsModule : EverestModule {
         MigrateSheetUrls();
     }
 
-    // substitutes the frozen spreadsheet id in the three stored URLs and saves
+    // substitutes the frozen spreadsheet id in the stored tab URLs and saves
     // if any of them carried it. Idempotent: a save that fails changes nothing
     // but the file on disk, and the next launch migrates again
     private void MigrateSheetUrls() {
         SrsSettings settings = Settings;
         bool changed = false;
 
-        if (SheetUrls.Migrate(settings.ASidesUrl) is string aSides) {
-            settings.ASidesUrl = aSides;
-            changed = true;
-        }
-
-        if (SheetUrls.Migrate(settings.BSidesUrl) is string bSides) {
-            settings.BSidesUrl = bSides;
-            changed = true;
-        }
-
-        if (SheetUrls.Migrate(settings.FarewellUrl) is string farewell) {
-            settings.FarewellUrl = farewell;
-            changed = true;
+        foreach (StandardsTabInfo tab in StandardsTabs.All) {
+            if (SheetUrls.Migrate(settings.UrlOf(tab.Tab)) is string migrated) {
+                settings.SetUrl(tab.Tab, migrated);
+                changed = true;
+            }
         }
 
         if (!changed) {

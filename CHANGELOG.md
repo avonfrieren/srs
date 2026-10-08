@@ -28,6 +28,7 @@
 - **A hotkey to look back over a chain.** Previous Segment, unbound by default, steps the rows above the timer back through the segments of the attempt, and wraps to the latest. `2/3` before the name says which one is shown.
 - **The background of the rows above the timer follows the text.** It ran far past a long row; it now fades out the same short distance after every row.
 - **Replacing the sheet URL asks first.** Press once and the button asks, press again to replace. Setting the first URL, or pasting the same one again, does not ask.
+- **Three more standards tabs are downloaded:** the C-side, all red berries and full clear standards. Nothing uses them yet. An update still succeeds only if every tab downloads, and the log now names the tab that failed.
 
 ## v3.7.0 — 2026-08-27 by Axiome
 

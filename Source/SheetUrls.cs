@@ -5,7 +5,7 @@ namespace Celeste.Mod.SpeedrunSheet;
 // Where the reference workbook lives, and how to move a player who is still
 // pointed at the previous one. Game-free so the migration is testable.
 //
-// The three tab URLs are ordinary settings: [SettingIgnore] hides them from the
+// The tab URLs are ordinary settings: [SettingIgnore] hides them from the
 // menu, it does not stop them being serialized, and a stored value always beats
 // a new default. Repointing the constants alone would move nobody who has ever
 // saved settings — which is everybody.
@@ -19,8 +19,8 @@ public static class SheetUrls {
     // default
     private const string FrozenId = "18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y";
 
-    // the defaults in SrsSettings are built from this, so a future move cannot
-    // repoint the constants and forget the migration
+    // StandardsTabs.DefaultUrl builds the settings' defaults from this, so a
+    // future move cannot repoint the constants and forget the migration
     public const string EditUrlPrefix =
         "https://docs.google.com/spreadsheets/d/" + ReferenceId + "/edit?gid=";
 

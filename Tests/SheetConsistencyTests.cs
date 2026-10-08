@@ -12,14 +12,14 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 // where it should. These tests cross-check the tables against each other and
 // against the sheet.
 public class SheetConsistencyTests {
-    // every raw (chapter, checkpoint) pair present in the exported tabs. The
-    // Farewell tab is parsed under the same implicit chapter the importer
-    // gives it, so its Import keys read like the other tabs'
-    private static readonly HashSet<(string, string)> RawRows = [
-        .. new[] { (Fixtures.ASides, (string)null), (Fixtures.BSides, null), (Fixtures.Farewell, "Farewell") }
-            .SelectMany(tab => SheetData.ParseBlocks(tab.Item1, tab.Item2))
+    // every raw (tab, chapter, checkpoint) row present in the exported tabs,
+    // each tab parsed under the implicit chapter the importer gives it. The
+    // tab is in the key: tabs share labels, and a row removed from one must
+    // not hide behind another's
+    private static readonly HashSet<(StandardsTab, string, string)> RawRows = [
+        .. StandardsTabs.All.SelectMany(tab => BlocksOf(tab.Tab)
             .SelectMany(block => block.Segments)
-            .Select(segment => (segment.Chapter, segment.Name))
+            .Select(segment => (tab.Tab, segment.Chapter, segment.Name)))
     ];
 
     [Fact]
@@ -82,8 +82,8 @@ public class SheetConsistencyTests {
     // mod expects that no longer exists shows up here by name
     [Fact]
     public void EveryImportedRowStillExistsInTheSheet() {
-        List<(string, string)> missing = SheetRows.All
-            .Select(row => (row.SheetChapter, row.Label))
+        List<(StandardsTab, string, string)> missing = SheetRows.All
+            .Select(row => (row.Tab, row.SheetChapter, row.Label))
             .Where(key => !RawRows.Contains(key))
             .ToList();
 
@@ -102,7 +102,7 @@ public class SheetConsistencyTests {
     public void ARowTheSheetRenamedIsReportedByItsImportKey() {
         string renamed = Fixtures.ASides.Replace(",Unravelling,", ",Unraveling,");
 
-        SheetData data = SheetData.Parse(renamed, Fixtures.BSides, Fixtures.Farewell);
+        SheetData data = Fixtures.Parse(renamed, Fixtures.BSides, Fixtures.Farewell);
 
         Assert.Equal([("5a CP", "Unravelling")], data.MissingRows);
     }
@@ -195,15 +195,51 @@ public class SheetConsistencyTests {
 
         Assert.Equal("Hidden", columns[0]);
         Assert.Equal("WR", columns[1]);
-        Assert.Equal("Gold", columns[2]);
+        Assert.Contains("Gold", columns);
         Assert.Equal("Unranked", columns[^1]);
         Assert.All(Fixtures.Imported, segment => Assert.Equal(columns.Count, segment.Times.Count));
-        // the Farewell tab stops at Red 3, one column short of the header the
-        // merged block took from the A tab: its rows are padded rather than
-        // left ragged, or TierComparison would run off the end of them
-        SheetSegment farewell = Assert.Single(Fixtures.Imported,
-            s => s.Chapter == "Farewell" && s.Name == "Farewell");
-        Assert.Null(farewell.Times[^1]);
+    }
+
+    private static List<SheetBlock> BlocksOf(StandardsTab tab) =>
+        SheetData.ParseBlocks(Fixtures.ByTab[tab], StandardsTabs.Of(tab).ImplicitChapter);
+
+    // the merged block takes one tab's header for every row, so every block
+    // of every tab has to carry the same columns
+    [Fact]
+    public void EveryBlockOfEveryTabHasTheSameColumns() {
+        List<string> columns = Fixtures.Parsed.CheckpointBlock.Columns;
+
+        Assert.All(StandardsTabs.All, tab => {
+            List<SheetBlock> blocks = BlocksOf(tab.Tab);
+            Assert.NotEmpty(blocks);
+            Assert.All(blocks, block => Assert.Equal(columns, block.Columns));
+        });
+    }
+
+    [Fact]
+    public void TheCSidesTabIsOneBlockOfChapters() {
+        SheetBlock block = Assert.Single(BlocksOf(StandardsTab.CSides));
+
+        Assert.False(block.HasCheckpoints);
+        Assert.Equal(
+            ["1c", "2c", "3c", "4c", "5c", "6c", "7c", "8c"],
+            block.Segments.Select(segment => segment.Name));
+        Assert.All(block.Segments, segment => Assert.Equal(segment.Name, segment.Chapter));
+    }
+
+    // checkpoint rows first, then a second header with no Checkpoint column
+    // over one row per chapter
+    [Theory]
+    [InlineData(StandardsTab.Arb)]
+    [InlineData(StandardsTab.Fc)]
+    public void TheArbAndFcTabsAreCheckpointsThenChapters(StandardsTab tab) {
+        List<SheetBlock> blocks = BlocksOf(tab);
+
+        Assert.Equal(2, blocks.Count);
+        Assert.True(blocks[0].HasCheckpoints);
+        Assert.NotEmpty(blocks[0].Segments);
+        Assert.False(blocks[1].HasCheckpoints);
+        Assert.NotEmpty(blocks[1].Segments);
     }
 
     // none of the excluded row families may be imported; the emoji

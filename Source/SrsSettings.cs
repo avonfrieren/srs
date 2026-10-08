@@ -6,28 +6,49 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public bool Enabled { get; set; } = true;
 
-    // the imported tabs of the practice sheet: "A Sides Standards" (all the
-    // A-side checkpoints) and "B Sides Standards" (the any% route's 5B/6B
-    // checkpoints), plus "Farewell Standards"
-    public const string DefaultASidesUrl =
-        SheetUrls.EditUrlPrefix + "1796170425";
-
-    public const string DefaultBSidesUrl =
-        SheetUrls.EditUrlPrefix + "1885706573";
-
-    public const string DefaultFarewellUrl =
-        SheetUrls.EditUrlPrefix + "1826331297";
-
-    // full edit URLs, editable only in the settings file. Stored values: see
-    // SheetUrls for why SrsModule migrates them
+    // the Standards tabs srs reads (StandardsTabs), as full edit URLs,
+    // editable only in the settings file. Stored values: see SheetUrls for
+    // why SrsModule migrates them. One property per tab, and the existing
+    // names stay: a stored value beats a default
     [SettingIgnore]
-    public string ASidesUrl { get; set; } = DefaultASidesUrl;
+    public string ASidesUrl { get; set; } = StandardsTabs.DefaultUrl(StandardsTab.ASides);
 
     [SettingIgnore]
-    public string BSidesUrl { get; set; } = DefaultBSidesUrl;
+    public string BSidesUrl { get; set; } = StandardsTabs.DefaultUrl(StandardsTab.BSides);
 
     [SettingIgnore]
-    public string FarewellUrl { get; set; } = DefaultFarewellUrl;
+    public string FarewellUrl { get; set; } = StandardsTabs.DefaultUrl(StandardsTab.Farewell);
+
+    [SettingIgnore]
+    public string CSidesUrl { get; set; } = StandardsTabs.DefaultUrl(StandardsTab.CSides);
+
+    [SettingIgnore]
+    public string ArbUrl { get; set; } = StandardsTabs.DefaultUrl(StandardsTab.Arb);
+
+    [SettingIgnore]
+    public string FcUrl { get; set; } = StandardsTabs.DefaultUrl(StandardsTab.Fc);
+
+    internal string UrlOf(StandardsTab tab) => tab switch {
+        StandardsTab.ASides => ASidesUrl,
+        StandardsTab.BSides => BSidesUrl,
+        StandardsTab.Farewell => FarewellUrl,
+        StandardsTab.CSides => CSidesUrl,
+        StandardsTab.Arb => ArbUrl,
+        StandardsTab.Fc => FcUrl,
+        _ => throw new System.ArgumentOutOfRangeException(nameof(tab)),
+    };
+
+    internal void SetUrl(StandardsTab tab, string url) {
+        switch (tab) {
+            case StandardsTab.ASides: ASidesUrl = url; break;
+            case StandardsTab.BSides: BSidesUrl = url; break;
+            case StandardsTab.Farewell: FarewellUrl = url; break;
+            case StandardsTab.CSides: CSidesUrl = url; break;
+            case StandardsTab.Arb: ArbUrl = url; break;
+            case StandardsTab.Fc: FcUrl = url; break;
+            default: throw new System.ArgumentOutOfRangeException(nameof(tab));
+        }
+    }
 
     // the tier's name in the rows drawn above the room timer; a menu toggle
     // and a rebindable hotkey, which TierComparison reads
