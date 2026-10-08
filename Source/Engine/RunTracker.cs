@@ -44,6 +44,9 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         public Collectibles Collected;
         public readonly HashSet<string> Berries = [];
         public bool Disqualified;
+        // the dashes at the first checkpoint crossed: what a whole chapter's
+        // dash rule reads, since by Farewell's end both routes carry the same
+        public int? FirstDashes;
     }
 
     private readonly List<OpenSegment> open = [];
@@ -114,6 +117,12 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
     public List<SegmentRecord> RoomEntered(string scope, string from, string room, long reading, bool control,
         bool launching, EndState end) {
         bool entry = IsEntry(scope, from, room);
+        if (entry) {
+            foreach (OpenSegment segment in open) {
+                segment.FirstDashes ??= end.Dashes;
+            }
+        }
+
         List<SegmentRecord> records = CloseWhere(
             segment => segment.Rule.End == EndKind.NextStart && Rooms.EndRoomOf(segment.Rule) == room,
             reading, end, record: entry);
@@ -274,7 +283,8 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         long elapsed = reading - segment.Start;
         if (elapsed <= 0
             || (segment.Collected & rule.Requires) != rule.Requires
-            || (rule.Dashes is { } dashes && end.Dashes != dashes)
+            || (rule.Dashes is { } dashes
+                && (rule.End == EndKind.ChapterEnd ? segment.FirstDashes : end.Dashes) != dashes)
             || (rule.RequiresBerries && !HasEveryBerry(segment, end))) {
             return null;
         }

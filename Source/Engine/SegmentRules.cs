@@ -24,8 +24,7 @@ internal static class SegmentRules {
             (string, string) anchor = (row.Scope, row.Anchor);
             Collectibles marked = MarkersOf(row.Label);
             // a C-side row and an IL row are their whole chapter
-            bool wholeChapter = row.Tab == StandardsTab.CSides
-                                || row.SheetChapter.EndsWith(" IL", StringComparison.Ordinal);
+            bool wholeChapter = row.Tab == StandardsTab.CSides || row.Name.EndsWith("IL", StringComparison.Ordinal);
             EndKind end = wholeChapter ? EndKind.ChapterEnd : EndOf(row.Label, marked);
 
             rules.Add(new SegmentRule(
@@ -69,14 +68,19 @@ internal static class SegmentRules {
         | (label.Contains(Tape) ? Collectibles.Cassette : Collectibles.None)
         | (label.Contains(Gem) ? Collectibles.Gem : Collectibles.None);
 
-    // Farewell's DTS twins: "X DTS" keeps both dashes (2), "X" beside it lost one (1)
+    // Farewell's DTS twins: "X DTS" keeps both dashes (2), "X" beside it lost one (1).
+    // The two ILs are twins too
     private static int? DashesOf(SheetRow row, HashSet<(StandardsTab, string)> labels) {
         if (row.Tab != StandardsTab.Farewell) {
             return null;
         }
 
-        if (row.Label.EndsWith(" DTS", StringComparison.Ordinal)) {
+        if (row.Label.EndsWith(" DTS", StringComparison.Ordinal) || row.Label == "DTS IL") {
             return 2;
+        }
+
+        if (row.Label == "No DTS IL") {
+            return 1;
         }
 
         return labels.Contains((row.Tab, row.Label + " DTS")) ? 1 : null;

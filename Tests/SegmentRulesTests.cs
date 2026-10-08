@@ -40,6 +40,8 @@ public class SegmentRulesTests {
         "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
         "Farewell/Start",
         "Farewell/Start DTS",
+        "Farewell/DTS IL",
+        "Farewell/No DTS IL",
     ];
 
     // a row given ChapterEnd by mistake would gain a frame without a sound
@@ -48,6 +50,7 @@ public class SegmentRulesTests {
         Assert.Equal([
                 "1a/IL", "2a/IL", "3a/IL", "4a/IL", "5a/b/5a IL", "6a/b/6a IL", "7a/7a IL", "8a/IL",
                 "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
+                "Farewell/DTS IL", "Farewell/No DTS IL",
             ],
             SegmentRules.All.Where(r => r.End == EndKind.ChapterEnd).Select(r => $"{r.Chapter}/{r.Name}"));
     }
@@ -205,6 +208,8 @@ public class SegmentRulesTests {
         Assert.Equal(2, Rule("Farewell", "Start DTS").Dashes);
         Assert.Equal(1, Rule("Farewell", "Start").Dashes);
         Assert.Equal(2, Rule("Farewell", "Determination DTS").Dashes);
+        Assert.Equal(2, Rule("Farewell", "DTS IL").Dashes);
+        Assert.Equal(1, Rule("Farewell", "No DTS IL").Dashes);
         Assert.Equal(1, Rule("Farewell", "Determination").Dashes);
         // the skip is over by Stubbornness: no twin, no dash requirement
         Assert.Null(Rule("Farewell", "Stubbornness").Dashes);

@@ -193,6 +193,39 @@ public class RunTrackerTests {
             Of(t.RoomEntered("1a", "intro-03-space", "a-00", 100, true, false, EndState.With(dashes))));
     }
 
+    // by the end of Farewell both routes carry the same dashes: the IL is
+    // decided at the first checkpoint crossed
+    [Theory]
+    [InlineData(2, "DTS IL")]
+    [InlineData(1, "No DTS IL")]
+    public void AWholeChapterReadsItsDashesAtTheFirstCheckpoint(int dashes, string recorded) {
+        Add("DTS IL", "intro", null, dashes: 2, endKind: EndKind.ChapterEnd, setup: StartSetup.CurrentRoom);
+        Add("No DTS IL", "intro", null, dashes: 1, endKind: EndKind.ChapterEnd, setup: StartSetup.CurrentRoom);
+        Add("Singular", "a-00", "c-00", entry: "intro-03-space");
+        Add("Power Source", "c-00", null, entry: "b-07");
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "intro", 0, true, false, _ => true);
+        // a room that starts no checkpoint is not read: the dash is lost after it
+        t.RoomEntered("1a", "intro", "intro-01", 50, true, false, EndState.With(3 - dashes));
+        t.RoomEntered("1a", "intro-03-space", "a-00", 100, true, false, EndState.With(dashes));
+        t.RoomEntered("1a", "b-07", "c-00", 200, true, false, EndState.With(3 - dashes));
+
+        Assert.Equal([(recorded, 400L + Frame), ("Power Source", 200L)],
+            Of(t.ChapterTimeStopped(400, 400 + Frame, EndState.With(2))));
+    }
+
+    // without a checkpoint crossed, nothing says which IL it was
+    [Fact]
+    public void AWholeChapterWithADashRuleNeedsACheckpoint() {
+        Add("DTS IL", "intro", null, dashes: 2, endKind: EndKind.ChapterEnd, setup: StartSetup.CurrentRoom);
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "intro", 0, true, false, _ => true);
+
+        Assert.Empty(t.ChapterTimeStopped(400, 400 + Frame, EndState.With(2)));
+    }
+
     [Fact]
     public void DropForgetsEverything() {
         Add("Start", "1", "6", setup: StartSetup.CurrentRoom);

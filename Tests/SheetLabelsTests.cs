@@ -18,13 +18,19 @@ public class SheetLabelsTests {
         Assert.Equal(elsewhere, SheetRows.TargetOf(overridden));
     }
 
-    // the entry tab files an IL under the bare chapter, not under "1a IL"
+    // the entry tab files an A-side IL under the bare chapter, not under "1a IL"
     [Fact]
     public void AnIlIsWrittenUnderItsBareChapter() {
         SheetRow[] ils = [.. SheetRows.All.Where(row => row.SheetChapter.EndsWith(" IL"))];
 
         Assert.Equal(8, ils.Length);
         Assert.All(ils, row => Assert.Equal(new SheetRowRef("A Sides", row.Scope, "Clear"), SheetRows.TargetOf(row)));
+    }
+
+    [Fact]
+    public void FarewellsIlsAreWrittenWithoutTheirSuffix() {
+        AssertRow("Farewell", "DTS IL", "Farewell", "", "DTS");
+        AssertRow("Farewell", "No DTS IL", "Farewell", "", "No DTS");
     }
 
     [Fact]

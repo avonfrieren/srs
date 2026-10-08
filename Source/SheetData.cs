@@ -114,7 +114,7 @@ public class SheetData {
     // the raw pass: the CSV's blocks of segments, one per header row, under the
     // sheet's own names (internal for the allowlist tests). implicitChapter is
     // the Farewell tab's, which has no Chapter column: each label is a
-    // checkpoint of that one chapter
+    // row of that one chapter
     internal static List<SheetBlock> ParseBlocks(string csvText, string implicitChapter = null) {
         List<SheetBlock> blocks = [];
         SheetBlock currentBlock = null;
