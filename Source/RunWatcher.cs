@@ -86,8 +86,8 @@ public static class RunWatcher {
     private static long frameStart;
 
     /// The segments closed with a time since the attempt started, oldest
-    /// first, the most specific of each frame, each with its serial; empty
-    /// after a load. The HUD's tier rows show the last and step back from it.
+    /// first, the most specific segment of each frame then the most specific
+    /// whole chapter, each with its serial; empty after a load. The HUD's tier rows show the last and step back from it.
     internal static IReadOnlyList<(SegmentRecord Record, int Serial)> Attempt => attempt;
     private static readonly List<(SegmentRecord Record, int Serial)> attempt = [];
 
@@ -471,7 +471,13 @@ public static class RunWatcher {
 
         SessionBests.Record(records, session);
         LatestRoom = session.Level;
-        LatestSerial++;
-        attempt.Add((records[Specificity.MostSpecific(records.ConvertAll(record => record.Rule))], LatestSerial));
+        // a whole chapter closes with its last segment: the segment first, so
+        // the rows show the chapter and step back to the segment
+        List<SegmentRule> rules = records.ConvertAll(record => record.Rule);
+        foreach (bool wholeChapter in (bool[])[false, true]) {
+            if (Specificity.MostSpecific(rules, wholeChapter) is >= 0 and int shown) {
+                attempt.Add((records[shown], ++LatestSerial));
+            }
+        }
     }
 }

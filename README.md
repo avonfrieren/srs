@@ -28,5 +28,5 @@ Options under **Mod Options → Speedrun Sheet**. What changed in each version i
 
 **Known limits.**
 
-- Only part of the sheet is imported: individual-level rows and the B-side rows off the Any% route are not yet.
+- Only part of the sheet is imported: the cassette and heart variants of the individual levels, Farewell's individual levels and the B-side rows off the Any% route are not yet.
 - srs trusts that your progress in the chapter (opened doors, used keys, broken blocks) is what a real run would have at that point.

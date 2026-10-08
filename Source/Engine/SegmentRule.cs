@@ -55,15 +55,25 @@ internal sealed record SegmentRule(
 }
 
 internal static class Specificity {
-    /// The index of the most specific rule: the one whose requirements contain
-    /// every other's. On a tie, or when none contains them all, the first in
-    /// sheet order.
-    public static int MostSpecific(IReadOnlyList<SegmentRule> rules) {
+    /// The index of the most specific rule among the whole chapters, or among
+    /// the segments: the one whose requirements contain every other's; on a
+    /// tie, or when none contains them all, the first in sheet order. -1 when
+    /// there is none of that kind.
+    public static int MostSpecific(IReadOnlyList<SegmentRule> rules, bool wholeChapter) {
         int best = -1;
+        int first = -1;
         for (int i = 0; i < rules.Count; i++) {
+            if (rules[i].End == EndKind.ChapterEnd != wholeChapter) {
+                continue;
+            }
+
+            if (first < 0 || rules[i].Order < rules[first].Order) {
+                first = i;
+            }
+
             bool containsAll = true;
             for (int j = 0; j < rules.Count && containsAll; j++) {
-                containsAll = rules[i].Contains(rules[j]);
+                containsAll = rules[j].End == EndKind.ChapterEnd != wholeChapter || rules[i].Contains(rules[j]);
             }
 
             if (containsAll && (best < 0 || rules[i].Order < rules[best].Order)) {
@@ -71,17 +81,6 @@ internal static class Specificity {
             }
         }
 
-        if (best >= 0) {
-            return best;
-        }
-
-        best = 0;
-        for (int i = 1; i < rules.Count; i++) {
-            if (rules[i].Order < rules[best].Order) {
-                best = i;
-            }
-        }
-
-        return best;
+        return best >= 0 ? best : first;
     }
 }
