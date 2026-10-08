@@ -60,7 +60,7 @@ Le code porte ses justifications en commentaires ; ici, seules celles qui dépas
 - Les colonnes **sont** les noms des paliers (`Hidden, WR, Gold, Pink, Purple 1-3, …, Red 1-3, Unranked`) ⇒ `TierColors` est indexée par nom de colonne **complet**, le suffixe de rang compte. Farewell n'a pas de colonne `Chapter` et s'arrête à `Red 3` ⇒ `Realigned` complète les temps. Le nom de chapitre n'est que sur la 1re ligne d'un groupe ⇒ reporté au parsing.
 - Variantes marquées par emoji (`💙` cœur, `📼` cassette, `💎` gem) à l'**espacement irrégulier** ⇒ `Contains`. **L'emoji ne survit jamais à l'import** : `ActiveFont` saute en silence un caractère absent de son atlas, donc les lignes gardées sont renommées d'après ce qu'elles collectent (`Hollows Tape`, `Shrine Heart`). `Start Heart RC` garde son `RC`, seul marqueur ASCII importé.
 - **`RTM` et `RC` sont les seuls suffixes qui arrêtent une run avant la fin de son segment** (`RTM` au collect, `RC` au Restart Chapter, seulement sur `2a Start 💙 RC`). `Clear` veut dire « on ramasse et on continue », *pas* « fin du chapitre » (cf. `SegmentRules.EndOf`).
-- Les lignes `Wake Up` **ne s'importent pas** (décision du propriétaire, épinglée par `LeavesTheNotYetSupportedRowsOut`). `Hidden` vaut `0:00.000` partout, et certains `WR` aussi ⇒ ignorés (`threshold > TimeSpan.Zero`). **Palier atteint : temps strictement sous le seuil, sauf WR (égalité comprise)**, comme la sheet.
+- Les lignes `Wake Up` **ne s'importent pas** (décision du propriétaire, épinglée par `LeavesTheNotYetSupportedRowsOut`). `Hidden` vaut `0:00.000` partout ⇒ ignoré (`threshold > TimeSpan.Zero`). **Palier atteint : temps strictement sous le seuil ; la colonne `WR` ne classe rien** (`Gold` est le meilleur), comme la sheet.
 
 ## Repères SpeedrunTool
 

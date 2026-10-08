@@ -23,14 +23,13 @@ public class SheetData {
     public int SegmentCount => CheckpointBlock?.Segments.Count ?? 0;
 
     /// The tier a time reaches: the first column, in sheet order, whose
-    /// threshold the time is strictly under (at or under for WR, as the sheet
-    /// ranks), and "Unranked" past every one. Sheet order, not the fastest
-    /// threshold: where a stale WR is slower than Gold, a time under the WR
-    /// reads WR. A zero threshold (Hidden, and some WR cells) and an empty
-    /// cell never match.
+    /// threshold the time is strictly under, and "Unranked" past every one.
+    /// The WR column is a reference, not a tier: Gold is the best one, and
+    /// some WR cells are slower than their Gold. A zero threshold (Hidden) and
+    /// an empty cell never match.
     internal static string TierOf(List<string> columns, List<TimeSpan?> thresholds, TimeSpan time) {
         for (int i = 0; i < thresholds.Count && i < columns.Count; i++) {
-            if (thresholds[i] is { } threshold && threshold > TimeSpan.Zero && Reaches(columns[i], threshold, time)) {
+            if (Ranks(columns[i], thresholds[i]) && time < thresholds[i]) {
                 return columns[i];
             }
         }
@@ -41,28 +40,25 @@ public class SheetData {
     internal const string Unranked = "Unranked";
 
     /// The tier the smallest gain reaches from `tier`, with its threshold: the
-    /// slowest threshold among the earlier columns, which is the previous one
-    /// unless a stale WR sits slower than Gold. For Unranked, the slowest of
-    /// all. Null when nothing is faster.
+    /// slowest threshold among the earlier tiers. For Unranked, the slowest of
+    /// all. Null when nothing is faster, as from Gold.
     internal static (string Column, TimeSpan Threshold)? NextTier(
         List<string> columns, List<TimeSpan?> thresholds, string tier) {
         int count = Math.Min(columns.Count, thresholds.Count);
         int before = tier == Unranked ? count : columns.IndexOf(tier);
         (string Column, TimeSpan Threshold)? next = null;
         for (int i = 0; i < before; i++) {
-            if (thresholds[i] is { } threshold && threshold > TimeSpan.Zero
-                && (next == null || threshold > next.Value.Threshold)) {
-                next = (columns[i], threshold);
+            if (Ranks(columns[i], thresholds[i])
+                && (next == null || thresholds[i] > next.Value.Threshold)) {
+                next = (columns[i], thresholds[i]!.Value);
             }
         }
 
         return next;
     }
 
-    private static bool Reaches(string column, TimeSpan threshold, TimeSpan time) =>
-        IsWR(column) ? time <= threshold : time < threshold;
-
-    internal static bool IsWR(string column) => column == "WR";
+    private static bool Ranks(string column, TimeSpan? threshold) =>
+        column != "WR" && threshold > TimeSpan.Zero;
 
     // never throws on malformed content: unparseable cells become null times,
     // and rows outside any block or off the SheetRows allowlist are skipped.

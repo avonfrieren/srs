@@ -6,13 +6,12 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// What the tier rows say: the time and its tier, the gain on the player's
 /// sheet time when it is a PB, and the delta to the next tier. Game-free, so
 /// tested.
-internal readonly record struct TierRows(string Time, string Tier, string Pb, string Gap, bool GapAhead);
+internal readonly record struct TierRows(string Time, string Tier, string Pb, string Gap);
 
 internal static class TierLine {
     /// `sheetTicks` is the player's own time for the row, null when unknown.
     /// The time is ranked as Speed Run Tool shows it, to the millisecond, which
-    /// is also how the sheet ranks the exported time: a finer one could sit a
-    /// fraction above a WR it displays equal to.
+    /// is also the time the export writes and the sheet ranks.
     public static TierRows Build(List<string> columns, List<TimeSpan?> thresholds, long ticks, long? sheetTicks) {
         string shownText = TimeFormat.FromTicks(ticks);
         TimeSpan shown = SheetData.TryParseTime(shownText) ?? TimeSpan.FromTicks(ticks);
@@ -20,17 +19,10 @@ internal static class TierLine {
 
         string pb = sheetTicks is { } sheet && shown.Ticks < sheet ? $"PB {Signed(shown.Ticks - sheet)}" : null;
 
-        // past the WR there is nothing to reach: the margin under it, ahead.
-        // TierOf names WR only for a positive threshold in its column
-        if (SheetData.IsWR(tier)) {
-            TimeSpan record = thresholds[columns.IndexOf(tier)]!.Value;
-            return new TierRows(shownText, tier, pb, $"{Signed(shown.Ticks - record.Ticks)} to {tier}", true);
-        }
-
         string gap = SheetData.NextTier(columns, thresholds, tier) is { } next
             ? $"{Signed(shown.Ticks - next.Threshold.Ticks)} to {next.Column}"
             : null;
-        return new TierRows(shownText, tier, pb, gap, false);
+        return new TierRows(shownText, tier, pb, gap);
     }
 
     /// "1a Crossing", "6a Lake": the chapter, unless the name already starts
