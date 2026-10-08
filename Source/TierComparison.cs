@@ -190,36 +190,39 @@ public static class TierComparison {
     // to its middle
     private const float TextDrop = 2f;
 
+    // the black ends this far before the text does, so the fade's tail runs
+    // the same length past every row: the look of Speed Run Tool's PB row
+    // on a time of eight characters
+    private const float FadeLead = 78f;
+
     // slot 0 sits right above the timer, slot 1 above it; same background and
     // sliding animation as Speed Run Tool's PB row, scaled down. One band for
     // the whole row, sized on what is written
     private static void DrawRow(SpeedrunTimerDisplay self, int slot, List<(string Text, Color Color)> parts) {
         const float timeMarginLeft = 32f;
         float ratio = Scale / 0.6f;
-        string text = string.Join(PartSeparator, parts.ConvertAll(part => part.Text));
-
-        MTexture bg = GFX.Gui["strawberryCountBG"];
-        float rowHeight = bg.Height * Scale + 1f;
-        float x = -300f * Ease.CubeIn(1f - self.DrawLerp);
-        float y = self.Y - DigitRise - rowHeight - slot * (rowHeight + RowGap);
-
-        // Speed Run Tool's PB-row width formula (3.27.17), scaled, not the
-        // text's width: the background fades out to the right, and each row
-        // ends inside its text, the tail over the fade. Nothing checks the
-        // formula against a newer Speed Run Tool
-        float width = (60f + Math.Max(0f, 18f * (text.Length - 8))) * ratio;
-        Draw.Rect(x, y, width + 2f, rowHeight, Color.Black);
-        bg.Draw(new Vector2(x + width, y), Vector2.Zero, Color.White, Scale);
 
         // measured on the size DrawOutline picks for this scale, which is not
         // the base size when the font has several loaded
         PixelFont font = Dialog.Languages["english"].Font;
         float baseSize = Dialog.Languages["english"].FontFaceSize;
         PixelFontSize size = font.Get(baseSize * Scale);
+        float Width(string text) => size.Measure(text).X * Scale * baseSize / size.Size;
+
+        MTexture bg = GFX.Gui["strawberryCountBG"];
+        float rowHeight = bg.Height * Scale + 1f;
+        float x = -300f * Ease.CubeIn(1f - self.DrawLerp);
+        float y = self.Y - DigitRise - rowHeight - slot * (rowHeight + RowGap);
+
+        string whole = string.Join(PartSeparator, parts.ConvertAll(part => part.Text));
+        float width = Math.Max(0f, timeMarginLeft + Width(whole) - FadeLead);
+        Draw.Rect(x, y, width + 2f, rowHeight, Color.Black);
+        bg.Draw(new Vector2(x + width, y), Vector2.Zero, Color.White, Scale);
+
         Vector2 at = new(x + timeMarginLeft, y + 28.4f * ratio + TextDrop);
         foreach ((string part, Color color) in parts) {
             font.DrawOutline(baseSize, part, at, new Vector2(0f, 1f), Vector2.One * Scale, color, 2f, Color.Black);
-            at.X += size.Measure(part + PartSeparator).X * Scale * baseSize / size.Size;
+            at.X += Width(part + PartSeparator);
         }
     }
 }
