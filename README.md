@@ -20,7 +20,7 @@ Options under **Mod Options → Speedrun Sheet**. What changed in each version i
 
 **Hotkeys.** Two, both unbound by default: Toggle Tier Display and Open Sheet Export. Bind them from **Keybinds**, at the bottom of srs's section. A hotkey can be a combo: all of its keys must be held together.
 
-**Exporting your times (optional).** srs can write the segments you ran into your own copy of the practice sheet. It needs a script deployed on that copy, which takes a few minutes once: see [AppsScript/SETUP.md](AppsScript/SETUP.md). The export screen shows the segment whose best improved last. Your bests are kept until you enter another chapter, so a chapter's last segment can be exported by entering the chapter again.
+**Exporting your times (optional).** srs can write the segments you ran into your own copy of the practice sheet. It needs a script deployed on that copy, which takes a few minutes once: see [AppsScript/SETUP.md](AppsScript/SETUP.md). The export screen lists every segment you ran this session, in every chapter, next to the time your sheet holds; the ones you improved start ticked, and one export sends every row you tick. srs keeps a copy of your sheet's times, so the screen and the PB on the timer work before your sheet answers and offline, and the screen says how old that copy is.
 
 **The reference times.** srs downloads them at launch, or when you press **Update Standards**, and keeps a copy in `Saves/srs/` (`asides.csv`, `bsides.csv`, `farewell.csv`), so it works offline. CSVs dropped there by hand are read as they are.
 
