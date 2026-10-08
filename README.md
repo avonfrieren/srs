@@ -22,7 +22,7 @@ Options under **Mod Options → Speedrun Sheet**. What changed in each version i
 
 **Exporting your times (optional).** srs can write the segments you ran into your own copy of the practice sheet. It needs a script deployed on that copy, which takes a few minutes once: see [AppsScript/SETUP.md](AppsScript/SETUP.md). The export screen lists every segment you ran this session, in every chapter, next to the time your sheet holds; the ones you improved start ticked, and one export sends every row you tick. srs keeps a copy of your sheet's times, so the screen and the PB on the timer work before your sheet answers and offline, and the screen says how old that copy is.
 
-**The reference times.** srs downloads them at launch, or when you press **Update Standards**, and keeps a copy in `Saves/srs/` (`asides.csv`, `bsides.csv`, `farewell.csv`), so it works offline. CSVs dropped there by hand are read as they are.
+**The reference times.** srs downloads them at launch, or when you press **Update Standards**, and keeps a copy in `Saves/srs/` (one CSV per standards tab), so it works offline. CSVs dropped there by hand are read as they are.
 
 **When something looks wrong**, look in Celeste's `log.txt` for lines tagged `[srs]`.
 
