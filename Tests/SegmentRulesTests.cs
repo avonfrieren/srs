@@ -16,27 +16,27 @@ public class SegmentRulesTests {
     private static readonly HashSet<string> ExpectedCurrentRoomRows = [
         "Prologue/Granny",
         "1a/Start",
-        "1a/IL",
+        "1a/IL", "1a/IL Tape RTM", "1a/IL Tape Clear", "1a/IL Heart Tape RTM",
         "2a/Start",
-        "2a/Start Heart RC",
+        "2a/Start Heart RC", "2a/Start Tape Clear", "2a/Start Tape RTM",
         "2a/Awake",
-        "2a/IL",
+        "2a/IL", "2a/IL Tape Clear",
         "3a/Start",
-        "3a/IL",
-        "4a/Start",
-        "4a/IL",
+        "3a/IL", "3a/IL Heart Clear", "3a/IL Tape RTM", "3a/IL Heart Tape Clear", "3a/IL Heart Tape RTM",
+        "4a/Start", "4a/Start Tape Clear", "4a/Start Tape RTM",
+        "4a/IL", "4a/IL Heart Clear", "4a/IL Tape Clear", "4a/IL Heart Tape Clear", "4a/IL Heart Tape RTM",
         "5a/b/5a Start",
         "5a/b/Unravelling",
-        "5a/b/5a IL",
+        "5a/b/5a IL", "5a/b/5a IL Tape RTM", "5a/b/5a IL Heart Tape RTM",
         "5a/b/5b Start",
         "5a/b/Through the Mirror",
         "6a/b/6a Start",
-        "6a/b/6a IL",
+        "6a/b/6a IL", "6a/b/6a IL Tape Clear", "6a/b/6a IL Tape RTM", "6a/b/6a IL Heart Tape RTM",
         "6a/b/6b Start",
         "7a/7a Start",
-        "7a/7a IL",
+        "7a/7a IL", "7a/7a IL Tape Clear", "7a/7a IL Tape RTM", "7a/7a IL Heart Tape RTM",
         "8a/Start",
-        "8a/IL",
+        "8a/IL", "8a/IL Tape Clear",
         "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
         "Farewell/Start",
         "Farewell/Start DTS",
@@ -48,7 +48,11 @@ public class SegmentRulesTests {
     [Fact]
     public void OnlyTheIlAndCSideRowsAreAWholeChapter() {
         Assert.Equal([
-                "1a/IL", "2a/IL", "3a/IL", "4a/IL", "5a/b/5a IL", "6a/b/6a IL", "7a/7a IL", "8a/IL",
+                "1a/IL", "1a/IL Tape Clear", "2a/IL", "2a/IL Tape Clear",
+                "3a/IL", "3a/IL Heart Clear", "3a/IL Heart Tape Clear",
+                "4a/IL", "4a/IL Heart Clear", "4a/IL Tape Clear", "4a/IL Heart Tape Clear",
+                "5a/b/5a IL", "6a/b/6a IL", "6a/b/6a IL Tape Clear", "7a/7a IL", "7a/7a IL Tape Clear",
+                "8a/IL", "8a/IL Tape Clear",
                 "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
                 "Farewell/DTS IL", "Farewell/No DTS IL",
             ],
@@ -58,7 +62,7 @@ public class SegmentRulesTests {
     // an IL starts where its chapter's Start does: 7A's after the launch, with the same head
     [Fact]
     public void AnIlStartsLikeItsChaptersStart() {
-        foreach (SegmentRule il in SegmentRules.All.Where(r => r.Name.EndsWith("IL"))) {
+        foreach (SegmentRule il in SegmentRules.All.Where(r => r.Name.Contains("IL"))) {
             SegmentRule start = SegmentRules.All.Single(r => r.Scope == il.Scope && r.Name.EndsWith("Start"));
 
             Assert.Equal((start.Anchor, start.Start, start.Setup, start.HeadTicks, start.TailTicks),
@@ -113,8 +117,8 @@ public class SegmentRulesTests {
         Assert.Equal(Collectibles.None, Rule("3a", "Huge Mess").Requires);
         Assert.Equal(Collectibles.Heart, Rule("3a", "Huge Mess Heart").Requires);
         Assert.Equal(EndKind.NextStart, Rule("3a", "Huge Mess Heart").End);
-        Assert.Equal(EndKind.NextStart, Rule("4a", "Shrine Heart").End);
-        Assert.Equal(Collectibles.Heart, Rule("4a", "Shrine Heart").Requires);
+        Assert.Equal(EndKind.NextStart, Rule("4a", "Shrine Heart Clear").End);
+        Assert.Equal(Collectibles.Heart, Rule("4a", "Shrine Heart Clear").Requires);
     }
 
     // the sheet's spacing around a marker is irregular, and a row marking both
@@ -180,17 +184,34 @@ public class SegmentRulesTests {
 
     // a marker read wrong mistimes its row without a sound
     [Fact]
-    public void OnlyTheRcAndTapeRowsEndEarly() {
-        Assert.Equal(["2a/Start Heart RC", "5a/b/Depths Tape", "6a/b/Hollows Tape"],
+    public void OnlyTheRcAndRtmRowsEndEarly() {
+        Assert.Equal(
+            SheetRows.All.Where(r => r.Label.EndsWith("RTM") || r.Label.EndsWith("RC")).Select(r => $"{r.Chapter}/{r.Name}"),
             SegmentRules.All.Where(r => r.End is EndKind.Collect or EndKind.Restart).Select(r => $"{r.Chapter}/{r.Name}"));
+    }
+
+    // an IL's "RTM" variant stops at the later collect, not at the chapter's end
+    [Fact]
+    public void AnIlsRtmVariantKeepsItsCollect() {
+        Collectibles both = Collectibles.Heart | Collectibles.Cassette;
+        Assert.Equal((EndKind.Collect, both, both),
+            (Rule("3a", "IL Heart Tape RTM").End, Rule("3a", "IL Heart Tape RTM").EndsOn,
+                Rule("3a", "IL Heart Tape RTM").Requires));
+    }
+
+    // what the rows above the timer split on: an IL "RTM" is a chapter run
+    // too, and no checkpoint row is
+    [Fact]
+    public void TheIlAndCSideRowsAreChapterRuns() {
+        Assert.All(SegmentRules.All, r => Assert.Equal(r.Name.Contains("IL") || r.Scope.EndsWith('c'), r.ChapterRun));
     }
 
     [Fact]
     public void RtmRowsEndAtTheCollect() {
         Assert.Equal((EndKind.Collect, Collectibles.Cassette),
-            (Rule("6a/b", "Hollows Tape").End, Rule("6a/b", "Hollows Tape").EndsOn));
+            (Rule("6a/b", "Hollows Tape RTM").End, Rule("6a/b", "Hollows Tape RTM").EndsOn));
         Assert.Equal((EndKind.Collect, Collectibles.Cassette),
-            (Rule("5a/b", "Depths Tape").End, Rule("5a/b", "Depths Tape").EndsOn));
+            (Rule("5a/b", "Depths Tape RTM").End, Rule("5a/b", "Depths Tape RTM").EndsOn));
         Assert.Equal(EndKind.NextStart, Rule("6a/b", "Hollows").End);
     }
 

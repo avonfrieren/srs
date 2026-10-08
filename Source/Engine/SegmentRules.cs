@@ -23,9 +23,14 @@ internal static class SegmentRules {
             SheetRow row = rows[i];
             (string, string) anchor = (row.Scope, row.Anchor);
             Collectibles marked = MarkersOf(row.Label);
-            // a C-side row and an IL row are their whole chapter
-            bool wholeChapter = row.Tab == StandardsTab.CSides || row.Name.EndsWith("IL", StringComparison.Ordinal);
-            EndKind end = wholeChapter ? EndKind.ChapterEnd : EndOf(row.Label, marked);
+            bool chapterRun = row.Tab == StandardsTab.CSides
+                              || row.SheetChapter.EndsWith(" IL", StringComparison.Ordinal)
+                              || row.Label.EndsWith(" IL", StringComparison.Ordinal);
+            EndKind end = EndOf(row.Label, marked);
+            // an IL's "RTM" keeps its collect
+            if (chapterRun && end == EndKind.NextStart) {
+                end = EndKind.ChapterEnd;
+            }
 
             rules.Add(new SegmentRule(
                 row.Scope, row.Chapter, row.Name, row.Anchor,
@@ -40,7 +45,7 @@ internal static class SegmentRules {
                 DashesOf(row, labels),
                 SegmentAutoDetect.UntimedSegmentHead.GetValueOrDefault(anchor).Ticks,
                 SegmentAutoDetect.UntimedSegmentTail.GetValueOrDefault(anchor).Ticks,
-                i));
+                i) { ChapterRun = chapterRun });
         }
 
         return rules;
