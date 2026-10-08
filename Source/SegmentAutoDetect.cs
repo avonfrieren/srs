@@ -22,6 +22,14 @@ public static partial class SegmentAutoDetect {
         // chapter of its own — named after the tab rather than "9a"
         [(9, AreaMode.Normal)] = ("8a", null),
         [(10, AreaMode.Normal)] = ("Farewell", null),
+        [(1, AreaMode.CSide)] = ("1c", null),
+        [(2, AreaMode.CSide)] = ("2c", null),
+        [(3, AreaMode.CSide)] = ("3c", null),
+        [(4, AreaMode.CSide)] = ("4c", null),
+        [(5, AreaMode.CSide)] = ("5c", null),
+        [(6, AreaMode.CSide)] = ("6c", null),
+        [(7, AreaMode.CSide)] = ("7c", null),
+        [(9, AreaMode.CSide)] = ("8c", null),
     };
 
     // the scope a chapter's name tables are keyed by: the side for the folded

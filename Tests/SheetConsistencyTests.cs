@@ -102,7 +102,9 @@ public class SheetConsistencyTests {
     public void ARowTheSheetRenamedIsReportedByItsImportKey() {
         string renamed = Fixtures.ASides.Replace(",Unravelling,", ",Unraveling,");
 
-        SheetData data = Fixtures.Parse(renamed, Fixtures.BSides, Fixtures.Farewell);
+        SheetData data = SheetData.Parse(new Dictionary<StandardsTab, string>(Fixtures.ByTab) {
+            [StandardsTab.ASides] = renamed,
+        });
 
         Assert.Equal([("5a CP", "Unravelling")], data.MissingRows);
     }
@@ -183,7 +185,8 @@ public class SheetConsistencyTests {
     public void ImportsTheExpectedCheckpointsInRouteOrder() {
         Assert.Equal(SheetRows.All.Length, Fixtures.Parsed.SegmentCount);
         Assert.Equal(
-            ["Prologue", "1a", "2a", "3a", "4a", "5a/b", "6a/b", "7a", "8a", "Farewell"],
+            ["Prologue", "1a", "2a", "3a", "4a", "5a/b", "6a/b", "7a", "8a",
+             "1c", "2c", "3c", "4c", "5c", "6c", "7c", "8c", "Farewell"],
             Fixtures.Parsed.CheckpointBlock.Segments.Select(segment => segment.Chapter).Distinct());
     }
 

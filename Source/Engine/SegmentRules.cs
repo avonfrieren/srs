@@ -23,7 +23,8 @@ internal static class SegmentRules {
             SheetRow row = rows[i];
             (string, string) anchor = (row.Scope, row.Anchor);
             Collectibles marked = MarkersOf(row.Label);
-            EndKind end = EndOf(row.Label, marked);
+            // a C-side row is its whole chapter
+            EndKind end = row.Tab == StandardsTab.CSides ? EndKind.ChapterEnd : EndOf(row.Label, marked);
 
             rules.Add(new SegmentRule(
                 row.Scope, row.Chapter, row.Name, row.Anchor,

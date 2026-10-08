@@ -97,6 +97,13 @@ public class SheetLabelsTests {
         AssertRow("6a/b", "6b Rock Bottom", "B+C Sides", "6b", "Rock Bottom");
     }
 
+    // the C-side band has no label column: the sheet matches the chapter twice
+    [Fact]
+    public void ACSideIsWrittenUnderItsChapter() {
+        AssertRow("1c", "1c", "B+C Sides", "1c", "1c");
+        AssertRow("8c", "8c", "B+C Sides", "8c", "8c");
+    }
+
     [Fact]
     public void FarewellRowsHaveNoChapter() {
         AssertRow("Farewell", "Start", "Farewell", "", "Start");

@@ -42,6 +42,9 @@ public class RunTrackerTests {
 
     private static readonly EndState One = EndState.With(1);
 
+    // one frame of chapter time, in the tests' own unit
+    private const long Frame = 17;
+
     private static List<(string, long)> Of(List<SegmentRecord> records) =>
         records.Select(r => (r.Rule.Name, r.Ticks)).ToList();
 
@@ -83,7 +86,19 @@ public class RunTrackerTests {
         t.Restart("1a", "1", 0, true, false, _ => true);
         Assert.Equal([("Start", 100L)], Of(t.RoomEntered("1a", "5", "6", 100, true, false, One)));
         Assert.Equal([("Crossing", 150L)], Of(t.RoomEntered("1a", "9", "9b", 250, true, false, One)));
-        Assert.Equal([("Chasm", 150L)], Of(t.ChapterTimeStopped(400, One)));
+        Assert.Equal([("Chasm", 150L)], Of(t.ChapterTimeStopped(400, 400 + Frame, One)));
+    }
+
+    // the game counts the frame that stops the timer. A checkpoint segment
+    // ending there does not: its end is read like a room entry's
+    [Fact]
+    public void OnlyAWholeChapterRowCountsTheStoppingFrame() {
+        Add("Chasm", "9b", null, setup: StartSetup.CurrentRoom);
+        Add("IL", "9b", null, endKind: EndKind.ChapterEnd, setup: StartSetup.CurrentRoom);
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "9b", 0, true, false, _ => true);
+        Assert.Equal([("Chasm", 400L), ("IL", 400L + Frame)], Of(t.ChapterTimeStopped(400, 400 + Frame, One)));
     }
 
     [Fact]
@@ -95,7 +110,7 @@ public class RunTrackerTests {
 
         t.Restart("1a", "1", 0, true, false, _ => true);
         Assert.Equal([("Start", 100L)], Of(t.RoomEntered("1a", "5", "6", 100, true, false, One)));
-        Assert.Equal([("IL", 400L)], Of(t.ChapterTimeStopped(400, One)));
+        Assert.Equal([("IL", 400L + Frame)], Of(t.ChapterTimeStopped(400, 400 + Frame, One)));
     }
 
     [Fact]
@@ -245,7 +260,7 @@ public class RunTrackerTests {
         // a start reached by an entry is not tested where the player appears
         t.ControlReturned("end_0", 160, _ => false);
 
-        Assert.Equal([("Awake", 240L)], Of(t.ChapterTimeStopped(400, One)));
+        Assert.Equal([("Awake", 240L)], Of(t.ChapterTimeStopped(400, 400 + Frame, One)));
     }
 
     // Awake reached by its wake-up, without control: it waits for control in end_0
@@ -309,7 +324,7 @@ public class RunTrackerTests {
 
         t.Restart("1a", "0", 0, true, false, _ => true);
 
-        Assert.Equal([("Granny", 1000L + 1037 + 561)], Of(t.ChapterTimeStopped(1000, One)));
+        Assert.Equal([("Granny", 1000L + 1037 + 561)], Of(t.ChapterTimeStopped(1000, 1000 + Frame, One)));
     }
 
     [Fact]
@@ -376,7 +391,7 @@ public class RunTrackerTests {
 
         t.Restart("1a", "1", 0, true, false, _ => true);
 
-        Assert.Empty(t.ChapterTimeStopped(400, One));
+        Assert.Empty(t.ChapterTimeStopped(400, 400 + Frame, One));
         Assert.Equal(["A"], t.Open.Select(r => r.Name));
     }
 
@@ -441,7 +456,7 @@ public class RunTrackerTests {
         t.Disqualify();
         Assert.Empty(t.Collected(Collectibles.Cassette, 40, One));
         Assert.Equal(["Final"], t.Open.Select(r => r.Name));
-        Assert.Empty(t.ChapterTimeStopped(90, One));
+        Assert.Empty(t.ChapterTimeStopped(90, 90 + Frame, One));
         Assert.Empty(t.Open);
     }
 
@@ -466,7 +481,7 @@ public class RunTrackerTests {
         Assert.Empty(t.Open);
 
         Assert.Empty(t.RoomEntered("1a", "9", "9b", 1500, true, false, One));
-        Assert.Equal([("Chasm", 500L)], Of(t.ChapterTimeStopped(2000, One)));
+        Assert.Equal([("Chasm", 500L)], Of(t.ChapterTimeStopped(2000, 2000 + Frame, One)));
     }
 
     [Fact]
@@ -560,7 +575,7 @@ public class RunTrackerTests {
         Assert.Empty(t.Open);
         t.ControlReturned("end_0", 300, _ => false);
 
-        Assert.Equal([("Awake", 200L)], Of(t.ChapterTimeStopped(500, One)));
+        Assert.Equal([("Awake", 200L)], Of(t.ChapterTimeStopped(500, 500 + Frame, One)));
     }
 
     // the debug map into 5A's b-16, then the mirror: void, and the wake-up in c-00

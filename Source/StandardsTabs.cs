@@ -4,8 +4,8 @@ namespace Celeste.Mod.SpeedrunSheet;
 public enum StandardsTab {
     ASides,
     BSides,
-    Farewell,
     CSides,
+    Farewell,
     Arb,
     Fc,
 }
@@ -22,9 +22,9 @@ internal static class StandardsTabs {
     internal static readonly StandardsTabInfo[] All = [
         new(StandardsTab.ASides, "A Sides", "1796170425", "asides.csv", SheetLabels.TabASides),
         new(StandardsTab.BSides, "B Sides", "1885706573", "bsides.csv", SheetLabels.TabBCSides),
+        new(StandardsTab.CSides, "C Sides", "1027544212", "csides.csv", SheetLabels.TabBCSides),
         new(StandardsTab.Farewell, "Farewell", "1826331297", "farewell.csv", SheetLabels.TabFarewell,
             ImplicitChapter: "Farewell"),
-        new(StandardsTab.CSides, "C Sides", "1027544212", "csides.csv", SheetLabels.TabBCSides),
         new(StandardsTab.Arb, "ARB", "1460343170", "arb.csv", SheetLabels.TabArbFullClear),
         new(StandardsTab.Fc, "FC", "1408391498", "fc.csv", SheetLabels.TabArbFullClear),
     ];

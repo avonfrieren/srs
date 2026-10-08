@@ -25,4 +25,16 @@ public class ParseTabsTests {
             Fixtures.Parsed.CheckpointBlock.Segments.ConvertAll(s => (s.Chapter, s.Name)),
             data.CheckpointBlock.Segments.ConvertAll(s => (s.Chapter, s.Name)));
     }
+
+    // a block with no Checkpoint column names each row after its chapter
+    [Fact]
+    public void ABlockWithoutCheckpointsImportsItsRows() {
+        SheetData data = SheetData.Parse(new Dictionary<StandardsTab, string> {
+            [StandardsTab.CSides] = "Chapter,Hidden,WR,Gold\n1c,0:00.000,17,23.5\n9c,0:00.000,1,2\n",
+        });
+
+        SheetSegment row = Assert.Single(data.CheckpointBlock.Segments);
+        Assert.Equal(("1c", "1c"), (row.Chapter, row.Name));
+        Assert.Equal(System.TimeSpan.FromSeconds(23.5), row.Times[2]);
+    }
 }
