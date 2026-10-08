@@ -62,6 +62,11 @@ public class ExportTableTests {
     [InlineData("A Sides", "1a", "1a Start", "1a Start")]
     [InlineData("A Sides", "1a", "Crossing", "1a Crossing")]
     [InlineData("Farewell", "", "Singular", "Farewell Singular")]
+    // an IL variant's label is unreadable without its emoji: the srs name
+    [InlineData("A Sides", "4a", "\U0001F499+\U0001F4FC Clear", "4a IL Heart Tape Clear")]
+    [InlineData("A Sides", "4a", "Clear", "4a IL")]
+    // not a row srs writes: the sheet's label
+    [InlineData("A Sides", "1a", "Elsewhere", "1a Elsewhere")]
     public void RowLabelsCarryTheirChapterOnce(string tab, string chapter, string cp, string label) {
         Assert.Equal(label, ExportTable.RowLabel(tab, chapter, cp));
     }
