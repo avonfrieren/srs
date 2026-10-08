@@ -20,13 +20,14 @@ internal readonly record struct SheetRow(
 internal static class SheetRows {
     private const StandardsTab A = StandardsTab.ASides;
     private const StandardsTab B = StandardsTab.BSides;
+    private const StandardsTab C = StandardsTab.CSides;
     private const StandardsTab F = StandardsTab.Farewell;
 
     // kept as escaped code points so this source stays ASCII
     private const string Heart = "\U0001F499";
     private const string Tape = "\U0001F4FC";
 
-    // in sheet order: A Sides, then B Sides, then Farewell. The emoji survive in
+    // in sheet order: A Sides, B Sides, C Sides, then Farewell. The emoji survive in
     // Label only: ActiveFont skips a glyph its atlas lacks, so Name never has one
     internal static readonly SheetRow[] All = [
         new(A, "Prologue", "Granny", "Prologue", "Prologue", "Granny", "Start"),
@@ -85,6 +86,16 @@ internal static class SheetRows {
         new(B, "6b", "Falling", "6b", "6a/b", "Falling", "Reflection"),
         new(B, "6b", "Rock Bottom", "6b", "6a/b", "6b Rock Bottom", "Rock Bottom"),
         new(B, "6b", "Reprieve", "6b", "6a/b", "Reprieve", "Reprieve"),
+        // a C-side is one row, named after its chapter: the tab has no
+        // Checkpoint column, and the run is the whole chapter
+        new(C, "1c", "1c", "1c", "1c", "1c", "Start"),
+        new(C, "2c", "2c", "2c", "2c", "2c", "Start"),
+        new(C, "3c", "3c", "3c", "3c", "3c", "Start"),
+        new(C, "4c", "4c", "4c", "4c", "4c", "Start"),
+        new(C, "5c", "5c", "5c", "5c", "5c", "Start"),
+        new(C, "6c", "6c", "6c", "6c", "6c", "Start"),
+        new(C, "7c", "7c", "7c", "7c", "7c", "Start"),
+        new(C, "8c", "8c", "8c", "8c", "8c", "Start"),
         // the Farewell tab has no Chapter column: Parse reads it under "Farewell"
         new(F, "Farewell", "Start", "Farewell", "Farewell", "Start", "Start"),
         new(F, "Farewell", "Singular", "Farewell", "Farewell", "Singular", "Singular"),

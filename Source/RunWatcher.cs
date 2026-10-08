@@ -81,7 +81,7 @@ public static class RunWatcher {
     private static AreaKey restartedArea;
 
     // the frame being fed: a collect inside it is timed from its start, as
-    // every other end is (Session.Time already counts the frame by then)
+    // a room entry is (Session.Time already counts the frame by then)
     private static bool inUpdate;
     private static long frameStart;
 
@@ -222,8 +222,9 @@ public static class RunWatcher {
             return;
         }
 
-        // before orig: the reading an end is timed from (Speed Run Tool freezes
-        // its display before it adds the frame), and the level and the Saved
+        // before orig: the reading an end is timed from, a whole chapter's
+        // aside (Speed Run Tool freezes its display before it adds the frame),
+        // and the level and the Saved
         // values as a load left them, before this frame can move the player
         bool loaded = Saved.Stamp != stamp;
         if (loaded) {
@@ -351,7 +352,7 @@ public static class RunWatcher {
             // closes before opens: the stop edge, then the room entry (which
             // closes before it opens), then the starts waiting
             if (stopped && !lastStopped) {
-                Emit(session, tracker.ChapterTimeStopped(before, end));
+                Emit(session, tracker.ChapterTimeStopped(before, after, end));
             }
 
             if (room != lastRoom && load == RoomLoad.WalkIn) {
@@ -451,7 +452,7 @@ public static class RunWatcher {
     }
 
     // collects land inside an update (entity updates) or between two; inside
-    // one, the frame's start reading, as for every other end
+    // one, the frame's start reading, as for a room entry
     private static void OnCollect(Collectibles kind) {
         if (!SrsModule.Settings.Enabled || saveLoadAction == null || !fedLastFrame || Saved.Stamp != stamp
             || Engine.Scene is not Level level) {

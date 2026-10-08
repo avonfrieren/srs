@@ -75,12 +75,6 @@ public class SheetData {
             }
 
             foreach (SheetBlock raw in ParseBlocks(csv, tab.ImplicitChapter)) {
-                // a block with no Checkpoint column is skipped, unless the
-                // whole tab is one chapter (Farewell)
-                if (!raw.HasCheckpoints && tab.ImplicitChapter == null) {
-                    continue;
-                }
-
                 if (merged == null) {
                     merged = new SheetBlock(raw.TierStart, hasCheckpoints: true);
                     merged.Columns.AddRange(raw.Columns);

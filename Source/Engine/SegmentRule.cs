@@ -30,7 +30,7 @@ internal enum EndKind {
     // entering the next start's room; with no next start, chapter time stopping
     // (the room map says which)
     NextStart,
-    // chapter time stopping, whatever checkpoints come between (ILs)
+    // chapter time stopping, whatever checkpoints come between: a whole chapter
     ChapterEnd,
     // the collect itself; with two collectibles, the later of the two
     Collect,

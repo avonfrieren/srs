@@ -29,9 +29,17 @@ public class SegmentRulesTests {
         "6a/b/6b Start",
         "7a/7a Start",
         "8a/Start",
+        "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
         "Farewell/Start",
         "Farewell/Start DTS",
     ];
+
+    // a row given ChapterEnd by mistake would gain a frame without a sound
+    [Fact]
+    public void OnlyTheCSideRowsAreAWholeChapter() {
+        Assert.Equal(["1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c"],
+            SegmentRules.All.Where(r => r.End == EndKind.ChapterEnd).Select(r => $"{r.Chapter}/{r.Name}"));
+    }
 
     // every other row is NextRoom: a new Start-anchored row, or a new
     // wake-up, shows up here as a diff
@@ -149,7 +157,7 @@ public class SegmentRulesTests {
     [Fact]
     public void OnlyTheRcAndTapeRowsEndEarly() {
         Assert.Equal(["2a/Start Heart RC", "5a/b/Depths Tape", "6a/b/Hollows Tape"],
-            SegmentRules.All.Where(r => r.End != EndKind.NextStart).Select(r => $"{r.Chapter}/{r.Name}"));
+            SegmentRules.All.Where(r => r.End is EndKind.Collect or EndKind.Restart).Select(r => $"{r.Chapter}/{r.Name}"));
     }
 
     [Fact]
