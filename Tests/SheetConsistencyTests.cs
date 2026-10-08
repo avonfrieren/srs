@@ -154,7 +154,7 @@ public class SheetConsistencyTests {
         Assert.All(SegmentAutoDetect.AfterLaunchStarts, key => Assert.True(Anchored(key), key.ToString()));
         Assert.Equal(TimeSpan.FromMilliseconds(5508), SegmentAutoDetect.UntimedSegmentHead[("7a", "Start")]);
         Assert.Equal(TimeSpan.FromMilliseconds(1037), SegmentAutoDetect.UntimedSegmentHead[("Prologue", "Start")]);
-        Assert.Equal(TimeSpan.FromMilliseconds(561), SegmentAutoDetect.UntimedSegmentTail[("Prologue", "Start")]);
+        Assert.Equal(TimeSpan.FromMilliseconds(544), SegmentAutoDetect.UntimedSegmentTail[("Prologue", "Start")]);
     }
 
     // (chapter, name) is the address the row table and the exports use, so two

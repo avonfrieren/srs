@@ -44,7 +44,8 @@ internal sealed record SegmentRule(
     string Scope, string Chapter, string Name, string Anchor,
     StartKind Start, StartSetup Setup, EndKind End,
     Collectibles EndsOn, Collectibles Requires, bool RequiresBerries,
-    // 1 or 2 for Farewell's DTS twins, read at the end; null = no dash rule
+    // 1 or 2 for Farewell's DTS twins, read at the end (a whole chapter: at
+    // the first checkpoint crossed); null = no dash rule
     int? Dashes,
     long HeadTicks, long TailTicks,
     // position in the sheet, the last tie-breaker

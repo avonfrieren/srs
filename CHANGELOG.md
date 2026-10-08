@@ -10,6 +10,7 @@
 - **A chapter's first segment, and a segment after a wake-up, start from a savestate made before you moved.** A single-frame tap refuses the state, and so does walking away and back. A state saved during a respawn, a wake-up or an intro waits for you to appear. Entering a chapter starts its first segment only on the chapter's own spawn.
 - **Variants are told apart by what you did.** The heart and cassette rows count when the run collected them, and Farewell's `DTS` rows by the dashes you have left.
 - **`Start Heart RC` ends at Restart Chapter**, menu and wipe included. A restart without the heart, or after walking on into Intervention, records nothing.
+- **A chapter's last segment counts the frame that stops the timer**, as the game's chapter time does. Where the timer stops during that frame (8A's `HotM Horizontal` for one), the segment is 0.017 s longer than before and than Speedrun Tool's timer shows, and it ends on the same frame as the chapter's IL. `Granny` is unchanged.
 - **`Granny` is compared as file time**, 1.598 s more than the timer shows, the way its standards are timed.
 - **A segment of an hour or more is not recorded.** The time format has no hours, so it was shown and exported an hour short.
 - **Four segments are imported that were not:** `Unravelling` (5A), `Through the Mirror` (5B) and `Stubbornness` (Farewell), now spelled as the sheet spells them, and 2A's `Start Heart RC`.
@@ -29,6 +30,7 @@
 - **The background of the rows above the timer follows the text.** It ran far past a long row; it now fades out the same short distance after every row.
 - **Replacing the sheet URL asks first.** Press once and the button asks, press again to replace. Setting the first URL, or pasting the same one again, does not ask.
 - **Three more standards tabs are downloaded:** the C-side, all red berries and full clear standards. Only the C-side one is used so far. An update still succeeds only if every tab downloads, and the log now names the tab that failed.
+- **Farewell's two ILs are covered.** A full run of Farewell records `DTS IL` or `No DTS IL`, by the dashes you carry into Singular, timed as the game times the chapter, and exports it to the IL row of your sheet.
 - **C-sides are covered.** A C-side run shows its row above the timer and is exported like any segment. It starts from the chapter's first spawn and ends when the heart stops the timer. It is timed as the game times the chapter, the frame that stops the timer included.
 - **A-side ILs are covered.** A run from a chapter's start to its end records the chapter's IL beside its checkpoints, timed as the game times the chapter, and exports it to the IL row of your sheet. At the end of a full run the rows above the timer show the IL, and Previous Segment steps back to the last checkpoint. A Save and Quit starts a new attempt, so an IL does not survive one. The cassette and heart IL rows are not covered yet.
 

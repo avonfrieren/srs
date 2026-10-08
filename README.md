@@ -15,7 +15,7 @@ Options under **Mod Options → Speedrun Sheet**. What changed in each version i
 - A segment is recorded when you walk into its first room from the room before it, however you reached that room: a chain, a savestate, the debug map, `console load` or Speedrun Tool's room teleport. Walking in from anywhere else records nothing.
 - A chapter's first segment, and the segment after a wake-up, also start from a savestate made where you appeared in that room, if you had not moved since. A tap of a single frame is a move. Entering a chapter starts its first segment only on the chapter's own spawn.
 - A savestate load or a room teleport starts a new attempt: the segment you were in is not recorded.
-- The `Heart`, `Tape` and `DTS` rows are told apart by what you collected, and in Farewell by the dashes you have left. 2A's `Start Heart RC` runs until Restart Chapter.
+- The `Heart`, `Tape` and `DTS` rows are told apart by what you collected, and in Farewell by the dashes you have left (for its two ILs, the dashes you carry into Singular). 2A's `Start Heart RC` runs until Restart Chapter.
 - A segment of an hour or more is not recorded.
 
 **Hotkeys.** Three, all unbound by default: Toggle Tier Display, Previous Segment and Open Sheet Export. After several checkpoints run in a row, Previous Segment steps the rows above the timer back through the segments of that attempt, and `2/3` before the name says which one is shown. Bind them from **Keybinds**, at the bottom of srs's section. A hotkey can be a combo: all of its keys must be held together.
@@ -28,5 +28,5 @@ Options under **Mod Options → Speedrun Sheet**. What changed in each version i
 
 **Known limits.**
 
-- Only part of the sheet is imported: the cassette and heart variants of the individual levels, Farewell's individual levels and the B-side rows off the Any% route are not yet.
+- Only part of the sheet is imported: the cassette and heart variants of the individual levels and the B-side rows off the Any% route are not yet.
 - srs trusts that your progress in the chapter (opened doors, used keys, broken blocks) is what a real run would have at that point.

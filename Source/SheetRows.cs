@@ -121,6 +121,9 @@ internal static class SheetRows {
         new(F, "Farewell", "Stubbornness", "Farewell", "Farewell", "Stubbornness", "Stubbornness"),
         new(F, "Farewell", "Reconciliation", "Farewell", "Farewell", "Reconciliation", "Reconciliation"),
         new(F, "Farewell", "Farewell", "Farewell", "Farewell", "Farewell", "Farewell"),
+        // the entry tab drops the " IL"
+        new(F, "Farewell", "DTS IL", "Farewell", "Farewell", "DTS IL", "Start", new(SheetLabels.TabFarewell, "", "DTS")),
+        new(F, "Farewell", "No DTS IL", "Farewell", "Farewell", "No DTS IL", "Start", new(SheetLabels.TabFarewell, "", "No DTS")),
     ];
 
     private static readonly Dictionary<(StandardsTab, string, string), SheetRow> byStandards = [];

@@ -40,14 +40,17 @@ public class SegmentRulesTests {
         "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
         "Farewell/Start",
         "Farewell/Start DTS",
+        "Farewell/DTS IL",
+        "Farewell/No DTS IL",
     ];
 
-    // a row given ChapterEnd by mistake would gain a frame without a sound
+    // a row given ChapterEnd by mistake would stay open across its checkpoints
     [Fact]
     public void OnlyTheIlAndCSideRowsAreAWholeChapter() {
         Assert.Equal([
                 "1a/IL", "2a/IL", "3a/IL", "4a/IL", "5a/b/5a IL", "6a/b/6a IL", "7a/7a IL", "8a/IL",
                 "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
+                "Farewell/DTS IL", "Farewell/No DTS IL",
             ],
             SegmentRules.All.Where(r => r.End == EndKind.ChapterEnd).Select(r => $"{r.Chapter}/{r.Name}"));
     }
@@ -205,6 +208,8 @@ public class SegmentRulesTests {
         Assert.Equal(2, Rule("Farewell", "Start DTS").Dashes);
         Assert.Equal(1, Rule("Farewell", "Start").Dashes);
         Assert.Equal(2, Rule("Farewell", "Determination DTS").Dashes);
+        Assert.Equal(2, Rule("Farewell", "DTS IL").Dashes);
+        Assert.Equal(1, Rule("Farewell", "No DTS IL").Dashes);
         Assert.Equal(1, Rule("Farewell", "Determination").Dashes);
         // the skip is over by Stubbornness: no twin, no dash requirement
         Assert.Null(Rule("Farewell", "Stubbornness").Dashes);
@@ -216,7 +221,7 @@ public class SegmentRulesTests {
         Assert.Equal(TimeSpan.FromMilliseconds(5508).Ticks, Rule("7a", "7a Start").HeadTicks);
         Assert.Equal(StartKind.AfterLaunch, Rule("7a", "7a Start").Start);
         Assert.Equal(TimeSpan.FromMilliseconds(1037).Ticks, Rule("Prologue", "Granny").HeadTicks);
-        Assert.Equal(TimeSpan.FromMilliseconds(561).Ticks, Rule("Prologue", "Granny").TailTicks);
+        Assert.Equal(TimeSpan.FromMilliseconds(544).Ticks, Rule("Prologue", "Granny").TailTicks);
         Assert.Equal(0, Rule("7a", "500m").HeadTicks);
         Assert.Equal(StartKind.Room, Rule("7a", "500m").Start);
         Assert.Equal(StartKind.Room, Rule("2a", "Awake").Start);

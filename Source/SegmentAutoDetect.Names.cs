@@ -42,10 +42,10 @@ public static partial class SegmentAutoDetect {
     };
 
     // (scope, game checkpoint) -> the end of a segment the timer does not
-    // count, added like a head: the Prologue's file time runs 33 frames past
-    // the timer's last tick, to the LevelExit, skipped or watched
+    // count, added like a head: the Prologue's file time runs 32 frames past
+    // the frame that stops the timer, to the LevelExit, skipped or watched
     internal static readonly Dictionary<(string Scope, string GameName), TimeSpan> UntimedSegmentTail = new() {
-        [("Prologue", "Start")] = new TimeSpan(0, 0, 0, 0, 561),
+        [("Prologue", "Start")] = new TimeSpan(0, 0, 0, 0, 544),
     };
 
     // (scope, game checkpoint) of the segments that open once the launch into

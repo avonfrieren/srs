@@ -222,9 +222,9 @@ public static class RunWatcher {
             return;
         }
 
-        // before orig: the reading an end is timed from, a whole chapter's
-        // aside (Speed Run Tool freezes its display before it adds the frame),
-        // and the level and the Saved
+        // before orig: the reading a room entry is timed from (the chapter's
+        // end takes the one after, as chapter time does; Speed Run Tool's
+        // display stops a frame short there), and the level and the Saved
         // values as a load left them, before this frame can move the player
         bool loaded = Saved.Stamp != stamp;
         if (loaded) {
@@ -352,7 +352,7 @@ public static class RunWatcher {
             // closes before opens: the stop edge, then the room entry (which
             // closes before it opens), then the starts waiting
             if (stopped && !lastStopped) {
-                Emit(session, tracker.ChapterTimeStopped(before, after, end));
+                Emit(session, tracker.ChapterTimeStopped(after, end));
             }
 
             if (room != lastRoom && load == RoomLoad.WalkIn) {
