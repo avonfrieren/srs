@@ -197,16 +197,14 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         }
     }
 
-    /// TimerStopped or Completed went from false to true. `reading` is the one before
-    /// the frame; `counted` includes it, as the game's chapter time does, for a whole chapter.
-    public List<SegmentRecord> ChapterTimeStopped(long reading, long counted, EndState end) {
-        List<SegmentRecord> records = CloseWhere(segment => segment.Rule.End == EndKind.ChapterEnd, counted, end);
-        records.AddRange(CloseWhere(
-            segment => segment.Rule.End == EndKind.NextStart && Rooms.EndRoomOf(segment.Rule) == null,
-            reading, end));
-        records.Sort((a, b) => a.Rule.Order.CompareTo(b.Rule.Order));
-        return records;
-    }
+    /// TimerStopped or Completed went from false to true. `counted` includes
+    /// the frame that stopped it, as the game's chapter time does: a chapter's
+    /// last segment and its whole chapter end on the same reading.
+    public List<SegmentRecord> ChapterTimeStopped(long counted, EndState end) =>
+        CloseWhere(
+            segment => segment.Rule.End == EndKind.ChapterEnd
+                       || (segment.Rule.End == EndKind.NextStart && Rooms.EndRoomOf(segment.Rule) == null),
+            counted, end);
 
     /// Restart Chapter left the level, with the old session's last reading: the
     /// segments ending on it close, and everything else open is dropped

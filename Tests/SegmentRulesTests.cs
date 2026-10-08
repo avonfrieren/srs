@@ -44,7 +44,7 @@ public class SegmentRulesTests {
         "Farewell/No DTS IL",
     ];
 
-    // a row given ChapterEnd by mistake would gain a frame without a sound
+    // a row given ChapterEnd by mistake would stay open across its checkpoints
     [Fact]
     public void OnlyTheIlAndCSideRowsAreAWholeChapter() {
         Assert.Equal([
@@ -221,7 +221,7 @@ public class SegmentRulesTests {
         Assert.Equal(TimeSpan.FromMilliseconds(5508).Ticks, Rule("7a", "7a Start").HeadTicks);
         Assert.Equal(StartKind.AfterLaunch, Rule("7a", "7a Start").Start);
         Assert.Equal(TimeSpan.FromMilliseconds(1037).Ticks, Rule("Prologue", "Granny").HeadTicks);
-        Assert.Equal(TimeSpan.FromMilliseconds(561).Ticks, Rule("Prologue", "Granny").TailTicks);
+        Assert.Equal(TimeSpan.FromMilliseconds(544).Ticks, Rule("Prologue", "Granny").TailTicks);
         Assert.Equal(0, Rule("7a", "500m").HeadTicks);
         Assert.Equal(StartKind.Room, Rule("7a", "500m").Start);
         Assert.Equal(StartKind.Room, Rule("2a", "Awake").Start);
