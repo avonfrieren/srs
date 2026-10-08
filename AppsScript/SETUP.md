@@ -105,10 +105,10 @@ rows as not found and leaves them alone.
 *Auto-fill dates* is Yes. Nothing else: the **Standard** column is a formula and is never
 touched, and a Time cell holding a formula is refused.
 
-**What it checks first.** Before writing, it compares the Time cell with what srs read when
-the export screen opened. If you changed it in the browser meanwhile, the row comes back as
-*sheet changed* and is left alone, and the rest of the export goes through. A row that already
-holds the time being exported is left untouched, date included.
+**What it checks first.** Before writing, it compares the Time cell with what srs last read from
+your sheet, or from its saved copy of it. If you changed it in the browser meanwhile, the row
+comes back as *sheet changed* and is left alone, and the rest of the export goes through. A row
+that already holds the time being exported is left untouched, date included.
 
 **Frame check.** If Config's *Check time validity* is Yes and the time is not a whole number of
 frames, the script marks the cell exactly as typing it would: struck through, bold, with a note

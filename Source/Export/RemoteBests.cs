@@ -1,76 +1,166 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-public enum RemoteState { NotLoaded, Loading, Ready, Error }
+/// Where the times held came from: nothing, the copy saved last session, or
+/// the sheet itself this session.
+public enum HeldSource { None, Saved, Fresh }
 
-/// Cache of what the sheet holds. Deliberately NOT registered with
+/// The player's sheet as srs last read it. Deliberately NOT registered with
 /// SpeedrunTool.SaveLoad: a savestate load must not wipe downloaded data.
+/// No file and no log here: SheetReader does both, and this file stays game-free.
 public static class RemoteBests {
-    /// Everything a reader needs, published in one assignment. Written by the
-    /// worker resolving a fetch, read every frame by the game thread: separate
-    /// fields could be seen out of order, Ready before its index, and the rows
-    /// would then compare against values that have not arrived.
-    /// AcceptedAt is on the monotonic clock: it is only ever asked how old the
-    /// data is, and the wall clock can jump.
+    private readonly record struct Key(string Tab, string Chapter, string Cp);
+
+    /// Everything a reader needs, published in one assignment, and every writer
+    /// publishes by compare-and-swap: separate fields could be seen out of
+    /// order, and a plain write could undo a concurrent one. AcceptedAt is on
+    /// the monotonic clock, SavedAtUtc on the wall clock: a fresh answer's age
+    /// never crosses a session, a saved copy's always does.
     private sealed record Snapshot(
-        RemoteState State, Dictionary<(string, string, string), RemoteRow> Index, string Error, long AcceptedAt);
+        HeldSource Source,
+        IReadOnlyList<RemoteRow> Rows,
+        Dictionary<Key, RemoteRow> Index,
+        HashSet<Key> Duplicates,
+        DateTime SavedAtUtc,
+        long AcceptedAt,
+        string Error,
+        int Accepts);
 
-    private static volatile Snapshot current = Empty(RemoteState.NotLoaded);
+    private static volatile Snapshot current = Empty(0);
 
-    public static RemoteState State => current.State;
+    public static HeldSource Source => current.Source;
+    public static bool IsResolved => current.Source != HeldSource.None;
+
+    /// Why the last read failed; null since the last answer taken in.
     public static string Error => current.Error;
 
-    /// How long ago the held answer arrived, and TimeSpan.MaxValue when there
-    /// is none. Read by the screen to decide whether asking again would say
-    /// anything new.
-    public static TimeSpan Age =>
-        current is { State: RemoteState.Ready } ready
-            ? TimeSpan.FromMilliseconds(Environment.TickCount64 - ready.AcceptedAt)
-            : TimeSpan.MaxValue;
+    /// Counts the answers taken in and the cells written, so a screen can tell its table is older.
+    public static int Accepts => current.Accepts;
 
-    // Export must not be submittable while a row's remote comparison is still a
-    // guess (Loading/NotLoaded) or known-stale (Error)
-    public static bool IsResolved => State == RemoteState.Ready;
+    /// Every row as the sheet sent it, duplicates included: what the copy saves.
+    public static IReadOnlyList<RemoteRow> Rows => current.Rows;
+    public static DateTime SavedAtUtc => current.SavedAtUtc;
 
-    public static void Reset() => current = Empty(RemoteState.NotLoaded);
-
-    /// Drops the times held: the sheet may have moved, and did if this screen
-    /// wrote to it. The screen waits for the answer before building its table,
-    /// so nothing is shown against the emptied index.
-    public static void BeginFetch() => current = Empty(RemoteState.Loading);
-
-    public static void Accept(IEnumerable<RemoteRow> rows) {
-        Dictionary<(string, string, string), RemoteRow> built = [];
-        foreach (RemoteRow row in rows) {
-            built[Key(row.Tab, row.Chapter, row.Cp)] = row;
+    public static TimeSpan Age {
+        get {
+            Snapshot seen = current;
+            return seen.Source switch {
+                HeldSource.Fresh => TimeSpan.FromMilliseconds(Environment.TickCount64 - seen.AcceptedAt),
+                HeldSource.Saved => AgeSince(seen.SavedAtUtc, DateTime.UtcNow),
+                _ => TimeSpan.MaxValue,
+            };
         }
-
-        current = new Snapshot(RemoteState.Ready, built, null, Environment.TickCount64);
     }
 
-    /// Keeps the index held, so a compare-and-swap rather than a plain write: an
-    /// Accept landing between the read and the write would otherwise lose its
-    /// rows to the older index this copied.
-    public static void Fail(string error) {
+    /// A clock that went back shows the copy as just saved.
+    public static TimeSpan AgeSince(DateTime savedAtUtc, DateTime nowUtc) =>
+        nowUtc > savedAtUtc ? nowUtc - savedAtUtc : TimeSpan.Zero;
+
+    public static void Reset() => Publish(seen => Empty(seen.Accepts));
+
+    /// Takes the sheet's answer in. Returns the rows whose key it carries more
+    /// than once, for the caller to log: those are never exported.
+    public static List<RemoteRow> AcceptFresh(IReadOnlyList<RemoteRow> rows) {
+        (Dictionary<Key, RemoteRow> index, HashSet<Key> duplicates) = Build(rows);
+        Publish(seen => new Snapshot(HeldSource.Fresh, rows, index, duplicates,
+            DateTime.UtcNow, Environment.TickCount64, null, seen.Accepts + 1));
+        return rows.Where(row => duplicates.Contains(KeyOf(row))).ToList();
+    }
+
+    /// The copy saved last session, taken only when nothing is held: it never
+    /// replaces an answer.
+    public static bool TryAcceptSaved(IReadOnlyList<RemoteRow> rows, DateTime savedAtUtc) {
+        (Dictionary<Key, RemoteRow> index, HashSet<Key> duplicates) = Build(rows);
         Snapshot seen;
         do {
             seen = current;
-        } while (Interlocked.CompareExchange(ref current, seen with { State = RemoteState.Error, Error = error }, seen)
-                 != seen);
+            if (seen.Source != HeldSource.None) {
+                return false;
+            }
+        } while (Interlocked.CompareExchange(ref current,
+                     new Snapshot(HeldSource.Saved, rows, index, duplicates, savedAtUtc, 0, null, seen.Accepts + 1),
+                     seen) != seen);
+
+        return true;
     }
 
-    public static bool TryGet(SheetRowRef row, out RemoteRow value) =>
-        current.Index.TryGetValue(Key(row.Tab, row.Chapter, row.Cp), out value);
+    /// Keeps what is held.
+    public static void Fail(string error) => Publish(seen => seen with { Error = error });
 
-    private static Snapshot Empty(RemoteState state) => new(state, [], null, 0);
+    /// The cells the sheet just wrote, as srs sent them: the script writes the
+    /// string into a text cell, so it displays exactly that. Source and save
+    /// date stay: the rest of what is held is as old as it was. Builds new
+    /// rows, never edits held ones, which a save may be serialising. Moves
+    /// Accepts: a table reopened during the write was built on the old cells.
+    public static void ApplyWritten(IReadOnlyList<(SheetRowRef Row, string Time)> written) {
+        if (written.Count == 0) {
+            return;
+        }
 
-    private static (string, string, string) Key(string tab, string chapter, string cp) =>
-        (Normalize(tab), Normalize(chapter), Normalize(cp));
+        Dictionary<Key, string> times = [];
+        foreach ((SheetRowRef row, string time) in written) {
+            times[KeyOf(row)] = time;
+        }
+
+        Publish(seen => {
+            List<RemoteRow> rows = seen.Rows.Select(row =>
+                times.TryGetValue(KeyOf(row), out string time) && !seen.Duplicates.Contains(KeyOf(row))
+                    ? new RemoteRow { Tab = row.Tab, Band = row.Band, Chapter = row.Chapter, Cp = row.Cp, Time = time }
+                    : row).ToList();
+            return seen with { Rows = rows, Index = Build(rows).Index, Accepts = seen.Accepts + 1 };
+        });
+    }
+
+    public static bool TryGet(SheetRowRef row, out RemoteRow value) {
+        Snapshot seen = current;
+        Key key = KeyOf(row);
+        if (seen.Duplicates.Contains(key)) {
+            value = null;
+            return false;
+        }
+
+        return seen.Index.TryGetValue(key, out value);
+    }
+
+    public static bool IsDuplicate(SheetRowRef row) => current.Duplicates.Contains(KeyOf(row));
+
+    /// Whether an answer holds any row srs writes. A sheet whose band headers
+    /// broke answers with none, and taking that in would empty a good copy.
+    public static bool HoldsAnyOf(IReadOnlyList<RemoteRow> rows, IEnumerable<SheetRowRef> targets) {
+        HashSet<Key> keys = rows.Select(KeyOf).ToHashSet();
+        return targets.Any(target => keys.Contains(KeyOf(target)));
+    }
+
+    private static void Publish(Func<Snapshot, Snapshot> change) {
+        Snapshot seen;
+        do {
+            seen = current;
+        } while (Interlocked.CompareExchange(ref current, change(seen), seen) != seen);
+    }
+
+    private static Snapshot Empty(int accepts) => new(HeldSource.None, [], [], [], default, 0, null, accepts);
+
+    private static (Dictionary<Key, RemoteRow> Index, HashSet<Key> Duplicates) Build(IReadOnlyList<RemoteRow> rows) {
+        Dictionary<Key, RemoteRow> index = [];
+        HashSet<Key> duplicates = [];
+        foreach (RemoteRow row in rows) {
+            Key key = KeyOf(row);
+            if (!index.TryAdd(key, row)) {
+                duplicates.Add(key);
+            }
+        }
+
+        return (index, duplicates);
+    }
+
+    private static Key KeyOf(RemoteRow row) => new(Normalize(row.Tab), Normalize(row.Chapter), Normalize(row.Cp));
+    private static Key KeyOf(SheetRowRef row) => new(Normalize(row.Tab), Normalize(row.Chapter), Normalize(row.Cp));
 
     /// Same rule as the Apps Script's norm(): NFC, collapsed whitespace, and the
     /// U+FE0F variation selector dropped. Emoji are NOT stripped: they are what

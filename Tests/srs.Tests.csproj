@@ -24,7 +24,11 @@
         <Compile Include="../Source/Export/TimeFormat.cs" Link="Source/Export/TimeFormat.cs" />
         <Compile Include="../Source/Export/PendingUpdate.cs" Link="Source/Export/PendingUpdate.cs" />
         <Compile Include="../Source/Export/RemoteBests.cs" Link="Source/Export/RemoteBests.cs" />
+        <Compile Include="../Source/Export/SheetCopy.cs" Link="Source/Export/SheetCopy.cs" />
+        <Compile Include="../Source/Export/SheetReader.cs" Link="Source/Export/SheetReader.cs" />
         <Compile Include="../Source/Export/RunBook.cs" Link="Source/Export/RunBook.cs" />
+        <Compile Include="../Source/Export/ExportSource.cs" Link="Source/Export/ExportSource.cs" />
+        <Compile Include="../Source/Export/ExportTable.cs" Link="Source/Export/ExportTable.cs" />
         <Compile Include="../Source/Engine/SegmentRule.cs" Link="Source/Engine/SegmentRule.cs" />
         <Compile Include="../Source/Engine/SegmentRules.cs" Link="Source/Engine/SegmentRules.cs" />
         <Compile Include="../Source/Engine/RunTracker.cs" Link="Source/Engine/RunTracker.cs" />

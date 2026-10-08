@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using FMOD.Studio;
@@ -22,6 +23,17 @@ public class SrsModule : EverestModule {
         SheetImporter.Load();
         // before ExportMenu.Load, which asks the sheet at launch
         ExportTarget.Load();
+        // the saved times first, and before ExportMenu.Load: the launch read
+        // only ever replaces them
+        SheetReader.Install(new ReaderHost {
+            Fetch = ExportClient.FetchAsync,
+            Info = message => Logger.Log(LogLevel.Info, "srs", message),
+            Warn = message => Logger.Log(LogLevel.Warn, "srs", message),
+            Enabled = () => Settings.Enabled,
+            Url = () => ExportTarget.Url,
+            CopyPath = Path.Combine(Everest.PathSettings, "srs", "sheet-times.json"),
+        });
+        SheetReader.LoadCopy();
         // Level.Update hook order matters: each later Load wraps the previous
         // hooks, so after orig the frame runs innermost-first — Hotkeys reads
         // the frame's input before anything consumes it, RunWatcher feeds
@@ -33,13 +45,9 @@ public class SrsModule : EverestModule {
         // last: it reads Hotkeys on the frame Hotkeys updated it, and only reads
         // what the others produced
         ExportMenu.Load();
-        // no Level.Update hook of its own: an Everest enter event, so it is
-        // outside the ordering the comment above describes
-        SessionBests.Load();
     }
 
     public override void Unload() {
-        SessionBests.Unload();
         ExportMenu.Unload();
         TierComparison.Unload();
         RunWatcher.Unload();

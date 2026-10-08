@@ -121,4 +121,42 @@ public class PendingUpdateTests {
 
         Assert.Equal("1:36.9", update.RemoteCell);
     }
+
+    // the sheet and its script compare at the millisecond: a run a fraction
+    // over the cell srs just wrote is the same time, not a regression
+    [Fact]
+    public void ATimeWrittenAtTheMillisecondIsNotBehind() {
+        long ticks = TimeSpan.FromSeconds(21.948).Ticks + 4000;   // 21.9484 s
+        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", ticks, "21.948");
+
+        Assert.False(update.Selected);
+        Assert.Equal("+0.000", update.DeltaText);
+        Assert.Null(update.Ahead);
+    }
+
+    [Fact]
+    public void AheadSaysWhichWayTheDeltaGoes() {
+        Assert.True(PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(21.0), "21.948").Ahead);
+        Assert.False(PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(22.0), "21.948").Ahead);
+        Assert.Null(PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(22.0), "").Ahead);
+        Assert.Null(PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(22.0), "8,704").Ahead);
+    }
+
+    [Fact]
+    public void ADuplicateIsNeverTickedAndSaysWhy() {
+        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(21.0), "",
+            duplicate: true);
+
+        Assert.True(update.Duplicate);
+        Assert.False(update.Selected);
+        Assert.Equal("SRS_EXPORT_DUPLICATE", update.DeltaText);
+        Assert.Equal("", update.RemoteText);
+        Assert.Null(update.Ahead);
+    }
+
+    [Fact]
+    public void KeepsTheBandItWasReadFrom() {
+        Assert.Equal("checkpoint", PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing",
+            Ticks(21.0), "21.948", band: "checkpoint").Band);
+    }
 }

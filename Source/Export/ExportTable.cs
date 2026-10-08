@@ -1,0 +1,104 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Celeste.Mod.SpeedrunSheet;
+
+/// What the export screen's status line says.
+internal enum ScreenStatus { None, Loading, LoadFailed, Writing, WritingChecking, WritingFailed, SavedChecking, SavedFailed, FreshFailed }
+
+/// The export screen's decisions, game-free so they are tested; ExportMenu draws.
+internal static class ExportTable {
+    private static string L(string key) => ExportProtocol.Localize(key);
+
+    /// The first state that applies wins: nothing held, then an export still
+    /// out, then one that went unanswered, then a saved copy, then a fresh
+    /// answer whose last read failed.
+    public static ScreenStatus StatusOf(HeldSource source, bool reading, string error, bool unansweredWrite,
+        bool writing) {
+        if (source == HeldSource.None) {
+            return error != null && !reading ? ScreenStatus.LoadFailed : ScreenStatus.Loading;
+        }
+
+        if (writing) {
+            return ScreenStatus.Writing;
+        }
+
+        if (unansweredWrite) {
+            return reading || error == null ? ScreenStatus.WritingChecking : ScreenStatus.WritingFailed;
+        }
+
+        if (source == HeldSource.Saved) {
+            return reading || error == null ? ScreenStatus.SavedChecking : ScreenStatus.SavedFailed;
+        }
+
+        return error != null && !reading ? ScreenStatus.FreshFailed : ScreenStatus.None;
+    }
+
+    /// Minutes under an hour, hours under two days, then days.
+    public static (int Value, string UnitKey) AgeOf(TimeSpan age) {
+        if (age < TimeSpan.FromHours(1)) {
+            return ((int) age.TotalMinutes, "SRS_AGE_MINUTES");
+        }
+
+        return age < TimeSpan.FromDays(2)
+            ? ((int) age.TotalHours, "SRS_AGE_HOURS")
+            : ((int) age.TotalDays, "SRS_AGE_DAYS");
+    }
+
+    /// A table rebuilt on a newer answer: rows the player pressed keep their
+    /// state, the others take the new answer's; a duplicate is never ticked.
+    public static void KeepPressed(List<PendingUpdate> rebuilt, IReadOnlyDictionary<SheetRowRef, bool> pressed) {
+        foreach (PendingUpdate update in rebuilt) {
+            if (!update.Duplicate && pressed.TryGetValue(update.Row, out bool ticked)) {
+                update.Selected = ticked;
+            }
+        }
+    }
+
+    /// The sheet's own labels, never translated. Most checkpoint labels already
+    /// carry their chapter ("1a Start"), so prefixing it again reads "1a 1a Start".
+    public static string RowLabel(string tab, string chapter, string cp) {
+        string group = string.IsNullOrEmpty(chapter) ? tab : chapter;
+        return cp.StartsWith(group, StringComparison.Ordinal) ? cp : $"{group} {cp}";
+    }
+
+    // an unknown status is shown as the script sent it rather than swallowed
+    public static string StatusText(string status) => status switch {
+        "written" => L("SRS_EXPORT_STATUS_WRITTEN"),
+        "unchanged" => L("SRS_EXPORT_STATUS_UNCHANGED"),
+        "notFound" => L("SRS_EXPORT_STATUS_NOTFOUND"),
+        "ambiguous" => L("SRS_EXPORT_STATUS_AMBIGUOUS"),
+        "refused" => L("SRS_EXPORT_STATUS_REFUSED"),
+        "changed" => L("SRS_EXPORT_STATUS_CHANGED"),
+        _ => status,
+    };
+
+    /// One line for the rows written, one for those already on the sheet, whose
+    /// reasons only go to the log, and one per other row with the script's
+    /// reason, untranslated: srs does not author it.
+    public static List<string> SummaryLines(IReadOnlyList<ExportResult> results) {
+        List<string> lines = [];
+        string Labels(string status) => string.Join(", ", results.Where(r => r.Status == status)
+            .Select(r => RowLabel(r.Tab, r.Chapter, r.Cp)));
+
+        if (results.Any(r => r.Status == "written")) {
+            lines.Add($"{L("SRS_EXPORT_SUMMARY_WRITTEN")} {Labels("written")}");
+        }
+
+        if (results.Any(r => r.Status == "unchanged")) {
+            lines.Add($"{L("SRS_EXPORT_SUMMARY_UNCHANGED")} {Labels("unchanged")}");
+        }
+
+        foreach (ExportResult r in results.Where(r => r.Status is not ("written" or "unchanged"))) {
+            lines.Add($"{RowLabel(r.Tab, r.Chapter, r.Cp)}: {StatusText(r.Status)}"
+                + (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
+        }
+
+        if (lines.Count == 0) {
+            lines.Add(L("SRS_EXPORT_DONE"));
+        }
+
+        return lines;
+    }
+}

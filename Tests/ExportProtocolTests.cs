@@ -11,24 +11,22 @@ public class ExportProtocolTests {
     public void SerializesARequestWithLowerCamelCaseFields() {
         var request = new ExportRequest {
             Updates = {
-                new ExportUpdate { Tab = "B+C Sides", Chapter = "6b", Cp = "Falling", Time = "1:07.915", Expect = "1:09.4" },
+                new ExportUpdate { Tab = "B+C Sides", Band = "checkpoint", Chapter = "6b", Cp = "Falling", Time = "1:07.915", Expect = "1:09.4" },
             },
         };
 
         string json = ExportProtocol.SerializeRequest(request);
 
         Assert.Equal(
-            """{"updates":[{"tab":"B+C Sides","chapter":"6b","cp":"Falling","time":"1:07.915","expect":"1:09.4"}]}""",
+            """{"updates":[{"tab":"B+C Sides","band":"checkpoint","chapter":"6b","cp":"Falling","time":"1:07.915","expect":"1:09.4"}]}""",
             json);
     }
 
-    // the payloads below are what the deployed script actually answered on
-    // 2026-08-28, copied verbatim. They used to be invented, and they invented
-    // an "ok" and a "row" the script has never sent
+    // the payloads below are what the deployed script answered on 2026-08-28, plus the version v2 added
     [Fact]
     public void ParsesAResponse() {
         const string json = """
-            {"results":[{"tab":"A Sides","chapter":"7a","cp":"7a Start \uD83D\uDC8E","status":"written","reason":""}]}
+            {"results":[{"tab":"A Sides","chapter":"7a","cp":"7a Start \uD83D\uDC8E","status":"written","reason":""}],"version":2}
             """;
 
         Assert.True(ExportProtocol.TryParseResponse(json, out var response, out string error));
@@ -41,7 +39,7 @@ public class ExportProtocolTests {
     [Fact]
     public void ParsesARefusalWithItsReason() {
         const string json = """
-            {"results":[{"tab":"A Sides","chapter":"1a","cp":"No Such Row","status":"notFound","reason":"no row matching 1a / No Such Row in tab \"A Sides\""}]}
+            {"results":[{"tab":"A Sides","chapter":"1a","cp":"No Such Row","status":"notFound","reason":"no row matching 1a / No Such Row in tab \"A Sides\""}],"version":2}
             """;
 
         Assert.True(ExportProtocol.TryParseResponse(json, out var response, out _));
@@ -51,29 +49,29 @@ public class ExportProtocolTests {
 
     [Fact]
     public void ANullResultsListReadsAsNoResults() {
-        Assert.True(ExportProtocol.TryParseResponse("""{"results":null}""", out var response, out _));
+        Assert.True(ExportProtocol.TryParseResponse("""{"results":null,"version":2}""", out var response, out _));
         Assert.Empty(response.Results);
     }
 
     [Fact]
     public void NullFieldsOfAResultReadAsEmpty() {
         Assert.True(ExportProtocol.TryParseResponse(
-            """{"results":[{"tab":null,"chapter":null,"cp":null,"status":null,"reason":null}]}""",
+            """{"results":[{"tab":null,"band":null,"chapter":null,"cp":null,"status":null,"reason":null}],"version":2}""",
             out var response, out _));
 
         ExportResult r = Assert.Single(response.Results);
-        Assert.Equal(("", "", "", "", ""), (r.Tab, r.Chapter, r.Cp, r.Status, r.Reason));
+        Assert.Equal(("", "", "", "", "", ""), (r.Tab, r.Band, r.Chapter, r.Cp, r.Status, r.Reason));
     }
 
     [Fact]
     public void NullEntriesAreDroppedFromBothAnswers() {
         Assert.True(ExportProtocol.TryParseResponse(
-            """{"results":[null,{"tab":"A Sides","chapter":"1a","cp":"Crossing","status":"written"}]}""",
+            """{"results":[null,{"tab":"A Sides","chapter":"1a","cp":"Crossing","status":"written"}],"version":2}""",
             out var response, out _));
         Assert.Equal("written", Assert.Single(response.Results).Status);
 
         Assert.True(ExportProtocol.TryParseRows(
-            """{"rows":[null,{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.948"}]}""",
+            """{"rows":[null,{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.948"}],"version":2}""",
             out var rows, out _));
         Assert.Equal("21.948", Assert.Single(rows).Time);
     }
@@ -108,7 +106,7 @@ public class ExportProtocolTests {
     [Fact]
     public void ParsesRemoteRows() {
         const string json = """
-            {"rows":[{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.947","standard":"Pink"}]}
+            {"rows":[{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.947","standard":"Pink"}],"version":2}
             """;
 
         Assert.True(ExportProtocol.TryParseRows(json, out List<RemoteRow> rows, out _));
@@ -125,6 +123,59 @@ public class ExportProtocolTests {
 
         Assert.False(ExportProtocol.TryParseRows(json, out _, out string error));
         Assert.Equal("Error: Tab \"Any%\" not found", error);
+    }
+
+    [Fact]
+    public void ReadsTheBandOfEachRow() {
+        const string json = """
+            {"rows":[{"tab":"A Sides","band":"checkpoint","chapter":"1a","cp":"Crossing","time":"21.947"}],"ms":812,"cached":false,"version":2}
+            """;
+
+        Assert.True(ExportProtocol.TryParseRows(json, out List<RemoteRow> rows, out _));
+        Assert.Equal("checkpoint", Assert.Single(rows).Band);
+    }
+
+    // a v1 script sends no version: srs speaks v2 only, and says what to do
+    [Fact]
+    public void RowsWithoutVersionTwoAreRefusedAsOutOfDate() {
+        const string json = """
+            {"rows":[{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.947"}]}
+            """;
+
+        Assert.False(ExportProtocol.TryParseRows(json, out _, out _, out string error, out bool outOfDate));
+        Assert.True(outOfDate);
+        Assert.Equal("SRS_EXPORT_ERR_OUT_OF_DATE", error);
+    }
+
+    [Fact]
+    public void AResponseWithoutVersionTwoIsRefused() {
+        const string json = """
+            {"results":[{"tab":"A Sides","chapter":"1a","cp":"Crossing","status":"written","reason":""}]}
+            """;
+
+        Assert.False(ExportProtocol.TryParseResponse(json, out var response, out string error));
+        Assert.Null(response);
+        Assert.Equal("SRS_EXPORT_ERR_OUT_OF_DATE", error);
+    }
+
+    // the script's own error wins over the version check: it says more
+    [Fact]
+    public void AnErrorAnswerIsAnErrorWhateverItsVersion() {
+        Assert.False(ExportProtocol.TryParseRows("""{"error":"boom","ms":3,"version":2}""",
+            out _, out _, out string error, out bool outOfDate));
+        Assert.False(outOfDate);
+        Assert.Equal("boom", error);
+    }
+
+    [Fact]
+    public void ReadsTheMatchedBandAndTheScriptTimeOfAnExport() {
+        const string json = """
+            {"results":[{"tab":"A Sides","band":"il","chapter":"1a","cp":"1a","status":"unchanged","reason":"1a already holds \"2:01.3\""}],"ms":4210,"version":2}
+            """;
+
+        Assert.True(ExportProtocol.TryParseResponse(json, out var response, out _));
+        Assert.Equal("il", response.Results[0].Band);
+        Assert.Equal(4210, response.Ms);
     }
 }
 

@@ -73,6 +73,8 @@ public static class ExportUrlMenu {
                 return;
             }
 
+            // the same URL pasted again keeps what is held of its sheet
+            bool sameSheet = pasted == ExportTarget.Url;
             if (!ExportTarget.Set(pasted)) {
                 // a check still out for an earlier paste would answer over this line
                 generation++;
@@ -81,17 +83,21 @@ public static class ExportUrlMenu {
                 return;
             }
 
+            // only once the new URL is set: a save still in flight then sees
+            // the change, and cannot write the old sheet's times under it
+            if (!sameSheet) {
+                SheetReader.Forget();
+            }
+
             settings.ExportUrlSetOn = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-            RemoteBests.Reset();
             SrsModule.TrySaveSettings("the date the sheet URL was set");
 
             setButton.Label = StatusLabel(settings);
             forgetButton.Visible = true;
 
-            BeginCheck(pasted);
-            // the check is about to warm the script's own cache, so the export
-            // screen may as well open on data rather than on a loading line
-            ExportMenu.Refresh("a sheet URL was just set");
+            // the check is a read like any other: it warms the script's cache
+            // and leaves the export screen data to open on
+            BeginCheck();
         });
 
         // press once to arm ("Forget Sheet URL?"), press again to clear:
@@ -118,7 +124,7 @@ public static class ExportUrlMenu {
             }
 
             settings.ExportUrlSetOn = "";
-            RemoteBests.Reset();
+            SheetReader.Forget();
             SrsModule.TrySaveSettings("the sheet URL forgotten");
 
             forgetArmed = false;
@@ -137,15 +143,16 @@ public static class ExportUrlMenu {
         return new List<TextMenu.Item> { forgetButton };
     }
 
-    /// Asks the endpoint for its rows. The wrong deployment and an unauthorised
-    /// one both answer 200 with something that is not ours, so the check is that
-    /// it parses rather than that it responded.
-    private static void BeginCheck(string url) {
+    /// Reads the sheet through the one reader and says what came back. The
+    /// wrong deployment and an unauthorised one both answer 200 with something
+    /// that is not ours, so the check is that it parses rather than that it
+    /// responded.
+    private static void BeginCheck() {
         int fetch = ++generation;
         checking = true;
         message = null;
 
-        _ = ExportClient.FetchAsync(url).ContinueWith(task => {
+        _ = SheetReader.Refresh("a sheet URL was just set").ContinueWith(task => {
             if (fetch != generation) {
                 return;
             }
@@ -153,17 +160,16 @@ public static class ExportUrlMenu {
             // nothing above this continuation observes a throw: the status
             // would stay on "Asking the sheet..." for the rest of the visit
             try {
-                (string body, string error) = task.Result;
-                if (error != null) {
-                    message = $"{Dialog.Clean("SRS_EXPORT_URL_CHECK_FAILED")} {error}";
-                } else if (ExportProtocol.TryParseRows(body, out List<RemoteRow> rows, out string _)) {
-                    // the count proves the export script answered with real rows;
-                    // the player has no use for the number, the log keeps it
-                    Logger.Log(LogLevel.Info, LogTag, $"sheet URL check: {rows.Count} rows read");
-                    message = Dialog.Clean("SRS_EXPORT_URL_CHECK_OK");
-                } else {
-                    message = Dialog.Clean("SRS_EXPORT_URL_CHECK_NOT_SHEET");
-                }
+                ReadOutcome outcome = task.Result;
+                message = outcome.Kind switch {
+                    ReadKind.Accepted => Dialog.Clean("SRS_EXPORT_URL_CHECK_OK"),
+                    ReadKind.Unreachable => $"{Dialog.Clean("SRS_EXPORT_URL_CHECK_FAILED")} {outcome.Error}",
+                    ReadKind.OutOfDate => Dialog.Clean("SRS_EXPORT_ERR_OUT_OF_DATE"),
+                    ReadKind.NoRows => Dialog.Clean("SRS_EXPORT_URL_CHECK_NO_ROWS"),
+                    ReadKind.NotTheScript => Dialog.Clean("SRS_EXPORT_URL_CHECK_NOT_SHEET"),
+                    // the URL moved again, or the mod went off: a newer visit says it
+                    _ => null,
+                };
             } catch (Exception e) {
                 Logger.Log(LogLevel.Warn, LogTag, "a sheet URL check could not be read: " + e.GetType().Name);
                 message = Dialog.Clean("SRS_EXPORT_URL_CHECK_NOT_SHEET");

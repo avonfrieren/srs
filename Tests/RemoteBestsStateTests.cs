@@ -1,82 +1,147 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-// RemoteBests is static and xUnit runs test classes in parallel: no other
-// class may touch it
+[Collection(RemoteBestsCollection.Name)]
 public class RemoteBestsStateTests {
-    [Fact]
-    public void StartsNotLoaded() {
-        RemoteBests.Reset();
-        Assert.Equal(RemoteState.NotLoaded, RemoteBests.State);
-    }
+    private static RemoteRow Row(string cp, string time, string band = "checkpoint", string chapter = "1a") =>
+        new() { Tab = "A Sides", Band = band, Chapter = chapter, Cp = cp, Time = time };
+
+    private static readonly SheetRowRef Crossing = new("A Sides", "1a", "Crossing");
 
     [Fact]
-    public void AcceptingRowsMovesToReadyAndIndexesThem() {
+    public void StartsWithNothingHeld() {
         RemoteBests.Reset();
-        RemoteBests.Accept([
-            new RemoteRow { Tab = "A Sides", Chapter = "1a", Cp = "Crossing", Time = "21.948" },
-        ]);
-
-        Assert.Equal(RemoteState.Ready, RemoteBests.State);
-        Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "1a", "Crossing"), out RemoteRow row));
-        Assert.Equal("21.948", row.Time);
-    }
-
-    // a screen asking afresh: nothing is compared against a sheet that may have
-    // moved, and nothing held has an age
-    [Fact]
-    public void BeginFetchEmptiesTheIndexAndWaits() {
-        RemoteBests.Reset();
-        RemoteBests.Accept([
-            new RemoteRow { Tab = "A Sides", Chapter = "1a", Cp = "Crossing", Time = "21.948" },
-        ]);
-        RemoteBests.BeginFetch();
-
-        Assert.Equal(RemoteState.Loading, RemoteBests.State);
+        Assert.Equal(HeldSource.None, RemoteBests.Source);
         Assert.False(RemoteBests.IsResolved);
-        Assert.False(RemoteBests.TryGet(new SheetRowRef("A Sides", "1a", "Crossing"), out _));
         Assert.Equal(TimeSpan.MaxValue, RemoteBests.Age);
     }
 
     [Fact]
-    public void AnAnswerIsAsOldAsItsArrival() {
+    public void AFreshAnswerIsHeldAndIndexed() {
         RemoteBests.Reset();
-        Assert.Equal(TimeSpan.MaxValue, RemoteBests.Age);
+        int before = RemoteBests.Accepts;
+        RemoteBests.AcceptFresh([Row("Crossing", "21.948")]);
 
-        RemoteBests.Accept([]);
+        Assert.Equal(HeldSource.Fresh, RemoteBests.Source);
+        Assert.Equal(before + 1, RemoteBests.Accepts);
+        Assert.True(RemoteBests.TryGet(Crossing, out RemoteRow row));
+        Assert.Equal("21.948", row.Time);
         Assert.True(RemoteBests.Age < TimeSpan.FromMinutes(1));
     }
 
-    // a refresh failing under an open screen keeps the rows it was built from
     [Fact]
-    public void FailingAfterAnAnswerKeepsItsRows() {
+    public void ASavedCopyIsTakenOnlyWhenNothingIsHeld() {
         RemoteBests.Reset();
-        RemoteBests.Accept([
-            new RemoteRow { Tab = "A Sides", Chapter = "1a", Cp = "Crossing", Time = "21.948" },
-        ]);
-        RemoteBests.Fail("timeout");
+        DateTime saved = DateTime.UtcNow.AddHours(-2);
+        Assert.True(RemoteBests.TryAcceptSaved([Row("Crossing", "22.000")], saved));
+        Assert.Equal(HeldSource.Saved, RemoteBests.Source);
+        Assert.True(RemoteBests.Age >= TimeSpan.FromHours(2));
 
-        Assert.Equal(RemoteState.Error, RemoteBests.State);
-        Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "1a", "Crossing"), out RemoteRow row));
+        RemoteBests.AcceptFresh([Row("Crossing", "21.948")]);
+        Assert.False(RemoteBests.TryAcceptSaved([Row("Crossing", "22.000")], saved));
+        Assert.True(RemoteBests.TryGet(Crossing, out RemoteRow row));
         Assert.Equal("21.948", row.Time);
     }
 
     [Fact]
-    public void FailingMovesToErrorAndKeepsTheMessage() {
-        RemoteBests.Reset();
-        RemoteBests.Fail("boom");
+    public void AClockThatWentBackShowsTheCopyAsJustSaved() {
+        DateTime now = new(2026, 10, 4, 12, 0, 0, DateTimeKind.Utc);
+        Assert.Equal(TimeSpan.Zero, RemoteBests.AgeSince(now.AddMinutes(5), now));
+        Assert.Equal(TimeSpan.FromMinutes(5), RemoteBests.AgeSince(now.AddMinutes(-5), now));
+    }
 
-        Assert.Equal(RemoteState.Error, RemoteBests.State);
-        Assert.Equal("boom", RemoteBests.Error);
+    // a read failing keeps the rows a screen was built from
+    [Fact]
+    public void AFailureKeepsWhatIsHeld() {
+        RemoteBests.Reset();
+        RemoteBests.AcceptFresh([Row("Crossing", "21.948")]);
+        RemoteBests.Fail("timeout");
+
+        Assert.Equal(HeldSource.Fresh, RemoteBests.Source);
+        Assert.Equal("timeout", RemoteBests.Error);
+        Assert.True(RemoteBests.TryGet(Crossing, out _));
+
+        RemoteBests.AcceptFresh([Row("Crossing", "21.948")]);
+        Assert.Null(RemoteBests.Error);
+    }
+
+    // the script does not detect a key in two bands: srs refuses it, in one band or two
+    [Theory]
+    [InlineData("checkpoint", "il")]
+    [InlineData("checkpoint", "checkpoint")]
+    public void ARepeatedKeyIsADuplicateAndNeverARow(string firstBand, string secondBand) {
+        RemoteBests.Reset();
+        List<RemoteRow> repeated = RemoteBests.AcceptFresh([
+            Row("Crossing", "21.948", firstBand), Row("Crossing", "1:02.000", secondBand), Row("Chasm", "30.000"),
+        ]);
+
+        Assert.Equal(2, repeated.Count);
+        Assert.True(RemoteBests.IsDuplicate(Crossing));
+        Assert.False(RemoteBests.TryGet(Crossing, out _));
+        Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "1a", "Chasm"), out _));
+        // the copy keeps every row the sheet sent, so a reload finds the same duplicate
+        Assert.Equal(3, RemoteBests.Rows.Count);
+    }
+
+    [Fact]
+    public void AWrittenTimeBecomesTheCellAndKeepsTheSourceAndDate() {
+        RemoteBests.Reset();
+        DateTime saved = DateTime.UtcNow.AddHours(-2);
+        RemoteBests.TryAcceptSaved([Row("Crossing", "22.000")], saved);
+        int accepts = RemoteBests.Accepts;
+
+        RemoteBests.ApplyWritten([(Crossing, "21.948")]);
+
+        Assert.True(RemoteBests.TryGet(Crossing, out RemoteRow row));
+        Assert.Equal("21.948", row.Time);
+        Assert.Equal("checkpoint", row.Band);
+        Assert.Equal(HeldSource.Saved, RemoteBests.Source);
+        Assert.Equal(saved, RemoteBests.SavedAtUtc);
+        // counts like an answer: a table built on the old cells must rebuild
+        Assert.Equal(accepts + 1, RemoteBests.Accepts);
+    }
+
+    [Fact]
+    public void AWriteNeverTouchesTheRowsAnEarlierSnapshotHanded() {
+        RemoteBests.Reset();
+        RemoteRow original = Row("Crossing", "22.000");
+        RemoteBests.AcceptFresh([original]);
+        RemoteBests.ApplyWritten([(Crossing, "21.948")]);
+        Assert.Equal("22.000", original.Time);
+    }
+
+    [Fact]
+    public void ConcurrentWritersNeverUndoEachOther() {
+        RemoteBests.Reset();
+        RemoteBests.AcceptFresh([Row("Crossing", "22.000"), Row("Chasm", "31.000")]);
+        Parallel.For(0, 200, i => {
+            if (i % 2 == 0) {
+                RemoteBests.ApplyWritten([(Crossing, "21.948")]);
+            } else {
+                RemoteBests.Fail("timeout " + i);
+            }
+        });
+
+        Assert.True(RemoteBests.TryGet(Crossing, out RemoteRow row));
+        Assert.Equal("21.948", row.Time);
+        Assert.StartsWith("timeout", RemoteBests.Error);
+    }
+
+    [Fact]
+    public void AnAnswerHoldingNoTargetIsSeen() {
+        Assert.False(RemoteBests.HoldsAnyOf([], [Crossing]));
+        Assert.False(RemoteBests.HoldsAnyOf([Row("Nowhere", "1.000")], [Crossing]));
+        Assert.True(RemoteBests.HoldsAnyOf([Row(" CROSSING ", "1.000")], [Crossing]));
     }
 
     [Fact]
     public void LookupIgnoresCaseAndSpacingButNotTheEmoji() {
         RemoteBests.Reset();
-        RemoteBests.Accept([
+        RemoteBests.AcceptFresh([
             new RemoteRow { Tab = "a sides", Chapter = "6A", Cp = "  HOLLOWS   \U0001F4FC ", Time = "8.704" },
         ]);
 
@@ -84,27 +149,22 @@ public class RemoteBestsStateTests {
         Assert.False(RemoteBests.TryGet(new SheetRowRef("A Sides", "6a", "Hollows"), out _));
     }
 
+    // the script returns the raw cell text, which may carry a U+FE0F the table's literal lacks
     [Fact]
     public void LookupStripsVariationSelectorFromRawSheetEcho() {
-        // The Web App's doGet()/readTable() returns the RAW sheet cell text, which
-        // may carry a trailing U+FE0F variation selector that SheetLabels.cs's
-        // hardcoded emoji literal does not. The lookup key (built from
-        // SheetLabels, no variation selector) must still find this row.
         RemoteBests.Reset();
-        RemoteBests.Accept([
+        RemoteBests.AcceptFresh([
             new RemoteRow { Tab = "A Sides", Chapter = "6a", Cp = "Hollows \U0001F4FC\uFE0F", Time = "8.704" },
         ]);
 
         Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "6a", "Hollows \U0001F4FC"), out _));
     }
 
+    // the sheet has such pairs ("7a Start" / "7a Start \U0001F48E"): stripping emoji merges them
     [Fact]
     public void RowsDifferingOnlyByEmojiStayDistinct() {
-        // the sheet has such pairs ("7a Start" / "7a Start \U0001F48E", "Crossing" /
-        // "Crossing \U0001F499"). Stripping emoji instead of only the variation
-        // selector merges them.
         RemoteBests.Reset();
-        RemoteBests.Accept([
+        RemoteBests.AcceptFresh([
             new RemoteRow { Tab = "A Sides", Chapter = "7a", Cp = "7a Start", Time = "39.457" },
             new RemoteRow { Tab = "A Sides", Chapter = "7a", Cp = "7a Start \U0001F48E", Time = "12.345" },
         ]);
@@ -113,12 +173,13 @@ public class RemoteBestsStateTests {
         Assert.Equal("39.457", plain.Time);
         Assert.True(RemoteBests.TryGet(new SheetRowRef("A Sides", "7a", "7a Start \U0001F48E"), out RemoteRow gem));
         Assert.Equal("12.345", gem.Time);
+        Assert.False(RemoteBests.IsDuplicate(new SheetRowRef("A Sides", "7a", "7a Start")));
     }
 
     [Fact]
     public void UnknownRowIsNotFound() {
         RemoteBests.Reset();
-        RemoteBests.Accept([]);
+        RemoteBests.AcceptFresh([]);
         Assert.False(RemoteBests.TryGet(new SheetRowRef("A Sides", "9z", "Nowhere"), out _));
     }
 }
