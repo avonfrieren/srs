@@ -30,6 +30,7 @@
 - **Replacing the sheet URL asks first.** Press once and the button asks, press again to replace. Setting the first URL, or pasting the same one again, does not ask.
 - **Three more standards tabs are downloaded:** the C-side, all red berries and full clear standards. Only the C-side one is used so far. An update still succeeds only if every tab downloads, and the log now names the tab that failed.
 - **C-sides are covered.** A C-side run shows its row above the timer and is exported like any segment. It starts from the chapter's first spawn and ends when the heart stops the timer. It is timed as the game times the chapter, the frame that stops the timer included.
+- **A-side ILs are covered.** A run from a chapter's start to its end records the chapter's IL beside its checkpoints, timed as the game times the chapter, and exports it to the IL row of your sheet. At the end of a full run the rows above the timer show the IL, and Previous Segment steps back to the last checkpoint. A Save and Quit starts a new attempt, so an IL does not survive one. The cassette and heart IL rows are not covered yet.
 
 ## v3.7.0 — 2026-08-27 by Axiome
 
