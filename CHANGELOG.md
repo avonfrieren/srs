@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Nothing to select.** The Chapter and Checkpoint sliders, Category, Auto-Detect, Show Selection and their hotkeys are gone, and so is the greyed row under the timer. srs times every segment that can be running. Two hotkeys remain: Toggle Tier Display and Open Sheet Export. Settings files lose the removed keys at the next save.
+- **Nothing to select.** The Chapter and Checkpoint sliders, Category, Auto-Detect, Show Selection and their hotkeys are gone, and so is the greyed row under the timer. srs times every segment that can be running. Of the old hotkeys, two remain: Toggle Tier Display and Open Sheet Export. Settings files lose the removed keys at the next save.
 - **Chained practice.** Running several checkpoints in a row records each segment with its own time and tier. The rows above the timer show the last one completed, the most specific when several complete together.
 - **Segments are timed with the chapter time**, so records and the export no longer depend on the room timer's type.
 - **A segment is recorded from the room before it.** Walk into its first room from the room before it and it is recorded, however you reached that room: a chain, a savestate, the debug map, `console load` or Speedrun Tool's room teleport. Any other way in records nothing: 4A's Cliff Face counts only from `c-08`, and 5A's Rescue only from `d-20`.
@@ -25,6 +25,7 @@
 - **Each part has its switch** in Mod Options, all on by default: **Show Checkpoint Name**, **Show Time**, **Show Tier**, **Show PB Improvement** and **Show Delta to Next Tier**. **Show Tier** and its hotkey now hide only the tier's name: the time stays, in the tier's color.
 - **A tier needs a time strictly under its threshold**, as on the sheet. A tie with the WR still counts as WR. The time is ranked to the millisecond you see.
 - **Tier colours follow the sheet's current palette.** Each tier is drawn in its cell colour on the sheet; Gold is drawn in its gold text colour, WR in white, Unranked in grey.
+- **A hotkey to look back over a chain.** Previous Segment, unbound by default, steps the rows above the timer back through the segments of the attempt, and wraps to the latest. `2/3` before the name says which one is shown.
 - **The background of the rows above the timer follows the text.** It ran far past a long row; it now fades out the same short distance after every row.
 - **Replacing the sheet URL asks first.** Press once and the button asks, press again to replace. Setting the first URL, or pasting the same one again, does not ask.
 
