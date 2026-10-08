@@ -48,7 +48,7 @@ Le code porte ses justifications en commentaires ; ici, seules celles qui dépas
   - `TextMenu` : thread de jeu seul ; mod éteint : file vidée, écran fermé. `ExportMenu` reçoit le POST par une file vidée en `Level.Update` ; `ExportUrlMenu` (aussi au titre) par des `volatile` lus en `OnUpdate`.
   - `ExportTarget` écrit l'URL par `AtomicFile` (ne lève jamais, efface le `.tmp` : l'URL).
 - `AppsScript/SETUP.md` — le déploiement du Web App par le joueur. **Le script n'est pas dans ce dépôt** : le template de la sheet le porte (`srsExport.gs`) et lit toutes les bandes des onglets de saisie. Il apparie les lignes **par libellé normalisé**, jamais par position, et aucun test d'ici ne le fait tourner.
-- `TierComparison.cs` — **au-dessus** du timer. Le PB lit `RemoteBests` **une fois** par record, pour qu'un export ne l'ôte pas. Fond : formule de SpeedrunTool 3.27.17 à l'échelle, **surtout pas la largeur mesurée du texte** (le dégradé passe *sous* la fin du texte).
+- `TierComparison.cs` — **au-dessus** du timer. Le PB lit `RemoteBests` **une fois** par record, pour qu'un export ne l'ôte pas. Fond : largeur mesurée du texte **moins `FadeLead`** (le dégradé passe *sous* la fin du texte).
 - `Dialog/English.txt` + `French.txt` — pas de placeholders `{0}` (`Dialog.Clean` efface les accolades) : composer en code. **Une exception** : `SRS_KEYBIND_TIMEOUT`, que CelesteHotkeys lit brut par `Dialog.Get`.
 
 ## Données de la sheet

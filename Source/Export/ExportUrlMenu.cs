@@ -58,7 +58,17 @@ public static class ExportUrlMenu {
             status.Visible = shown != null || HasUrl;
         };
 
+        bool replaceArmed = false;
+        setButton.OnLeave = () => {
+            replaceArmed = false;
+            setButton.Label = StatusLabel(settings);
+        };
         setButton.Pressed(() => {
+            // one press spends the arming, whatever it then does
+            bool armed = replaceArmed;
+            replaceArmed = false;
+            setButton.Label = StatusLabel(settings);
+
             string pasted = ReadClipboard();
             if (string.IsNullOrWhiteSpace(pasted)) {
                 message = Dialog.Clean("SRS_EXPORT_URL_CLIPBOARD_EMPTY");
@@ -75,6 +85,17 @@ public static class ExportUrlMenu {
 
             // the same URL pasted again keeps what is held of its sheet
             bool sameSheet = pasted == ExportTarget.Url;
+
+            // another sheet over the one set: press once to arm, again to
+            // replace, as for Forget. The clipboard is read again on the second
+            // press, so what is replaced is what is there then
+            if (ExportTarget.IsSet && !sameSheet && !armed) {
+                replaceArmed = true;
+                setButton.Label = $"{StatusLabel(settings)}?";
+                // an earlier press's complaint about the clipboard no longer holds
+                message = null;
+                return;
+            }
             if (!ExportTarget.Set(pasted)) {
                 // a check still out for an earlier paste would answer over this line
                 generation++;

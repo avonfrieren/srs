@@ -25,6 +25,8 @@
 - **Each part has its switch** in Mod Options, all on by default: **Show Checkpoint Name**, **Show Time**, **Show Tier**, **Show PB Improvement** and **Show Delta to Next Tier**. **Show Tier** and its hotkey now hide only the tier's name: the time stays, in the tier's color.
 - **A tier needs a time strictly under its threshold**, as on the sheet. A tie with the WR still counts as WR. The time is ranked to the millisecond you see.
 - **Tier colours follow the sheet's current palette.** Each tier is drawn in its cell colour on the sheet; Gold is drawn in its gold text colour, WR in white, Unranked in grey.
+- **The background of the rows above the timer follows the text.** It ran far past a long row; it now fades out the same short distance after every row.
+- **Replacing the sheet URL asks first.** Press once and the button asks, press again to replace. Setting the first URL, or pasting the same one again, does not ask.
 
 ## v3.7.0 — 2026-08-27 by Axiome
 

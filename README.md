@@ -28,6 +28,5 @@ Options under **Mod Options → Speedrun Sheet**. What changed in each version i
 
 **Known limits.**
 
-- Speedrun Tool's confetti and its PB display no longer trigger, because srs decides where a run ends itself.
 - Only part of the sheet is imported: individual-level rows, C-sides, and the B-side rows off the Any% route are not yet.
 - srs trusts that your progress in the chapter (opened doors, used keys, broken blocks) is what a real run would have at that point.
