@@ -16,19 +16,27 @@ public class SegmentRulesTests {
     private static readonly HashSet<string> ExpectedCurrentRoomRows = [
         "Prologue/Granny",
         "1a/Start",
+        "1a/IL",
         "2a/Start",
         "2a/Start Heart RC",
         "2a/Awake",
+        "2a/IL",
         "3a/Start",
+        "3a/IL",
         "4a/Start",
+        "4a/IL",
         "5a/b/5a Start",
         "5a/b/Unravelling",
+        "5a/b/5a IL",
         "5a/b/5b Start",
         "5a/b/Through the Mirror",
         "6a/b/6a Start",
+        "6a/b/6a IL",
         "6a/b/6b Start",
         "7a/7a Start",
+        "7a/7a IL",
         "8a/Start",
+        "8a/IL",
         "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
         "Farewell/Start",
         "Farewell/Start DTS",
@@ -36,9 +44,23 @@ public class SegmentRulesTests {
 
     // a row given ChapterEnd by mistake would gain a frame without a sound
     [Fact]
-    public void OnlyTheCSideRowsAreAWholeChapter() {
-        Assert.Equal(["1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c"],
+    public void OnlyTheIlAndCSideRowsAreAWholeChapter() {
+        Assert.Equal([
+                "1a/IL", "2a/IL", "3a/IL", "4a/IL", "5a/b/5a IL", "6a/b/6a IL", "7a/7a IL", "8a/IL",
+                "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
+            ],
             SegmentRules.All.Where(r => r.End == EndKind.ChapterEnd).Select(r => $"{r.Chapter}/{r.Name}"));
+    }
+
+    // an IL starts where its chapter's Start does: 7A's after the launch, with the same head
+    [Fact]
+    public void AnIlStartsLikeItsChaptersStart() {
+        foreach (SegmentRule il in SegmentRules.All.Where(r => r.Name.EndsWith("IL"))) {
+            SegmentRule start = SegmentRules.All.Single(r => r.Scope == il.Scope && r.Name.EndsWith("Start"));
+
+            Assert.Equal((start.Anchor, start.Start, start.Setup, start.HeadTicks, start.TailTicks),
+                (il.Anchor, il.Start, il.Setup, il.HeadTicks, il.TailTicks));
+        }
     }
 
     // every other row is NextRoom: a new Start-anchored row, or a new

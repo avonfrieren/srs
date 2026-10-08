@@ -18,6 +18,15 @@ public class SheetLabelsTests {
         Assert.Equal(elsewhere, SheetRows.TargetOf(overridden));
     }
 
+    // the entry tab files an IL under the bare chapter, not under "1a IL"
+    [Fact]
+    public void AnIlIsWrittenUnderItsBareChapter() {
+        SheetRow[] ils = [.. SheetRows.All.Where(row => row.SheetChapter.EndsWith(" IL"))];
+
+        Assert.Equal(8, ils.Length);
+        Assert.All(ils, row => Assert.Equal(new SheetRowRef("A Sides", row.Scope, "Clear"), SheetRows.TargetOf(row)));
+    }
+
     [Fact]
     public void EachRowIsKeyedOnceOnBothSides() {
         Assert.Equal(SheetRows.All.Length,

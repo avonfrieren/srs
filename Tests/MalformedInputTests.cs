@@ -118,9 +118,9 @@ public class MalformedInputTests {
 
     [Fact]
     public void SkipsRowsThatAreNotOnTheImportList() {
-        // emoji variants and IL rows sit right next to the real checkpoints
+        // emoji variants sit right next to the imported rows
         SheetData data = Fixtures.Parse(
-            Header + "1a CP,1a Start,0:00.000,13.906,14.5\n,Crossing 💙,0:00.000,0:00.000,\n1a IL,Clear,0:00.000,52.445,55.5", null);
+            Header + "1a CP,1a Start,0:00.000,13.906,14.5\n,Crossing 💙,0:00.000,0:00.000,\n1a IL,📼 Clear,0:00.000,52.445,55.5", null);
 
         SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
         Assert.Equal("Start", segment.Name);
