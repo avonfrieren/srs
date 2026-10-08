@@ -27,8 +27,7 @@ public static class TierComparison {
     // renderer: that one draws decimals at 70 %, unreadable at this size
     private static readonly Color PbColor = Calc.HexToColor("fad768");
 
-    // LiveSplit's default ahead and behind colors
-    private static readonly Color AheadColor = Calc.HexToColor("00cc36");
+    // LiveSplit's default behind color
     private static readonly Color BehindColor = Calc.HexToColor("cc1200");
 
     // the player's sheet time for each record of the attempt, by serial, read
@@ -140,11 +139,10 @@ public static class TierComparison {
 
     // tier colors, copied from the sheet: each tier's cell fill, keyed by the
     // full column name (the rank suffix is significant). Gold takes its ink,
-    // since its fill is near black; WR is white; Unranked is grey, as on the
+    // since its fill is near black; Unranked is grey, as on the
     // sheet; unknown columns fall back white
     private static readonly Dictionary<string, Color> TierColors =
         new(StringComparer.OrdinalIgnoreCase) {
-            ["WR"] = Calc.HexToColor("ffffff"),
             ["Gold"] = Calc.HexToColor("ffbf00"),
             ["Pink"] = Calc.HexToColor("a64d79"),
             ["Purple 1"] = Calc.HexToColor("351c75"),
@@ -199,7 +197,7 @@ public static class TierComparison {
         }
 
         if (Settings.ShowDelta && shown.Gap != null) {
-            parts.Add((shown.Gap, shown.GapAhead ? AheadColor : BehindColor));
+            parts.Add((shown.Gap, BehindColor));
         }
 
         drawn = true;

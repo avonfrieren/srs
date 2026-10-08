@@ -5,7 +5,7 @@ using Xunit;
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
 // the time format is the stand-in's, so these assert what surrounds it: the
-// tier, the tier a gap names, its side, and whether each row is there
+// tier, the tier a gap names, and whether each row is there
 public class TierLineTests {
     private static readonly List<string> Columns = ["Hidden", "WR", "Gold", "Pink", "Unranked"];
     private static readonly List<TimeSpan?> Thresholds = [S(0), S(40), S(45), S(50), null];
@@ -17,31 +17,31 @@ public class TierLineTests {
         TierLine.Build(Columns, Thresholds, T(time), sheet is { } s ? T(s) : null);
 
     [Fact]
-    public void TheGapAimsAtTheNextTierBehind() {
+    public void TheGapAimsAtTheNextTier() {
         TierRows rows = Build(47);
 
         Assert.StartsWith("+", rows.Gap);
         Assert.EndsWith(" to Gold", rows.Gap);
-        Assert.False(rows.GapAhead);
+    }
+
+    [Theory]
+    // under Gold there is nothing left to reach, under the WR or not
+    [InlineData(39)]
+    [InlineData(40)]
+    [InlineData(44)]
+    public void AGoldTimeHasNoGap(double time) {
+        TierRows rows = Build(time);
+
+        Assert.Equal("Gold", rows.Tier);
+        Assert.Null(rows.Gap);
     }
 
     [Fact]
-    public void UnderTheWRTheGapIsTheMarginAhead() {
-        TierRows rows = Build(39);
+    public void ATieWithGoldIsNotGold() {
+        TierRows rows = Build(45);
 
-        Assert.Equal("WR", rows.Tier);
-        Assert.StartsWith("-", rows.Gap);
-        Assert.EndsWith(" to WR", rows.Gap);
-        Assert.True(rows.GapAhead);
-    }
-
-    [Fact]
-    public void ATieWithTheWRIsAheadByNothing() {
-        TierRows rows = Build(40);
-
-        Assert.Equal("WR", rows.Tier);
-        Assert.StartsWith("+", rows.Gap);
-        Assert.True(rows.GapAhead);
+        Assert.Equal("Pink", rows.Tier);
+        Assert.EndsWith(" to Gold", rows.Gap);
     }
 
     [Theory]
@@ -62,13 +62,6 @@ public class TierLineTests {
     [Fact]
     public void NoSheetTimeNoPB() {
         Assert.Null(Build(47).Pb);
-    }
-
-    [Fact]
-    public void TheTimeIsRankedAsShown() {
-        // 40.0004 shows as 40.000, the WR exactly: a WR, as the sheet ranks the
-        // exported time
-        Assert.Equal("WR", Build(40.0004).Tier);
     }
 
     [Theory]
