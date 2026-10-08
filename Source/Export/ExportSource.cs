@@ -3,39 +3,33 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// Turns this session's segment best into the reviewable row of the export
-/// screen. Not SpeedrunTool's PbTimes: srs never sets NumberOfRooms, so those
-/// are cut on the player's setting and describe no sheet segment.
+/// Turns this session's bests into the export screen's rows, in the sheet's
+/// order. Not SpeedrunTool's PbTimes: srs never sets NumberOfRooms, so those
+/// are cut on the player's setting and describe no sheet segment. Mapped
+/// through srs's own row table, so a session with no standards still exports.
 internal static class ExportSource {
-    /// The one row there is to export: the row whose session best improved
-    /// last. Labelled by the row the run closed, never by its checkpoint: a
-    /// Hollows Tape run must not label its time Hollows.
-    public static List<PendingUpdate> Collect(Session session) {
-        List<PendingUpdate> updates = [];
+    public static List<PendingUpdate> Collect(IEnumerable<RunBook.Run> runs) {
+        List<(int Order, PendingUpdate Update)> found = [];
+        foreach (RunBook.Run run in runs) {
+            if (!SheetRows.TryFind(run.Chapter, run.Name, out SheetRow sheetRow)) {
+                continue;
+            }
 
-        // the one place the session's bests are read, so the one place worth
-        // checking they still belong to the chapter the player is in
-        SessionBests.DropIfElsewhere(session);
-
-        if (!SessionBests.TryGet(out SheetSegment segment, out long ticks)
-            || !SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)) {
-            return updates;
+            SheetRowRef row = SheetRows.TargetOf(sheetRow);
+            // the raw cell, not a parsed time: PendingUpdate has to tell an
+            // empty cell from one it cannot read, and only the cell says which
+            RemoteBests.TryGet(row, out RemoteRow remote);
+            found.Add((Array.IndexOf(SheetRows.All, sheetRow), PendingUpdate.Create(row, DisplayName(run),
+                run.Ticks, remote?.Time, remote?.Band ?? "", RemoteBests.IsDuplicate(row))));
         }
 
-        // the raw cell, not a parsed time: PendingUpdate has to tell an empty
-        // cell from one it cannot read, and only the cell itself says which
-        string remote = RemoteBests.TryGet(row, out RemoteRow remoteRow) ? remoteRow.Time : null;
-        updates.Add(PendingUpdate.Create(row, DisplayName(segment, session), ticks, remote));
-        return updates;
+        found.Sort((a, b) => a.Order.CompareTo(b.Order));
+        return found.ConvertAll(entry => entry.Update);
     }
 
     /// srs folds 6A and 6B into "6a/b" and re-prefixes the names both sides
     /// share ("6a Rock Bottom"). On screen that prefix is noise, and dropping it
-    /// collides with nothing within a single scope.
-    private static string DisplayName(SheetSegment segment, Session session) {
-        string side = SegmentAutoDetect.ScopeOf(session);
-        return side != null && segment.Name.StartsWith(side + " ", StringComparison.Ordinal)
-            ? segment.Name[(side.Length + 1)..]
-            : segment.Name;
-    }
+    /// collides with nothing within a single side.
+    private static string DisplayName(RunBook.Run run) =>
+        run.Name.StartsWith(run.Scope + " ", StringComparison.Ordinal) ? run.Name[(run.Scope.Length + 1)..] : run.Name;
 }

@@ -3,7 +3,7 @@ using System.IO;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// A file replaced whole or not at all, for writes made on the game thread.
+/// A file replaced whole or not at all; callers serialise their own writes.
 internal static class AtomicFile {
     /// Writes beside the file, then moves over it. Never throws: a failure comes
     /// back in error, and the temporary file is deleted, since it may hold the

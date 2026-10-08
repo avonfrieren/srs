@@ -31,57 +31,20 @@ public class RunBookTests {
     }
 
     [Fact]
-    public void LastImprovedIsTheRowWhoseBestImprovedLast() {
-        RunBook book = new();
-        book.Offer([Record("1a", "Crossing", 30.5)]);
-        book.Offer([Record("1a", "Start", 20)]);
-        book.Offer([Record("1a", "Crossing", 31.2)]);
-
-        Assert.Equal("Start", book.LastImproved?.Name);
-    }
-
-    [Fact]
-    public void ATieOnOneFrameGoesToTheMostSpecific() {
-        RunBook book = new();
-        book.Offer([Record("3a", "Huge Mess", 60), Record("3a", "Huge Mess Heart", 60)]);
-
-        Assert.Equal("Huge Mess Heart", book.LastImproved?.Name);
-    }
-
-    [Fact]
     public void ANonPositiveTimeIsNeverKept() {
         RunBook book = new();
         Assert.Empty(book.Offer([new SegmentRecord(TestRules.Find("6a/b", "Hollows"), 0)]));
 
-        Assert.Null(book.LastImproved);
+        Assert.Empty(book.All);
     }
 
-    // a chapter's last segment closes as its ending plays, so the book must
-    // outlive the level: only another chapter, or one the sheet does not
-    // cover, drops it
+    // a session's bests outlive the chapter: an export from 2a carries 1a's too
     [Fact]
-    public void OnlyAnotherChapterDropsTheBook() {
+    public void KeepsTheRowsOfEveryChapter() {
         RunBook book = new();
-        book.Offer([Record("3a", "Presidential Suite", 80)]);
+        book.Offer([Record("1a", "Start", 30.5)]);
+        book.Offer([Record("2a", "Start", 61)]);
 
-        Assert.False(book.DropUnlessIn("3a"));
-        Assert.Single(book.All);
-        Assert.True(book.DropUnlessIn("4a"));
-        Assert.Empty(book.All);
-
-        book.Offer([Record("3a", "Presidential Suite", 80)]);
-        Assert.True(book.DropUnlessIn(null));
-        Assert.False(book.DropUnlessIn("3a"));
-    }
-
-    [Fact]
-    public void ClearForgetsEverything() {
-        RunBook book = new();
-        book.Offer([Record("6a/b", "Hollows", 45)]);
-        book.Clear();
-
-        Assert.Empty(book.All);
-        Assert.Null(book.LastImproved);
-        Assert.Null(book.Scope);
+        Assert.Equal(2, book.All.Count);
     }
 }

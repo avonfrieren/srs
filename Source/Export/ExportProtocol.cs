@@ -8,6 +8,9 @@ namespace Celeste.Mod.SpeedrunSheet;
 
 public sealed class ExportUpdate {
     [JsonPropertyName("tab")] public string Tab { get; set; } = "";
+    /// the band the row was read from: the script then searches it alone.
+    /// Empty searches every band of the tab
+    [JsonPropertyName("band")] public string Band { get; set; } = "";
     [JsonPropertyName("chapter")] public string Chapter { get; set; } = "";
     [JsonPropertyName("cp")] public string Cp { get; set; } = "";
     [JsonPropertyName("time")] public string Time { get; set; } = "";
@@ -22,6 +25,7 @@ public sealed class ExportRequest {
 
 public sealed class ExportResult {
     [JsonPropertyName("tab")] public string Tab { get; set; } = "";
+    [JsonPropertyName("band")] public string Band { get; set; } = "";
     [JsonPropertyName("chapter")] public string Chapter { get; set; } = "";
     [JsonPropertyName("cp")] public string Cp { get; set; } = "";
     [JsonPropertyName("status")] public string Status { get; set; } = "";
@@ -33,10 +37,13 @@ public sealed class ExportResult {
 public sealed class ExportResponse {
     [JsonPropertyName("results")] public List<ExportResult> Results { get; set; } = [];
     [JsonPropertyName("error")] public string Error { get; set; }
+    [JsonPropertyName("ms")] public int? Ms { get; set; }
+    [JsonPropertyName("version")] public int? Version { get; set; }
 }
 
 public sealed class RemoteRow {
     [JsonPropertyName("tab")] public string Tab { get; set; } = "";
+    [JsonPropertyName("band")] public string Band { get; set; } = "";
     [JsonPropertyName("chapter")] public string Chapter { get; set; } = "";
     [JsonPropertyName("cp")] public string Cp { get; set; } = "";
     [JsonPropertyName("time")] public string Time { get; set; } = "";
@@ -49,11 +56,16 @@ internal sealed class RowsResponse {
     [JsonPropertyName("ms")] public int? Ms { get; set; }
     [JsonPropertyName("cached")] public bool Cached { get; set; }
     [JsonPropertyName("error")] public string Error { get; set; }
+    [JsonPropertyName("version")] public int? Version { get; set; }
 }
 
 /// Wire format between the mod and the player's Apps Script Web App.
 /// Never throws: every failure path returns false with a human-readable message.
 public static class ExportProtocol {
+    /// The only version of the script srs speaks. Absent means a version 1
+    /// script, which the player replaces by copying the script again.
+    public const int WireVersion = 2;
+
     /// Set to Dialog.Clean by ExportMenu.Load(). This file is compiled straight
     /// into the test project, which has no game reference, so the lookup has to
     /// come in from outside; unset, it hands back the key.
@@ -103,6 +115,11 @@ public static class ExportProtocol {
             response = null;
             return false;
         }
+        if (response.Version != WireVersion) {
+            error = Localize("SRS_EXPORT_ERR_OUT_OF_DATE");
+            response = null;
+            return false;
+        }
         // an explicit null overrides the property's default, for the list, an
         // entry or a field alike, and the caller walks the list inside a
         // continuation, where a throw is swallowed and leaves the screen on
@@ -110,6 +127,7 @@ public static class ExportProtocol {
         response.Results = response.Results?.FindAll(r => r != null) ?? [];
         foreach (ExportResult r in response.Results) {
             r.Tab ??= "";
+            r.Band ??= "";
             r.Chapter ??= "";
             r.Cp ??= "";
             r.Status ??= "";
@@ -120,12 +138,13 @@ public static class ExportProtocol {
     }
 
     public static bool TryParseRows(string body, out List<RemoteRow> rows, out string error) =>
-        TryParseRows(body, out rows, out string _, out error);
+        TryParseRows(body, out rows, out string _, out error, out bool _);
 
     public static bool TryParseRows(string body, out List<RemoteRow> rows, out string scriptTiming,
-        out string error) {
+        out string error, out bool outOfDate) {
         scriptTiming = null;
         rows = null;
+        outOfDate = false;
         if (!Guard(body, out error)) {
             return false;
         }
@@ -144,12 +163,20 @@ public static class ExportProtocol {
             error = wrapper.Error;
             return false;
         }
+        if (wrapper.Version != WireVersion) {
+            outOfDate = true;
+            error = Localize("SRS_EXPORT_ERR_OUT_OF_DATE");
+            return false;
+        }
         if (wrapper.Rows == null) {
             error = Localize("SRS_EXPORT_ERR_NO_ROWS");
             return false;
         }
-        // same reason as Results: Accept runs inside a continuation
+        // same reason as Results: the reader takes them in inside a continuation
         rows = wrapper.Rows.FindAll(r => r != null);
+        foreach (RemoteRow r in rows) {
+            r.Band ??= "";
+        }
         scriptTiming = wrapper.Ms is { } ms
             ? $"{ms} ms in the script{(wrapper.Cached ? ", cached" : "")}"
             : "script timing unknown";

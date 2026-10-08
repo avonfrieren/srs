@@ -10,18 +10,11 @@ internal sealed class RunBook {
 
     private readonly Dictionary<(string Chapter, string Name), Run> best = [];
 
-    /// The row whose best improved last; on one frame, the most specific.
-    public Run? LastImproved { get; private set; }
-
-    /// The side the book holds runs of, null when empty.
-    public string Scope => LastImproved?.Scope;
-
     public IReadOnlyCollection<Run> All => best.Values;
 
     /// Offers what one event closed; returns the runs that improved.
     public List<Run> Offer(IReadOnlyList<SegmentRecord> records) {
         List<Run> improved = [];
-        List<SegmentRule> rules = [];
         foreach (SegmentRecord record in records) {
             SegmentRule rule = record.Rule;
             if (record.Ticks <= 0
@@ -32,29 +25,8 @@ internal sealed class RunBook {
             Run run = new(rule.Scope, rule.Chapter, rule.Name, record.Ticks);
             best[(rule.Chapter, rule.Name)] = run;
             improved.Add(run);
-            rules.Add(rule);
-        }
-
-        if (improved.Count > 0) {
-            LastImproved = improved[Specificity.MostSpecific(rules)];
         }
 
         return improved;
-    }
-
-    /// Empties the book unless it holds runs of this scope; true when it did.
-    /// A null scope is a chapter the sheet does not cover.
-    public bool DropUnlessIn(string scope) {
-        if (Scope is not { } held || held == scope) {
-            return false;
-        }
-
-        Clear();
-        return true;
-    }
-
-    public void Clear() {
-        best.Clear();
-        LastImproved = null;
     }
 }

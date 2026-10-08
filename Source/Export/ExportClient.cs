@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Monocle;
 
@@ -14,7 +15,14 @@ namespace Celeste.Mod.SpeedrunSheet;
 internal static class ExportClient {
     private const string LogTag = "srs";
 
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(60) };
+    private static readonly TimeSpan ReadTimeout = TimeSpan.FromSeconds(60);
+
+    // the script takes 0.5-2 s per written row, plus up to 30 s waiting on its
+    // lock: a batch of a session's rows does not fit in a read's minute
+    private static readonly TimeSpan WriteTimeout = TimeSpan.FromSeconds(180);
+
+    // each request carries its own deadline
+    private static readonly HttpClient Http = new() { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
 
     public static Task<(string body, string error)> FetchAsync(string url) =>
         SendAsync(url, null);
@@ -30,13 +38,14 @@ internal static class ExportClient {
             // timed: an Apps Script cold start and an oversized payload look the
             // same from the game
             Stopwatch clock = Stopwatch.StartNew();
+            using CancellationTokenSource deadline = new(json == null ? ReadTimeout : WriteTimeout);
             try {
                 using HttpResponseMessage response = json == null
-                    ? await Http.GetAsync(url)
+                    ? await Http.GetAsync(url, deadline.Token)
                     : await Http.PostAsync(url,
-                        new StringContent(json, Encoding.UTF8, "application/json"));
+                        new StringContent(json, Encoding.UTF8, "application/json"), deadline.Token);
 
-                string body = await response.Content.ReadAsStringAsync();
+                string body = await response.Content.ReadAsStringAsync(deadline.Token);
                 Logger.Log(LogLevel.Info, LogTag,
                     $"{(json == null ? "read" : "write")} took {clock.ElapsedMilliseconds} ms,"
                     + $" {body?.Length ?? 0} chars back");
@@ -46,12 +55,14 @@ internal static class ExportClient {
                     return (null, $"{ExportProtocol.Localize("SRS_EXPORT_ERR_STATUS")} {(int) response.StatusCode}.");
                 }
                 return (body, (string) null);
-            } catch (TaskCanceledException) {
+            } catch (OperationCanceledException) {
                 Logger.Log(LogLevel.Warn, LogTag,
                     $"export request timed out after {clock.ElapsedMilliseconds} ms");
-                // the script may have run to completion server-side: a timeout
-                // says nothing about whether the sheet was written
-                return (null, ExportProtocol.Localize("SRS_EXPORT_ERR_TIMEOUT"));
+                // a write may have run to completion server-side: its timeout
+                // says nothing about whether the sheet was written. A read's does
+                return (null, ExportProtocol.Localize(json == null
+                    ? "SRS_EXPORT_ERR_READ_TIMEOUT"
+                    : "SRS_EXPORT_ERR_TIMEOUT"));
             } catch (Exception e) {
                 Logger.Log(LogLevel.Warn, LogTag,
                     $"export request failed after {clock.ElapsedMilliseconds} ms: " + e.Message);

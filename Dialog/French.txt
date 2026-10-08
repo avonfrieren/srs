@@ -52,12 +52,14 @@ SRS_EXPORT_URL_DETAIL=      se termine par .../exec, définie le
 # Erreurs. Pas de placeholders {0} : ce qui porte une valeur est composé en code.
 SRS_EXPORT_ERR_NO_URL=      Aucune URL de sheet configurée. Voir les options du mod.
 SRS_EXPORT_ERR_STATUS=      La sheet a répondu par l'erreur
-SRS_EXPORT_ERR_TIMEOUT=     Aucune réponse après 60 secondes. La sheet a peut-être quand même été écrite : la vérifier avant de réessayer.
+SRS_EXPORT_ERR_TIMEOUT=     Pas de réponse à temps. La sheet a peut-être quand même été écrite : la vérifier avant de réessayer.
+SRS_EXPORT_ERR_READ_TIMEOUT= Pas de réponse de la sheet à temps.
 SRS_EXPORT_ERR_UNREACHABLE= Sheet injoignable. La raison est dans log.txt.
 SRS_EXPORT_ERR_UNREADABLE=  Réponse illisible de la sheet :
 SRS_EXPORT_ERR_EMPTY=       Réponse vide de la sheet.
 SRS_EXPORT_ERR_NO_ROWS=     La sheet n'a renvoyé aucune ligne.
 SRS_EXPORT_ERR_LOGIN_PAGE=  Page web reçue au lieu de données. Vérifier le niveau d'accès du déploiement : il doit être « Anyone ».
+SRS_EXPORT_ERR_OUT_OF_DATE= Le script de la sheet n'est plus à jour. Le recopier depuis le template.
 
 # SESSION et DELTA sont les mots employés en français aussi ; traduits à
 # l'identique, mais passés par une clé comme le reste.
@@ -70,3 +72,16 @@ SRS_EXPORT_STATUS_NOTFOUND= ligne introuvable
 SRS_EXPORT_STATUS_AMBIGUOUS= plusieurs lignes correspondent
 SRS_EXPORT_STATUS_REFUSED=  refusé
 SRS_EXPORT_STATUS_CHANGED=  sheet modifiée, non écrit
+SRS_EXPORT_DUPLICATE=       à deux endroits de la sheet
+SRS_EXPORT_STATUS_UNCHANGED= déjà sur la sheet
+SRS_EXPORT_SUMMARY_WRITTEN= Écrit :
+SRS_EXPORT_SUMMARY_UNCHANGED= Déjà sur la sheet :
+SRS_EXPORT_SAVED_COPY=      Copie enregistrée
+SRS_EXPORT_SHEET_TIMES=     Temps de la sheet
+SRS_EXPORT_CHECKING=        Vérification de la sheet...
+SRS_EXPORT_NO_ANSWER=       La sheet n'a pas répondu :
+SRS_EXPORT_MAY_BE_WRITING=  La sheet est peut-être encore en train d'écrire.
+SRS_EXPORT_URL_CHECK_NO_ROWS= La sheet a répondu, mais sans aucune des lignes qu'écrit srs. Vérifier ses en-têtes Time.
+SRS_AGE_MINUTES=            min
+SRS_AGE_HOURS=              h
+SRS_AGE_DAYS=               j

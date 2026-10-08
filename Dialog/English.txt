@@ -51,12 +51,14 @@ SRS_EXPORT_URL_FORGET_FAILED=      Could not forget the URL. The reason is in lo
 # anything carrying a value is composed in code from these prefixes.
 SRS_EXPORT_ERR_NO_URL=      No sheet URL configured. See Mod Options.
 SRS_EXPORT_ERR_STATUS=      The sheet answered with error
-SRS_EXPORT_ERR_TIMEOUT=     No answer after 60 seconds. The sheet may still have been written, so check it before retrying.
+SRS_EXPORT_ERR_TIMEOUT=     No answer in time. The sheet may still have been written, so check it before retrying.
+SRS_EXPORT_ERR_READ_TIMEOUT= No answer from the sheet in time.
 SRS_EXPORT_ERR_UNREACHABLE= Could not reach the sheet. The reason is in log.txt.
 SRS_EXPORT_ERR_UNREADABLE=  Unreadable response from the sheet:
 SRS_EXPORT_ERR_EMPTY=       Empty response from the sheet.
 SRS_EXPORT_ERR_NO_ROWS=     The sheet returned no rows.
 SRS_EXPORT_ERR_LOGIN_PAGE=  Got a web page instead of data. Check your deployment's access level: it must be "Anyone".
+SRS_EXPORT_ERR_OUT_OF_DATE= Your sheet's script is out of date. Copy it again from the template.
 
 # Column titles. SESSION is this game session's best, not a SpeedrunTool PB;
 # DELTA is the word the speedrunning vocabulary uses in either language.
@@ -70,5 +72,18 @@ SRS_EXPORT_STATUS_NOTFOUND= row not found
 SRS_EXPORT_STATUS_AMBIGUOUS= several rows match
 SRS_EXPORT_STATUS_REFUSED=  refused
 SRS_EXPORT_STATUS_CHANGED=  sheet changed, not written
+SRS_EXPORT_DUPLICATE=       in two places on the sheet
+SRS_EXPORT_STATUS_UNCHANGED= already on the sheet
+SRS_EXPORT_SUMMARY_WRITTEN= Written:
+SRS_EXPORT_SUMMARY_UNCHANGED= Already on the sheet:
+SRS_EXPORT_SAVED_COPY=      Saved copy
+SRS_EXPORT_SHEET_TIMES=     Sheet times
+SRS_EXPORT_CHECKING=        Checking the sheet...
+SRS_EXPORT_NO_ANSWER=       The sheet did not answer:
+SRS_EXPORT_MAY_BE_WRITING=  The sheet may still be writing.
+SRS_EXPORT_URL_CHECK_NO_ROWS= The sheet answered, but with none of the rows srs writes. Check its Time headers.
+SRS_AGE_MINUTES=            min
+SRS_AGE_HOURS=              h
+SRS_AGE_DAYS=               d
 
 SRS_EXPORT_URL_DETAIL=      ends in .../exec, set

@@ -74,7 +74,7 @@ internal static class ModMenu {
                 // is the first chance to pick up a sheet retimed in the meantime.
                 // Run as the button would be, so the status line follows it
                 updateStandards();
-                ExportMenu.Refresh("the mod was switched back on");
+                SheetReader.Refresh("the mod was switched back on");
             }
         });
 

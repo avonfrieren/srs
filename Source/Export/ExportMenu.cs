@@ -1,7 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using Celeste.Mod.SpeedrunTool.Message;
 using Microsoft.Xna.Framework;
 using Monocle;
@@ -17,17 +17,28 @@ internal sealed class UpdateRow : TextMenu.Item {
     private readonly ExportColumns columns;
     private readonly bool odd;
     private readonly PendingUpdate update;
+    private readonly Action onPressed;
 
-    public UpdateRow(PendingUpdate update, ExportColumns columns, bool odd) {
+    public UpdateRow(PendingUpdate update, ExportColumns columns, bool odd, Action onPressed) {
         this.update = update;
+        this.onPressed = onPressed;
         this.columns = columns;
         this.odd = odd;
         // false on the base item: without it the cursor never lands on the row
         Selectable = true;
     }
 
+    public SheetRowRef Row => update.Row;
+
     public override void ConfirmPressed() {
+        // a row the sheet holds twice is never written
+        if (update.Duplicate) {
+            Audio.Play("event:/ui/main/button_invalid");
+            return;
+        }
+
         update.Selected = !update.Selected;
+        onPressed();
         Audio.Play(update.Selected ? "event:/ui/main/button_toggle_on" : "event:/ui/main/button_toggle_off");
     }
 
@@ -56,13 +67,11 @@ internal sealed class UpdateRow : TextMenu.Item {
     // neutral with nothing to compare against and on equal times: "+0.000" in
     // red says a regression that did not happen, and an unreadable cell's "?"
     // is a refusal
-    private static Color DeltaColor(PendingUpdate update) {
-        if (update.RemoteTicks == null || update.LocalTicks == update.RemoteTicks.Value) {
-            return Color.Gray;
-        }
-
-        return update.LocalTicks < update.RemoteTicks.Value ? Ahead : Behind;
-    }
+    private static Color DeltaColor(PendingUpdate update) => update.Ahead switch {
+        true => Ahead,
+        false => Behind,
+        null => Color.Gray,
+    };
 }
 
 /// The column titles, over the chapter they belong to. TextMenu moves the whole
@@ -101,10 +110,6 @@ internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
 /// Column geometry and the primitives every row of the table draws with.
 /// TextMenu hands an item the vertical CENTRE of its slot, so everything here
 /// is anchored on that: text justifies at y = 0.5, bands and rules are centred.
-///
-/// ⚠️ Widths are measured across a list even though the screen shows one row
-/// for now. Do not collapse the geometry to a single row: the list is what
-/// the next feature needs (owner decision).
 internal sealed class ExportColumns {
     public const float Gap = 18f;
 
@@ -199,12 +204,16 @@ internal sealed class ExportColumns {
 /// nothing written before it is confirmed. Opened and closed by the same hotkey;
 /// it pauses the level, and Hotkeys reads HoldsThePause to keep that one combo
 /// alive behind the pause it caused. Cancel, Back/ESC and pause close it too.
+/// SheetReader owns every read; this file only draws.
 ///
 /// ⚠️ Hook order: see SrsModule.Load.
 internal static class ExportMenu {
     private const string LogTag = "srs";
 
+    private enum Screen { None, Loading, Table, Writing, Summary }
+
     private static TextMenu menu;
+    private static Screen screen;
 
     // the Level the screen is open on, and whether it was paused before Open()
     // forced it. ⚠️ A Level is normally never held across frames: OnLevelUpdate
@@ -216,43 +225,28 @@ internal static class ExportMenu {
     // the hotkey that opened it must keep being read in order to close it
     internal static bool HoldsThePause => openLevel != null;
 
-    // the screen is up showing "loading": the table is built by the fetch
-    // landing. Read from a worker by Refresh, which must not start one behind it
-    private static volatile bool awaitingRows;
+    // the answer the table was built on, and the rows the player pressed: a
+    // rebuild on a newer answer keeps those
+    private static int builtOnAccepts;
 
-    // a background refresh is in flight. Only one at a time; one asked for
-    // meanwhile is kept and run when it lands, because the one after a write
-    // is the only one asking for the cells as they are now. Both under
-    // refreshGate: they are handed over between the game thread and a worker
-    private static readonly object refreshGate = new();
-    private static bool refreshing;
-    private static string refreshAgain;
+    // the buttons of the table on screen, to keep the cursor on one through a rebuild
+    private static TextMenu.Button exportButtonOnScreen;
+    private static TextMenu.Button cancelButtonOnScreen;
+    private static readonly Dictionary<SheetRowRef, bool> pressed = [];
 
-    // bumped when a POST answers. A read started before that may hold the
-    // cells as they were, and taking it in would show the row as an
-    // improvement again, for the write to refuse it as changed
-    private static int writes;
-
-    // how stale a held answer has to be before opening the screen asks again
+    // how stale a fresh answer has to be before opening the screen asks again
     private static readonly TimeSpan AskAgainAfter = TimeSpan.FromSeconds(60);
 
-    // both flags are set from ContinueWith callbacks (thread-pool threads) and
-    // consumed on the game thread by the Level.Update hook — TextMenu must
-    // never be touched off the game thread
-    private static volatile bool queuedRebuild;
-    private static volatile bool queuedSummary;
-    private static List<string> summaryLines;
+    // what a worker hands the game thread, drained in OnLevelUpdate: a TextMenu
+    // is never touched off it. Each action reads the screen as it is when it runs
+    private static readonly ConcurrentQueue<Action> gameThread = new();
 
-    // guards against double-submitting while a POST is in flight
-    private static volatile bool submitting;
-
-    // bumped by every Open(). Close() cancels nothing in flight, so reopening
-    // races two fetches; the one that hurts is the first's Fail() landing after
-    // the second succeeded, greying Export out over data that came back fine
+    // bumped by every Open(). Close() cancels nothing in flight: a POST's
+    // continuation checks this to know its screen is gone
     private static volatile int generation;
 
     public static void Load() {
-        // Dialog loads after the mods do, and the launch refresh can be answered
+        // Dialog loads after the mods do, and the launch read can be answered
         // before it, when Dialog.Clean throws: the key is logged instead
         ExportProtocol.Localize = key => Dialog.Language == null ? key : Dialog.Clean(key);
 
@@ -260,105 +254,7 @@ internal static class ExportMenu {
 
         // about a second of the round trip is Google's dispatch whatever the
         // script does; starting here is what opens the screen on data
-        Refresh("launch");
-    }
-
-    /// A refresh nobody is waiting on: no generation, no rebuild, and a failure
-    /// keeps what we hold. The URL it asked stands in for the generation, and is
-    /// rechecked when the answer lands. Safe to let land under an open screen,
-    /// which holds the rows it was built from and the values a write compares
-    /// against (ExportUpdate.Expect).
-    internal static void Refresh(string why) {
-        string url = ExportTarget.Url;
-        if (!SrsModule.Settings.Enabled || awaitingRows || string.IsNullOrWhiteSpace(url)) {
-            return;
-        }
-
-        lock (refreshGate) {
-            if (refreshing) {
-                refreshAgain = why;
-                return;
-            }
-
-            refreshing = true;
-        }
-
-        int writesBefore = Volatile.Read(ref writes);
-        Logger.Log(LogLevel.Info, LogTag, "refreshing the sheet in the background: " + why);
-        _ = ExportClient.FetchAsync(url).ContinueWith(task => {
-            string again = null;
-            try {
-                if (writesBefore != Volatile.Read(ref writes)) {
-                    Logger.Log(LogLevel.Info, LogTag,
-                        "a background refresh read the sheet before the latest export; dropped");
-                    return;
-                }
-
-                // repointed or forgotten from Mod Options while this was out:
-                // taking it in would resolve RemoteBests against another sheet
-                if (url != ExportTarget.Url) {
-                    Logger.Log(LogLevel.Info, LogTag,
-                        "a background refresh answered for a sheet URL that is no longer the one set; dropped");
-                    return;
-                }
-
-                Take(task.Result, ownedByAScreen: false);
-            } catch (Exception e) {
-                // no screen is waiting on this one, and nothing above it catches:
-                // a throw here would leave the game with the exception
-                Logger.Log(LogLevel.Warn, LogTag, "a background refresh could not be taken in: " + e);
-            } finally {
-                // never in the body: cleared nowhere else, so a throw skipping
-                // it would silently kill every later refresh of the session
-                lock (refreshGate) {
-                    refreshing = false;
-                    again = refreshAgain;
-                    refreshAgain = null;
-                }
-
-                // here and not after the block: the dropped answer returns
-                // early, and that is the case with a refresh waiting
-                if (again != null) {
-                    Refresh(again);
-                }
-            }
-        });
-    }
-
-    /// Takes an answer in. Runs on a worker thread and writes nothing but
-    /// RemoteBests, which is built for that. ownedByAScreen says whether someone
-    /// is waiting: a screen turns a failure into its status line, a background
-    /// refresh logs it and keeps what it holds.
-    private static void Take((string body, string error) answer, bool ownedByAScreen) {
-        // the master switch has to cover an answer to a question asked before it
-        // was thrown, or the mod writes and announces itself while inert
-        if (!SrsModule.Settings.Enabled) {
-            Logger.Log(LogLevel.Info, LogTag, "the sheet answered after the mod was switched off; dropped");
-            return;
-        }
-
-        (string body, string error) = answer;
-        if (error != null) {
-            Fail(error, ownedByAScreen);
-            return;
-        }
-
-        if (!ExportProtocol.TryParseRows(body, out List<RemoteRow> rows,
-                out string scriptTiming, out string parseError)) {
-            Fail(parseError, ownedByAScreen);
-            return;
-        }
-
-        RemoteBests.Accept(rows);
-        Logger.Log(LogLevel.Info, LogTag, $"sheet answered: {rows.Count} rows, {scriptTiming}");
-    }
-
-    private static void Fail(string error, bool ownedByAScreen) {
-        if (ownedByAScreen) {
-            RemoteBests.Fail(error);
-        } else {
-            Logger.Log(LogLevel.Info, LogTag, "background refresh failed, keeping what we hold: " + error);
-        }
+        SheetReader.Refresh("launch");
     }
 
     public static void Unload() {
@@ -385,6 +281,7 @@ internal static class ExportMenu {
                 Close();
             }
 
+            gameThread.Clear();
             return;
         }
 
@@ -398,22 +295,14 @@ internal static class ExportMenu {
             }
         }
 
-        // the menu may have been closed by the player between the fetch
-        // resolving and this frame running; nothing to do then
-        if (queuedRebuild) {
-            queuedRebuild = false;
-            if (menu != null && awaitingRows) {
-                Build(self, ExportSource.Collect(self.Session));
-            }
+        while (gameThread.TryDequeue(out Action action)) {
+            action();
         }
 
-        if (queuedSummary) {
-            queuedSummary = false;
-            if (menu != null) {
-                List<string> lines = summaryLines;
-                summaryLines = null;
-                ShowSummary(self, lines);
-            }
+        // an answer taken in since the table or the loading screen went up
+        if ((screen is Screen.Table or Screen.Loading) && RemoteBests.IsResolved
+            && RemoteBests.Accepts != builtOnAccepts) {
+            BuildTable(self);
         }
     }
 
@@ -433,11 +322,12 @@ internal static class ExportMenu {
             return;
         }
 
-        List<PendingUpdate> updates = ExportSource.Collect(level.Session);
+        // read before the data it describes, so an answer landing meanwhile still triggers a rebuild
+        int accepts = RemoteBests.Accepts;
+        List<PendingUpdate> updates = ExportSource.Collect(SessionBests.All);
         Logger.Log(LogLevel.Info, LogTag,
-            $"export: scope={SegmentAutoDetect.ScopeOf(level.Session)}"
-            + $" rows={updates.Count} held={SessionBests.Describe()}");
-        // nothing run this session, or a run that maps to no row
+            $"export: {updates.Count} rows of {SessionBests.All.Count} run, sheet times {RemoteBests.Source}");
+        // nothing run this session, or runs that map to no row
         if (updates.Count == 0) {
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NOTHING"), null);
             return;
@@ -446,75 +336,32 @@ internal static class ExportMenu {
         pausedBeforeOpen = level.Paused;
         openLevel = level;
         level.Paused = true;
-        // taken by every open: a POST from the previous screen may still be in
-        // flight, and its continuation checks this to know its screen is gone
-        int fetch = ++generation;
+        generation++;
+        pressed.Clear();
 
-        // a refresh has answered: build now, with no wait. What is on screen can
-        // be a refresh old, and the write is what guards against that -- it
-        // compares each cell before touching it
         if (RemoteBests.IsResolved) {
-            Build(level, updates);
-            // opening, closing and reopening inside a minute is one action, and
-            // asking three times costs three calls against the player's script
-            if (RemoteBests.Age > AskAgainAfter) {
-                Refresh("a screen opened on data already held");
-            }
-
-            return;
+            BuildTable(level, updates, accepts);
+        } else {
+            ShowLoading(level, accepts);
         }
 
-        // nothing held: the first open of a session that launched offline, or
-        // one whose refresh has not landed yet
-        RemoteBests.BeginFetch();
-        string url = ExportTarget.Url;
-        _ = ExportClient.FetchAsync(url).ContinueWith(task => {
-            if (fetch != generation) {
-                // an older answer would overwrite a newer one
-                Logger.Log(LogLevel.Info, LogTag, "a fetch resolved after its screen was replaced; discarded");
-                return;
-            }
-
-            // the generation only moves when a screen opens, and the sheet is
-            // repointed from Mod Options with no screen up: closing and
-            // forgetting the URL leaves the generation where it was, and this
-            // answer would resolve RemoteBests against a sheet nobody points at
-            if (url != ExportTarget.Url) {
-                Logger.Log(LogLevel.Info, LogTag,
-                    "a fetch resolved for a sheet URL that is no longer the one set; discarded");
-                return;
-            }
-
-            try {
-                Take(task.Result, ownedByAScreen: true);
-            } catch (Exception e) {
-                // a screen is waiting: with no state to show it sits on
-                // "loading" until the player cancels
-                Logger.Log(LogLevel.Warn, LogTag, "an answer could not be taken in: " + e);
-                RemoteBests.Fail(Dialog.Clean("SRS_EXPORT_UNREAD"));
-            } finally {
-                // build on the game thread: a TextMenu is never touched off it
-                queuedRebuild = true;
-            }
-        });
-
-        awaitingRows = true;
-        ShowLoading(level);
+        // a saved copy, a failed read or an unanswered export say nothing about
+        // the sheet now; an answer under a minute old does, and asking three
+        // times in a minute costs three calls against the player's script
+        if (RemoteBests.Source != HeldSource.Fresh || RemoteBests.Error != null
+            || SheetReader.UnansweredWrite || RemoteBests.Age > AskAgainAfter) {
+            SheetReader.Refresh("the export screen opened");
+        }
     }
 
     public static void Close() {
         menu?.RemoveSelf();
         menu = null;
-        awaitingRows = false;
-
-        // a fetch or submit resolving after Close() would otherwise fire its
-        // queued rebuild against a freshly reopened menu
-        queuedRebuild = false;
-        queuedSummary = false;
-        summaryLines = null;
-        // a POST may still be in flight; the generation check in its
-        // continuation is what keeps it from touching whatever comes next
-        submitting = false;
+        screen = Screen.None;
+        pressed.Clear();
+        exportButtonOnScreen = null;
+        cancelButtonOnScreen = null;
+        gameThread.Clear();
 
         if (openLevel != null) {
             openLevel.Paused = pausedBeforeOpen;
@@ -525,7 +372,7 @@ internal static class ExportMenu {
     /// Puts a screen up in place of whatever is there. Every screen goes through
     /// here so the three ways out are wired once: a screen forgetting one traps
     /// the player in a paused level.
-    private static void Show(Level level, TextMenu newMenu) {
+    private static void Show(Level level, TextMenu newMenu, Screen kind) {
         newMenu.OnCancel = Close;
         newMenu.OnESC = Close;
         newMenu.OnPause = Close;
@@ -533,17 +380,31 @@ internal static class ExportMenu {
         menu?.RemoveSelf();
         level.Add(newMenu);
         menu = newMenu;
+        screen = kind;
     }
 
-    private static void Build(Level level, List<PendingUpdate> updates) {
-        awaitingRows = false;
+    private static void BuildTable(Level level) {
+        // read before the data it describes, so an answer landing meanwhile still triggers a rebuild
+        int accepts = RemoteBests.Accepts;
+        BuildTable(level, ExportSource.Collect(SessionBests.All), accepts);
+    }
+
+    private static void BuildTable(Level level, List<PendingUpdate> updates, int accepts) {
+        ExportTable.KeepPressed(updates, pressed);
+        bool wasTable = screen == Screen.Table;
+        SheetRowRef? cursor = wasTable && menu?.Current is UpdateRow { } current ? current.Row : null;
+        bool onExport = wasTable && exportButtonOnScreen != null && menu?.Current == exportButtonOnScreen;
+        bool onCancel = wasTable && cancelButtonOnScreen != null && menu?.Current == cancelButtonOnScreen;
+        builtOnAccepts = accepts;
+
         ExportColumns columns = ExportColumns.Measure(updates);
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
-        newMenu.Add(new TextMenu.SubHeader(StatusLine()));
+        AddStatus(newMenu, columns.TotalWidth);
 
         string chapter = null;
         bool odd = false;
+        UpdateRow cursorRow = null;
         foreach (PendingUpdate update in updates) {
             string group = string.IsNullOrEmpty(update.Row.Chapter) ? update.Row.Tab : update.Row.Chapter;
             if (group != chapter) {
@@ -551,84 +412,115 @@ internal static class ExportMenu {
                 newMenu.Add(new GroupRow(columns, group));
             }
 
-            newMenu.Add(new UpdateRow(update, columns, odd));
+            UpdateRow row = new(update, columns, odd, () => pressed[update.Row] = update.Selected);
+            newMenu.Add(row);
+            if (update.Row == cursor) {
+                cursorRow = row;
+            }
+
             odd = !odd;
         }
 
         newMenu.Add(new TableFooter(columns));
 
-        // rows built on no answer compared against nothing, and an answer
-        // landing later does not rebuild them: such a table never exports
-        bool builtOnAnswer = RemoteBests.IsResolved;
-        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = !builtOnAnswer };
+        TextMenu.Button exportButton = new(ExportLabel(updates)) { Disabled = !CanExport() };
         exportButton.OnUpdate = () => {
             exportButton.Label = ExportLabel(updates);
-            exportButton.Disabled = !builtOnAnswer || !RemoteBests.IsResolved;
+            exportButton.Disabled = !CanExport();
         };
-        exportButton.Pressed(() => Submit(level, updates, builtOnAnswer));
+        exportButton.Pressed(() => Submit(level, updates));
         newMenu.Add(exportButton);
 
         TextMenu.Button cancelButton = new(Dialog.Clean("SRS_EXPORT_CANCEL"));
         cancelButton.Pressed(Close);
         newMenu.Add(cancelButton);
 
-        Show(level, newMenu);
+        Show(level, newMenu, Screen.Table);
+        exportButtonOnScreen = exportButton;
+        cancelButtonOnScreen = cancelButton;
+        if (cursorRow != null) {
+            newMenu.Selection = newMenu.IndexOf(cursorRow);
+        } else if (onExport) {
+            newMenu.Selection = newMenu.IndexOf(exportButton);
+        } else if (onCancel) {
+            newMenu.Selection = newMenu.IndexOf(cancelButton);
+        }
     }
 
-    // the sheet's own labels, never translated. Most checkpoint labels already
-    // carry their chapter ("1a Start"), so prefixing it again reads "1a 1a Start"
-    private static string RowLabel(ExportResult r) {
-        string group = string.IsNullOrEmpty(r.Chapter) ? r.Tab : r.Chapter;
-        return r.Cp.StartsWith(group, StringComparison.Ordinal) ? r.Cp : $"{group} {r.Cp}";
-    }
-
-    // an unknown status is shown as the script sent it rather than swallowed
-    private static string StatusText(string status) => status switch {
-        "written" => Dialog.Clean("SRS_EXPORT_STATUS_WRITTEN"),
-        "notFound" => Dialog.Clean("SRS_EXPORT_STATUS_NOTFOUND"),
-        "ambiguous" => Dialog.Clean("SRS_EXPORT_STATUS_AMBIGUOUS"),
-        "refused" => Dialog.Clean("SRS_EXPORT_STATUS_REFUSED"),
-        "changed" => Dialog.Clean("SRS_EXPORT_STATUS_CHANGED"),
-        _ => status,
-    };
+    // a table needs an answer, fresh or saved, and none while an export is out
+    // or its outcome is unknown: rows it wrote would be offered again. IsWriting
+    // is read first: EndWrite changes both in one locked section, and this order
+    // leaves no frame where both read false mid-record
+    private static bool CanExport() =>
+        RemoteBests.IsResolved && !SheetReader.IsWriting && !SheetReader.UnansweredWrite;
 
     private static string ExportLabel(List<PendingUpdate> updates) =>
-        $"{Dialog.Clean("SRS_EXPORT_CONFIRM")} ({updates.Count(u => u.Selected)})";
+        $"{Dialog.Clean("SRS_EXPORT_CONFIRM")} ({updates.Count(u => u.Selected && !u.Duplicate)})";
 
-    // empty once the fetch resolves: the chapter bands carry the column titles
-    // from then on, aligned with the rows, which a SubHeader cannot be
-    private static string StatusLine() => RemoteBests.State switch {
-        RemoteState.Loading => Dialog.Clean("SRS_EXPORT_LOADING"),
-        RemoteState.Error => RemoteBests.Error ?? Dialog.Clean("SRS_EXPORT_UNREAD"),
-        _ => "",
-    };
+    /// The two lines under the title, recomputed every frame: they follow a read
+    /// that fails and an age that grows. Line one says what is held, line two
+    /// what the read did, and is hidden (no height) when empty. Both are cut to
+    /// maxWidth: a line wider than the table widens the menu and shifts the
+    /// table off its place.
+    private static void AddStatus(TextMenu newMenu, float maxWidth) {
+        (string one, string two) = StatusLines();
+        TextMenu.SubHeader first = new(FitOnScreen(one, maxWidth));
+        TextMenu.SubHeader second = new(FitOnScreen(two, maxWidth), topPadding: false) { Visible = two != "" };
+        first.OnUpdate = () => {
+            (string nowOne, string nowTwo) = StatusLines();
+            if (nowOne != one) {
+                one = nowOne;
+                first.Title = FitOnScreen(nowOne, maxWidth);
+            }
 
-    private static void Submit(Level level, List<PendingUpdate> updates, bool builtOnAnswer) {
-        if (submitting) {
-            // a write can last the whole 60 s timeout: say so rather than nothing
-            PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_WRITING"), null);
-            return;
-        }
+            if (nowTwo != two) {
+                two = nowTwo;
+                second.Title = FitOnScreen(nowTwo, maxWidth);
+                second.Visible = nowTwo != "";
+            }
+        };
+        newMenu.Add(first);
+        newMenu.Add(second);
+    }
 
-        // unreachable, as Export is Disabled on the same condition; kept because
-        // rows built on no answer pre-tick and would overwrite a better time
-        if (!builtOnAnswer || !RemoteBests.IsResolved) {
-            Logger.Log(LogLevel.Warn, LogTag, "submit reached the unresolved guard: " + RemoteBests.State);
-            return;
-        }
+    private static (string One, string Two) StatusLines() {
+        string error = RemoteBests.Error ?? Dialog.Clean("SRS_EXPORT_UNREAD");
+        string noAnswer = $"{Dialog.Clean("SRS_EXPORT_NO_ANSWER")} {error}";
+        string checking = Dialog.Clean("SRS_EXPORT_CHECKING");
+        string mayBeWriting = Dialog.Clean("SRS_EXPORT_MAY_BE_WRITING");
+        return ExportTable.StatusOf(RemoteBests.Source, SheetReader.IsReading, RemoteBests.Error,
+                SheetReader.UnansweredWrite, SheetReader.IsWriting) switch {
+            ScreenStatus.Loading => (Dialog.Clean("SRS_EXPORT_LOADING"), ""),
+            ScreenStatus.LoadFailed => (noAnswer, ""),
+            ScreenStatus.Writing => (Dialog.Clean("SRS_EXPORT_WRITING"), ""),
+            ScreenStatus.WritingChecking => (mayBeWriting, checking),
+            ScreenStatus.WritingFailed => (mayBeWriting, noAnswer),
+            ScreenStatus.SavedChecking => (Aged("SRS_EXPORT_SAVED_COPY"), checking),
+            ScreenStatus.SavedFailed => (Aged("SRS_EXPORT_SAVED_COPY"), noAnswer),
+            ScreenStatus.FreshFailed => (Aged("SRS_EXPORT_SHEET_TIMES"), noAnswer),
+            _ => ("", ""),
+        };
+    }
 
-        List<PendingUpdate> selected = updates.Where(u => u.Selected).ToList();
+    // "Saved copy (2 h)." in every language: the age never moves in the sentence
+    private static string Aged(string key) {
+        (int value, string unit) = ExportTable.AgeOf(RemoteBests.Age);
+        return $"{Dialog.Clean(key)} ({value} {Dialog.Clean(unit)}).";
+    }
+
+    private static void Submit(Level level, List<PendingUpdate> updates) {
+        List<PendingUpdate> selected = updates.Where(u => u.Selected && !u.Duplicate).ToList();
         if (selected.Count == 0) {
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NONE_TICKED"), null);
             return;
         }
 
-        submitting = true;
         int submission = generation;
 
         ExportRequest request = new() {
             Updates = selected.Select(u => new ExportUpdate {
                 Tab = u.Row.Tab,
+                Band = u.Band,
                 Chapter = u.Row.Chapter,
                 Cp = u.Row.Cp,
                 Time = TimeFormat.FromTicks(u.LocalTicks),
@@ -639,83 +531,74 @@ internal static class ExportMenu {
             }).ToList(),
         };
         string json = ExportProtocol.SerializeRequest(request);
-        string url = ExportTarget.Url;
-
-        Logger.Log(LogLevel.Info, LogTag,
-            $"exporting {request.Updates.Count} row(s)");
-
-        // swap to a "working..." placeholder while the POST is in flight; this
-        // runs on the game thread already (a button press), so no queueing needed
+        // first: a throw from the screen must not leave the POST counter raised
         ShowWorking(level);
+        // before the POST is sent: a read asked from now on cannot answer for it
+        WriteToken token = SheetReader.BeginWrite();
 
-        _ = ExportClient.PostAsync(url, json).ContinueWith(task => {
-            // first, before the screen check: a refresh out now read the
-            // sheet before this write, whether or not its screen is still up
-            Interlocked.Increment(ref writes);
-            // on every answer, failed or orphaned too: the count just dropped
-            // any refresh out, and a failed POST may still have written (a
-            // timeout). Queued behind one already out, run when it lands
-            Refresh("an export answered");
-            if (submission != generation) {
-                // the write happened and its outcome is in the log; nobody is
-                // left to show it to, and clearing `submitting` here would open
-                // the double-submit guard on the newer screen
-                Logger.Log(LogLevel.Info, LogTag, "export resolved after its screen was replaced");
-                return;
-            }
+        Logger.Log(LogLevel.Info, LogTag, $"exporting {request.Updates.Count} row(s)");
 
-            submitting = false;
-
+        _ = ExportClient.PostAsync(token.Url, json).ContinueWith(task => {
+            ExportResponse response = null;
+            List<string> lines;
             // nothing above this continuation observes a throw: the screen
             // would stay on "Writing..." until the player leaves it
             try {
                 (string body, string error) = task.Result;
                 if (error != null) {
                     Logger.Log(LogLevel.Warn, LogTag, "export failed: " + error);
-                    QueueSummary([error]);
-                    return;
-                }
-
-                if (!ExportProtocol.TryParseResponse(body, out ExportResponse response, out string parseError)) {
+                    lines = [error];
+                } else if (!ExportProtocol.TryParseResponse(body, out response, out string parseError)) {
                     Logger.Log(LogLevel.Warn, LogTag, "unreadable answer: " + parseError);
-                    QueueSummary([parseError]);
-                    return;
-                }
+                    lines = [parseError];
+                } else {
+                    foreach (ExportResult r in response.Results) {
+                        Logger.Log(LogLevel.Info, LogTag, $"  {ExportTable.RowLabel(r.Tab, r.Chapter, r.Cp)}: {r.Status}"
+                            + (string.IsNullOrEmpty(r.Band) ? "" : $" [{r.Band}]")
+                            + (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
+                    }
 
-                // the status is translated, the script's own reason is not: we do
-                // not author it, and a pasted report has to carry its words
-                foreach (ExportResult r in response.Results) {
-                    Logger.Log(LogLevel.Info, LogTag, $"  {RowLabel(r)}: {r.Status}" +
-                        (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
+                    // no batch had been timed when the timeout was set: this is the measurement
+                    Logger.Log(LogLevel.Info, LogTag,
+                        $"the script took {response.Ms?.ToString() ?? "?"} ms for {request.Updates.Count} update(s)");
+                    lines = ExportTable.SummaryLines(response.Results);
                 }
-
-                List<string> lines = response.Results
-                    .Select(r => $"{RowLabel(r)}: {StatusText(r.Status)}" +
-                        (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"))
-                    .ToList();
-                if (lines.Count == 0) {
-                    lines.Add(Dialog.Clean("SRS_EXPORT_DONE"));
-                }
-                QueueSummary(lines);
             } catch (Exception e) {
                 Logger.Log(LogLevel.Warn, LogTag, "an export answer could not be shown: " + e);
-                QueueSummary([$"{Dialog.Clean("SRS_EXPORT_ERR_UNREADABLE")} {e.GetType().Name}"]);
+                lines = [$"{Dialog.Clean("SRS_EXPORT_ERR_UNREADABLE")} {e.GetType().Name}"];
             }
+
+            // on every answer, failed or orphaned too: the sheet may have been
+            // written whatever is shown, and EndWrite asks it again
+            try {
+                SheetReader.EndWrite(token, request.Updates, response);
+            } catch (Exception e) {
+                Logger.Log(LogLevel.Warn, LogTag, "an export's outcome could not be recorded: " + e);
+            }
+
+            if (submission != generation) {
+                Logger.Log(LogLevel.Info, LogTag, "export resolved after its screen was replaced");
+                return;
+            }
+
+            gameThread.Enqueue(() => {
+                if (submission != generation || menu == null) {
+                    return;
+                }
+
+                ShowSummary(level, lines);
+            });
         });
     }
 
-    private static void QueueSummary(List<string> lines) {
-        summaryLines = lines;
-        queuedSummary = true;
-    }
-
-    /// Up while the first fetch is in flight, in place of the table: rows built
-    /// before the sheet answers compare against values that have not arrived and
-    /// pre-tick as improvements, which reads as a finished table and is not one.
-    private static void ShowLoading(Level level) {
+    /// Up while nothing is held, in place of the table: rows built before the
+    /// sheet answers compare against values that have not arrived and pre-tick
+    /// as improvements, which reads as a finished table and is not one.
+    private static void ShowLoading(Level level, int accepts) {
+        builtOnAccepts = accepts;
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
-        newMenu.Add(new TextMenu.SubHeader(Dialog.Clean("SRS_EXPORT_LOADING")));
+        AddStatus(newMenu, SummaryMaxWidth);
 
         // a way out without knowing Back closes it: the one screen the player
         // may want to leave before it has done anything
@@ -723,31 +606,31 @@ internal static class ExportMenu {
         cancelButton.Pressed(Close);
         newMenu.Add(cancelButton);
 
-        Show(level, newMenu);
+        Show(level, newMenu, Screen.Loading);
     }
 
     private static void ShowWorking(Level level) {
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
-        // not SRS_EXPORT_LOADING: that one belongs to the fetch, and announcing
+        // not SRS_EXPORT_LOADING: that one belongs to the read, and announcing
         // a read while the sheet is being written to is the wrong promise
         newMenu.Add(new TextMenu.SubHeader(Dialog.Clean("SRS_EXPORT_WRITING")));
 
-        Show(level, newMenu);
+        Show(level, newMenu, Screen.Writing);
     }
 
     // a SubHeader draws on one line and never wraps. The script's own
     // reasons are long English sentences; the full text is in log.txt
     private const float SummaryMaxWidth = 1600f;
 
-    private static string FitOnScreen(string line) {
+    private static string FitOnScreen(string line, float maxWidth) {
         const float scale = TextMenu.SubHeader.Scale;
-        if (ActiveFont.Measure(line).X * scale <= SummaryMaxWidth) {
+        if (ActiveFont.Measure(line).X * scale <= maxWidth) {
             return line;
         }
 
         int keep = line.Length;
-        while (keep > 0 && ActiveFont.Measure(line[..keep] + "...").X * scale > SummaryMaxWidth) {
+        while (keep > 0 && ActiveFont.Measure(line[..keep] + "...").X * scale > maxWidth) {
             keep--;
         }
 
@@ -758,7 +641,7 @@ internal static class ExportMenu {
         TextMenu newMenu = new();
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_DONE")));
         foreach (string line in lines) {
-            newMenu.Add(new TextMenu.SubHeader(FitOnScreen(line), topPadding: false));
+            newMenu.Add(new TextMenu.SubHeader(FitOnScreen(line, SummaryMaxWidth), topPadding: false));
         }
 
         // not "Cancel": the rows above are already written, and offering to
@@ -767,6 +650,6 @@ internal static class ExportMenu {
         closeButton.Pressed(Close);
         newMenu.Add(closeButton);
 
-        Show(level, newMenu);
+        Show(level, newMenu, Screen.Summary);
     }
 }
