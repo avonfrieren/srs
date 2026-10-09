@@ -59,7 +59,7 @@ Le code porte ses justifications en commentaires ; ici, seules celles qui dépas
 - **Deux familles d'onglets, jamais confondues** : la lecture prend les six onglets `… Standards`, l'écriture vise les trois onglets de temps personnels `A Sides` / `B+C Sides` / `Farewell`, et la correspondance n'est pas un suffixe (`B Sides Standards` → `B+C Sides`). Le `Label` de `SheetRows` reproduit le nom brut de la sheet, fautes de frappe comprises ; une différence entre les deux documents est un `Target`, jamais une retouche du `Label`.
 - Les colonnes **sont** les noms des paliers (`Hidden, WR, Gold, Pink, Purple 1-3, …, Red 1-3, Unranked`) ⇒ `TierColors` est indexée par nom de colonne **complet**, le suffixe de rang compte. Farewell n'a pas de colonne `Chapter` ; `Realigned` complète une ligne trop courte. Le nom de chapitre n'est que sur la 1re ligne d'un groupe ⇒ reporté au parsing.
 - Variantes marquées par emoji (`💙` cœur, `📼` cassette, `💎` gem) à l'**espacement irrégulier** ⇒ `Contains`. **L'emoji ne survit jamais à l'import** : `ActiveFont` saute en silence un caractère absent de son atlas, donc les lignes gardées sont renommées d'après ce qu'elles collectent (`Hollows Tape RTM`, `Shrine Heart Clear`), suffixe ASCII gardé.
-- **`RTM` et `RC` sont les seuls suffixes qui arrêtent une run avant la fin de son segment** (`RTM` au collect, `RC` au Restart Chapter, seulement sur `2a Start 💙 RC`). `Clear` sur un checkpoint veut dire « on ramasse et on continue », *pas* « fin du chapitre » (cf. `SegmentRules.EndOf`).
+- **`RTM` et `RC` sont les seuls suffixes qui arrêtent une run avant la fin de son segment** (`RTM` au collect, `RC` au Restart Chapter, seulement sur `2a Start 💙 RC`). `Clear` sur un checkpoint A-side veut dire « on ramasse et on continue », *pas* « fin du chapitre » (cf. `SegmentRules.EndOf`).
 - Les lignes `Wake Up` **ne s'importent pas** (décision du propriétaire, épinglée par `LeavesTheNotYetSupportedRowsOut`). `Hidden` vaut `0:00.000` partout ⇒ ignoré (`threshold > TimeSpan.Zero`). **Palier atteint : temps strictement sous le seuil ; la colonne `WR` ne classe rien** (`Gold` est le meilleur), comme la sheet.
 
 ## Repères SpeedrunTool
@@ -86,7 +86,7 @@ Branche `feature/<nom>` ou `fix/<nom>` depuis `dev`, PR vers `dev`, release = me
 
 ## Reste à faire
 
-- **Import des catégories restantes** (B-sides hors any%, ARB, FC). Les gems 7A attendent que la sheet remplisse leurs seuils. **Deux lignes ne sont jamais indiscernables** (`NoTwoRulesAreIndistinguishable`) : une ligne plus large se décrit par ce qu'elle *exige* en plus.
+- **Import des catégories restantes** (ARB, FC). Les gems 7A attendent que la sheet remplisse leurs seuils. **Deux lignes ne sont jamais indiscernables** (`NoTwoRulesAreIndistinguishable`) : une ligne plus large se décrit par ce qu'elle *exige* en plus.
 - **Le progrès de session** (portes, clés, blocs cassés) survit à un retour en arrière, à la debug map sans Ctrl et à un téléport : srs ne s'en protège pas (décision du propriétaire, à repenser).
 
 ## Écarté définitivement
