@@ -5,25 +5,25 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 // what the HUD and the export show when several rows close on one frame
 public class SpecificityTests {
     private static SegmentRule Rule(Collectibles requires, bool berries = false, int order = 0,
-        EndKind end = EndKind.NextStart) =>
-        new("3a", "3a", $"r{order}", "Huge Mess", StartKind.Room, StartSetup.NextRoom, end,
-            Collectibles.None, requires, berries, null, 0, 0, order);
+        bool chapterRun = false) =>
+        new("3a", "3a", $"r{order}", "Huge Mess", StartKind.Room, StartSetup.NextRoom, EndKind.NextStart,
+            Collectibles.None, requires, berries, null, 0, 0, order) { ChapterRun = chapterRun };
 
-    private static int MostSpecific(params SegmentRule[] rules) => Specificity.MostSpecific(rules, wholeChapter: false);
+    private static int MostSpecific(params SegmentRule[] rules) => Specificity.MostSpecific(rules, chapterRun: false);
 
-    // a whole chapter and the segment ending with it are picked apart, so both are shown
+    // a chapter run and the segment ending with it are picked apart, so both are shown
     [Fact]
-    public void WholeChaptersAndSegmentsAreChosenApart() {
+    public void ChapterRunsAndSegmentsAreChosenApart() {
         SegmentRule last = Rule(Collectibles.None, order: 0);
         SegmentRule lastWithTape = Rule(Collectibles.Cassette, order: 1);
-        SegmentRule il = Rule(Collectibles.None, order: 2, end: EndKind.ChapterEnd);
-        SegmentRule ilWithHeart = Rule(Collectibles.Heart, order: 3, end: EndKind.ChapterEnd);
+        SegmentRule il = Rule(Collectibles.None, order: 2, chapterRun: true);
+        SegmentRule ilWithHeart = Rule(Collectibles.Heart, order: 3, chapterRun: true);
         SegmentRule[] closed = [last, lastWithTape, il, ilWithHeart];
 
-        Assert.Equal(1, Specificity.MostSpecific(closed, wholeChapter: false));
-        Assert.Equal(3, Specificity.MostSpecific(closed, wholeChapter: true));
-        Assert.Equal(-1, Specificity.MostSpecific([last], wholeChapter: true));
-        Assert.Equal(-1, Specificity.MostSpecific([il], wholeChapter: false));
+        Assert.Equal(1, Specificity.MostSpecific(closed, chapterRun: false));
+        Assert.Equal(3, Specificity.MostSpecific(closed, chapterRun: true));
+        Assert.Equal(-1, Specificity.MostSpecific([last], chapterRun: true));
+        Assert.Equal(-1, Specificity.MostSpecific([il], chapterRun: false));
     }
 
     [Fact]

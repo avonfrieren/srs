@@ -50,21 +50,25 @@ internal sealed record SegmentRule(
     long HeadTicks, long TailTicks,
     // position in the sheet, the last tie-breaker
     int Order) {
+    /// An IL or C-side row: timed from the chapter's start across its
+    /// checkpoints, to the chapter's end or to its collect ("RTM").
+    public bool ChapterRun { get; init; }
+
     /// Whether this rule asks for everything the other asks for.
     public bool Contains(SegmentRule other) =>
         (Requires & other.Requires) == other.Requires && (RequiresBerries || !other.RequiresBerries);
 }
 
 internal static class Specificity {
-    /// The index of the most specific rule among the whole chapters, or among
+    /// The index of the most specific rule among the chapter runs, or among
     /// the segments: the one whose requirements contain every other's; on a
     /// tie, or when none contains them all, the first in sheet order. -1 when
     /// there is none of that kind.
-    public static int MostSpecific(IReadOnlyList<SegmentRule> rules, bool wholeChapter) {
+    public static int MostSpecific(IReadOnlyList<SegmentRule> rules, bool chapterRun) {
         int best = -1;
         int first = -1;
         for (int i = 0; i < rules.Count; i++) {
-            if (rules[i].End == EndKind.ChapterEnd != wholeChapter) {
+            if (rules[i].ChapterRun != chapterRun) {
                 continue;
             }
 
@@ -74,7 +78,7 @@ internal static class Specificity {
 
             bool containsAll = true;
             for (int j = 0; j < rules.Count && containsAll; j++) {
-                containsAll = rules[j].End == EndKind.ChapterEnd != wholeChapter || rules[i].Contains(rules[j]);
+                containsAll = rules[j].ChapterRun != chapterRun || rules[i].Contains(rules[j]);
             }
 
             if (containsAll && (best < 0 || rules[i].Order < rules[best].Order)) {

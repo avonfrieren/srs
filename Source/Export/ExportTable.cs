@@ -56,9 +56,18 @@ internal static class ExportTable {
         }
     }
 
-    /// The sheet's own labels, never translated. Most checkpoint labels already
+    /// The row's srs name when it is one srs writes: an IL variant's sheet
+    /// label is an emoji and a suffix, and ActiveFont drops the emoji. Else the
+    /// sheet's own labels, never translated. Most checkpoint labels already
     /// carry their chapter ("1a Start"), so prefixing it again reads "1a 1a Start".
     public static string RowLabel(string tab, string chapter, string cp) {
+        SheetRowRef target = new(tab, chapter, cp);
+        foreach (SheetRow row in SheetRows.All) {
+            if (SheetRows.TargetOf(row) == target) {
+                return TierLine.NameOf(row.Scope, row.Name);
+            }
+        }
+
         string group = string.IsNullOrEmpty(chapter) ? tab : chapter;
         return cp.StartsWith(group, StringComparison.Ordinal) ? cp : $"{group} {cp}";
     }

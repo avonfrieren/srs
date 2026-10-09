@@ -24,7 +24,7 @@ public class RunBookTests {
     [Fact]
     public void EveryRowKeepsItsOwnBest() {
         RunBook book = new();
-        book.Offer([Record("6a/b", "Hollows Tape", 20)]);
+        book.Offer([Record("6a/b", "Hollows Tape RTM", 20)]);
         book.Offer([Record("6a/b", "Hollows", 45)]);
 
         Assert.Equal(2, book.All.Count);

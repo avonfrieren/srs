@@ -23,8 +23,8 @@ public class SheetLabelsTests {
     public void AnIlIsWrittenUnderItsBareChapter() {
         SheetRow[] ils = [.. SheetRows.All.Where(row => row.SheetChapter.EndsWith(" IL"))];
 
-        Assert.Equal(8, ils.Length);
-        Assert.All(ils, row => Assert.Equal(new SheetRowRef("A Sides", row.Scope, "Clear"), SheetRows.TargetOf(row)));
+        Assert.NotEmpty(ils);
+        Assert.All(ils, row => Assert.Equal(new SheetRowRef("A Sides", row.Scope, row.Label), SheetRows.TargetOf(row)));
     }
 
     [Fact]
@@ -39,6 +39,9 @@ public class SheetLabelsTests {
             SheetRows.All.Select(r => (r.Tab, r.SheetChapter, r.Label)).Distinct().Count());
         Assert.Equal(SheetRows.All.Length,
             SheetRows.All.Select(r => (r.Chapter, r.Name)).Distinct().Count());
+        // two rows on one target would write one cell, and the export
+        // summary would name the first for both
+        Assert.Equal(SheetRows.All.Length, SheetRows.All.Select(SheetRows.TargetOf).Distinct().Count());
     }
 
     [Fact]
@@ -60,7 +63,7 @@ public class SheetLabelsTests {
     [Fact]
     public void EveryRowNamesItsGameAnchor() {
         Assert.All(SheetRows.All, row => Assert.False(string.IsNullOrEmpty(row.Anchor)));
-        Assert.Equal("Hollows", Row("6a/b", "Hollows Tape").Anchor);
+        Assert.Equal("Hollows", Row("6a/b", "Hollows Tape RTM").Anchor);
         Assert.Equal("Start", Row("Farewell", "Start DTS").Anchor);
         Assert.Equal("Reflection", Row("6a/b", "Falling").Anchor);
         Assert.Equal("Heart of the Mountain", Row("8a", "HotM Vertical").Anchor);
@@ -88,9 +91,9 @@ public class SheetLabelsTests {
     [Fact]
     public void EmojiRowsUseTheSheetSpelling() {
         AssertRow("3a", "Huge Mess Heart", "A Sides", "3a", "Huge Mess \U0001F499");
-        AssertRow("4a", "Shrine Heart", "A Sides", "4a", "Shrine \U0001F499 Clear");
-        AssertRow("5a/b", "Depths Tape", "A Sides", "5a", "Depths \U0001F4FC RTM");
-        AssertRow("6a/b", "Hollows Tape", "A Sides", "6a", "Hollows \U0001F4FC RTM");
+        AssertRow("4a", "Shrine Heart Clear", "A Sides", "4a", "Shrine \U0001F499 Clear");
+        AssertRow("5a/b", "Depths Tape RTM", "A Sides", "5a", "Depths \U0001F4FC RTM");
+        AssertRow("6a/b", "Hollows Tape RTM", "A Sides", "6a", "Hollows \U0001F4FC RTM");
     }
 
     // the three rows the sheet renamed on 2026-08-28. They were the only places

@@ -97,16 +97,22 @@ public class RunTrackerTests {
         Assert.Equal([("Chasm", 400L), ("IL", 400L)], Of(t.ChapterTimeStopped(400, One)));
     }
 
+    // the "RTM" variant closes at its collect, the others with the chapter
     [Fact]
     public void AnIlStaysOpenAcrossCheckpoints() {
         Add("Start", "1", "6", setup: StartSetup.CurrentRoom);
+        Add("IL Tape RTM", "1", null, requires: Collectibles.Cassette, endKind: EndKind.Collect,
+            endsOn: Collectibles.Cassette, setup: StartSetup.CurrentRoom);
+        Add("IL Tape Clear", "1", null, requires: Collectibles.Cassette, endKind: EndKind.ChapterEnd,
+            setup: StartSetup.CurrentRoom);
         Add("IL", "1", null, endKind: EndKind.ChapterEnd, setup: StartSetup.CurrentRoom);
         Add("Crossing", "6", "9b", entry: "5");
         RunTracker t = Tracker();
 
         t.Restart("1a", "1", 0, true, false, _ => true);
         Assert.Equal([("Start", 100L)], Of(t.RoomEntered("1a", "5", "6", 100, true, false, One)));
-        Assert.Equal([("IL", 400L)], Of(t.ChapterTimeStopped(400, One)));
+        Assert.Equal([("IL Tape RTM", 250L)], Of(t.Collected(Collectibles.Cassette, 250, One)));
+        Assert.Equal([("IL Tape Clear", 400L), ("IL", 400L)], Of(t.ChapterTimeStopped(400, One)));
     }
 
     [Fact]

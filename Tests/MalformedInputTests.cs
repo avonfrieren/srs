@@ -115,11 +115,11 @@ public class MalformedInputTests {
 
     [Fact]
     public void SkipsRowsThatAreNotOnTheImportList() {
-        // emoji variants sit right next to the imported rows
+        // the gem variants sit right next to the imported rows
         SheetData data = Fixtures.Parse(
-            Header + "1a CP,1a Start,0:00.000,13.906,14.5\n,Crossing 💙,0:00.000,0:00.000,\n1a IL,📼 Clear,0:00.000,52.445,55.5", null);
+            Header + "7a CP,7a Start,0:00.000,13.906,14.5\n,7a Start 💎,0:00.000,0:00.000,\n,1500m 💎+📼,0:00.000,52.445,55.5", null);
 
         SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
-        Assert.Equal("Start", segment.Name);
+        Assert.Equal("7a Start", segment.Name);
     }
 }
