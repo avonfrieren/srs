@@ -28,11 +28,14 @@ public class SegmentRulesTests {
         "5a/b/5a Start",
         "5a/b/Unravelling",
         "5a/b/5a IL", "5a/b/5a IL Tape RTM", "5a/b/5a IL Heart Tape RTM",
+        "1b/Start", "1b/IL", "2b/Start", "2b/IL", "3b/Start", "3b/IL", "4b/Start", "4b/IL",
         "5a/b/5b Start",
         "5a/b/Through the Mirror",
+        "5a/b/5b IL",
         "6a/b/6a Start",
         "6a/b/6a IL", "6a/b/6a IL Tape Clear", "6a/b/6a IL Tape RTM", "6a/b/6a IL Heart Tape RTM",
-        "6a/b/6b Start",
+        "6a/b/6b Start", "6a/b/6b IL",
+        "7b/Start", "7b/IL", "8b/Start", "8b/IL",
         "7a/7a Start",
         "7a/7a IL", "7a/7a IL Tape Clear", "7a/7a IL Tape RTM", "7a/7a IL Heart Tape RTM",
         "8a/Start",
@@ -53,6 +56,7 @@ public class SegmentRulesTests {
                 "4a/IL", "4a/IL Heart Clear", "4a/IL Tape Clear", "4a/IL Heart Tape Clear",
                 "5a/b/5a IL", "6a/b/6a IL", "6a/b/6a IL Tape Clear", "7a/7a IL", "7a/7a IL Tape Clear",
                 "8a/IL", "8a/IL Tape Clear",
+                "1b/IL", "2b/IL", "3b/IL", "4b/IL", "5a/b/5b IL", "6a/b/6b IL", "7b/IL", "8b/IL",
                 "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
                 "Farewell/DTS IL", "Farewell/No DTS IL",
             ],
@@ -143,7 +147,7 @@ public class SegmentRulesTests {
         Assert.Equal((EndKind.Restart, Collectibles.None, Collectibles.Heart), (rule.End, rule.EndsOn, rule.Requires));
     }
 
-    // "Clear" on a checkpoint row means collect and keep going, not the
+    // "Clear" on an A-side checkpoint row means collect and keep going, not the
     // chapter's end, and an RTM marking nothing a run collects has nothing to
     // end on
     [Theory]
@@ -152,7 +156,6 @@ public class SegmentRulesTests {
     [InlineData("Crossing 💙")]
     [InlineData("Shrine 💙 Clear")]
     [InlineData("Hollows 📼Clear")]
-    [InlineData("1b Clear")]
     [InlineData("Plain RTM")]
     public void EveryOtherLabelEndsWithItsSegment(string label) {
         Assert.Equal(EndKind.NextStart, Synthetic(label).End);
@@ -206,6 +209,16 @@ public class SegmentRulesTests {
         Assert.All(SegmentRules.All, r => Assert.Equal(r.Name.Contains("IL") || r.Scope.EndsWith('c'), r.ChapterRun));
     }
 
+    // the B-sides tab has no IL block: a chapter's "Clear" is the whole chapter
+    // there, and only there
+    [Fact]
+    public void ABSidesClearIsTheWholeChapter() {
+        SheetRow clear = new(StandardsTab.BSides, "1b", "1b Clear", "1b", "1b", "IL", "Start");
+
+        Assert.Equal((EndKind.ChapterEnd, true), (SegmentRules.Build([clear])[0].End, SegmentRules.Build([clear])[0].ChapterRun));
+        Assert.Equal((EndKind.NextStart, false), (Synthetic("1b Clear").End, Synthetic("1b Clear").ChapterRun));
+    }
+
     [Fact]
     public void RtmRowsEndAtTheCollect() {
         Assert.Equal((EndKind.Collect, Collectibles.Cassette),
@@ -243,6 +256,8 @@ public class SegmentRulesTests {
         Assert.Equal(StartKind.AfterLaunch, Rule("7a", "7a Start").Start);
         Assert.Equal(TimeSpan.FromMilliseconds(1037).Ticks, Rule("Prologue", "Granny").HeadTicks);
         Assert.Equal(TimeSpan.FromMilliseconds(544).Ticks, Rule("Prologue", "Granny").TailTicks);
+        Assert.Equal(Rule("7a", "7a Start").HeadTicks, Rule("7b", "Start").HeadTicks);
+        Assert.Equal(StartKind.AfterLaunch, Rule("7b", "Start").Start);
         Assert.Equal(0, Rule("7a", "500m").HeadTicks);
         Assert.Equal(StartKind.Room, Rule("7a", "500m").Start);
         Assert.Equal(StartKind.Room, Rule("2a", "Awake").Start);

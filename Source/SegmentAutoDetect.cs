@@ -5,7 +5,7 @@ namespace Celeste.Mod.SpeedrunSheet;
 // The scope of a session, plus the name tables in SegmentAutoDetect.Names.cs.
 public static partial class SegmentAutoDetect {
     // vanilla (AreaKey.ID, side) -> sheet chapter, plus the side name inside
-    // the folded chapters (the sheet routes 5 as 5B only, 6 as both sides)
+    // the folded chapters (5a/b, 6a/b)
     private static readonly Dictionary<(int Id, AreaMode Mode), (string Chapter, string Side)> ChapterMap = new() {
         [(0, AreaMode.Normal)] = ("Prologue", null),
         [(1, AreaMode.Normal)] = ("1a", null),
@@ -22,6 +22,12 @@ public static partial class SegmentAutoDetect {
         // chapter of its own — named after the tab rather than "9a"
         [(9, AreaMode.Normal)] = ("8a", null),
         [(10, AreaMode.Normal)] = ("Farewell", null),
+        [(1, AreaMode.BSide)] = ("1b", null),
+        [(2, AreaMode.BSide)] = ("2b", null),
+        [(3, AreaMode.BSide)] = ("3b", null),
+        [(4, AreaMode.BSide)] = ("4b", null),
+        [(7, AreaMode.BSide)] = ("7b", null),
+        [(9, AreaMode.BSide)] = ("8b", null),
         [(1, AreaMode.CSide)] = ("1c", null),
         [(2, AreaMode.CSide)] = ("2c", null),
         [(3, AreaMode.CSide)] = ("3c", null),

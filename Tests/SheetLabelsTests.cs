@@ -113,6 +113,8 @@ public class SheetLabelsTests {
         AssertRow("5a/b", "Mix Master", "B+C Sides", "5b", "Mix Master");
         AssertRow("6a/b", "6a Rock Bottom", "A Sides", "6a", "Rock Bottom");
         AssertRow("6a/b", "6b Rock Bottom", "B+C Sides", "6b", "Rock Bottom");
+        AssertRow("5a/b", "5b IL", "B+C Sides", "5b", "5b Clear");
+        AssertRow("1b", "IL", "B+C Sides", "1b", "1b Clear");
     }
 
     // the C-side band has no label column: the sheet matches the chapter twice
