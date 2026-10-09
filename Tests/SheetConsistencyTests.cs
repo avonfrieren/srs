@@ -6,11 +6,9 @@ using Xunit;
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
 // The row table and the room tables (start-room overrides, split checkpoints,
-// untimed heads and tails) address checkpoints by name, and nothing forces
-// them to agree with each other or with the sheet. A rename on either side
-// degrades silently: a row stops being imported, or a segment stops starting
-// where it should. These tests cross-check the tables against each other and
-// against the sheet.
+// untimed heads and tails) address checkpoints by name, and nothing else forces
+// them to agree with each other or with the sheet: a rename on either side
+// degrades silently.
 public class SheetConsistencyTests {
     // every raw (tab, chapter, checkpoint) row present in the exported tabs,
     // each tab parsed under the implicit chapter the importer gives it. The
@@ -29,11 +27,10 @@ public class SheetConsistencyTests {
         Assert.All(SegmentAutoDetect.SpawnOffsets.Keys, key => Assert.Contains(key, anchors));
     }
 
-    // a Next Room segment opens only on entering its first room from its entry
-    // room, and so does a segment after a wake-up: one left out would never
-    // open, and the segment before it would never close with a time. A
-    // chapter's Start and 7A's start have none: they open on a restart or at
-    // the end of the launch, never on an entry
+    // a row left without an entry room would never open, and the segment before
+    // it would never close with a time. A chapter's Start and 7A's start have
+    // none: they open on a restart or at the end of the launch, never on an
+    // entry
     [Fact]
     public void EveryNextRoomAndWakeUpRowHasAnEntryRoom() {
         List<string> wrong = SegmentRules.All
@@ -49,10 +46,9 @@ public class SheetConsistencyTests {
         Assert.DoesNotContain(SegmentAutoDetect.EntryRooms.Keys, key => key.GameName == "Start");
     }
 
-    // the owner's rulings (2026-10-04): of the two rooms Cliff Face's and
-    // Rescue's first rooms can be entered from, only the imported routes' one
-    // counts; and the rooms a cutscene brings the player into are entered from
-    // the room it starts in
+    // of the two rooms Cliff Face's and Rescue's first rooms can be entered
+    // from, only the imported routes' one counts; and the rooms a cutscene
+    // brings the player into are entered from the room it starts in
     [Theory]
     [InlineData("4a", "Cliff Face", "c-08")]
     [InlineData("5a", "Rescue", "d-20")]
@@ -60,7 +56,7 @@ public class SheetConsistencyTests {
     [InlineData("5a", "Unravelling", "void")]
     [InlineData("5b", "Through the Mirror", "b-09")]
     [InlineData("6a", "Lake", "start")]
-    public void TheEntryRoomsTheOwnerRuledOn(string scope, string anchor, string room) {
+    public void TheEntryRoomsThatAreAChoice(string scope, string anchor, string room) {
         Assert.Equal(room, SegmentAutoDetect.EntryRooms[(scope, anchor)]);
     }
 
@@ -97,7 +93,7 @@ public class SheetConsistencyTests {
         Assert.Empty(Fixtures.Parsed.MissingRows);
     }
 
-    // the 5A row that sat unimported for 20 days, spelled the way srs used to
+    // a 5A row the sheet spells otherwise than srs imports it
     [Fact]
     public void ARowTheSheetRenamedIsReportedByItsImportKey() {
         string renamed = Fixtures.ASides.Replace(",Unravelling,", ",Unraveling,");
@@ -139,10 +135,8 @@ public class SheetConsistencyTests {
         Assert.Equal("d-08", SegmentAutoDetect.StartRoomOverrides[("8a", "HotM Horizontal")]);
     }
 
-    // heads, tails and launch starts are the sheet's constants, keyed on an
-    // anchored checkpoint: an entry keyed on a checkpoint no row anchors would
-    // never apply, and the segment would be compared against thresholds that
-    // include a part of it, silently several tiers too high. The values are
+    // an entry keyed on a checkpoint no row anchors would never apply, and the
+    // segment would read several tiers too high, in silence. The values are
     // pinned because the game cannot derive them
     [Fact]
     public void EveryUntimedHeadTargetsAKnownCheckpointAndKeepsItsValue() {
@@ -246,11 +240,10 @@ public class SheetConsistencyTests {
         Assert.NotEmpty(blocks[1].Segments);
     }
 
-    // none of the excluded row families may be imported; the emoji
-    // markers themselves never survive Import either — the imported hearts and
-    // cassettes are renamed after what they collect. "Wake Up" is excluded for
-    // good (owner decision 2026-08-18): those rows time a wake-up animation
-    // whose duration is fixed, so there is nothing to compare a run against
+    // no excluded row family is imported, and no emoji marker survives the
+    // import: the hearts and cassettes are renamed after what they collect.
+    // "Wake Up" is excluded for good: its rows time an animation of fixed
+    // length
     [Theory]
     [InlineData("💙")]
     [InlineData("📼")]

@@ -4,9 +4,8 @@ using System.Runtime.CompilerServices;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-/// srs keeps no time format of its own, and this project cannot reference the
-/// one it uses — not referencing SpeedrunTool is what the whole assembly is
-/// built on. So it supplies a stand-in, as a test supplies any dependency.
+/// A stand-in for SpeedrunTool's time format, which this project cannot
+/// reference.
 ///
 /// ⚠️ A transcription, not a specification. An assertion on an exact time
 /// string is an assertion about this file; assert what surrounds the format.

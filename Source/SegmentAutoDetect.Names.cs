@@ -7,11 +7,10 @@ namespace Celeste.Mod.SpeedrunSheet;
 // needs Celeste types) so the tests can check them against the row table.
 public static partial class SegmentAutoDetect {
     // (scope, game checkpoint) -> the virtual checkpoint the sheet inserts
-    // after it: the game's one "Heart of the Mountain" is two segments on the
-    // sheet. The second half exists only here and in SheetRows, anchored by its
-    // StartRoomOverrides room, which both halves read. Only a virtual
-    // checkpoint closing its chapter is supported: nothing resolves the end
-    // room of one followed by a real checkpoint
+    // after it: the game's "Heart of the Mountain" is two segments on the
+    // sheet. The second half exists only here, in SheetRows and in
+    // StartRoomOverrides. Only one closing its chapter is supported: nothing
+    // resolves the end room of one followed by a real checkpoint
     internal static readonly Dictionary<(string Scope, string GameName), string> SplitCheckpoints = new() {
         [("8a", "Heart of the Mountain")] = "HotM Horizontal",
     };
@@ -26,7 +25,7 @@ public static partial class SegmentAutoDetect {
         // neither a-00-intro nor the landing in a-00 is timed: the sheet adds
         // them (UntimedSegmentHead)
         [("7a", "Start")] = "a-00",
-        // 7B starts like 7A (owner)
+        // 7B starts like 7A
         [("7b", "Start")] = "a-00",
         // HotM Horizontal has no checkpoint of its own: d-08 is where the chase
         // to the right begins
@@ -34,10 +33,9 @@ public static partial class SegmentAutoDetect {
     };
 
     // (scope, game checkpoint) -> the sheet's own constant for the head of a
-    // segment srs does not time, added to the reading so the tier is read off
-    // the number the thresholds describe. 7A from a-00, after the intro room
-    // and the landing; the Prologue as file time, which counts the 61 frames
-    // of the intro before its savestate
+    // segment srs does not time, added to the reading. 7A is timed from a-00,
+    // after the intro room and the landing; the Prologue as file time, which
+    // counts the 61 frames of the intro before its savestate
     internal static readonly Dictionary<(string Scope, string GameName), TimeSpan> UntimedSegmentHead = new() {
         [("7a", "Start")] = new TimeSpan(0, 0, 0, 5, 508),
         [("7b", "Start")] = new TimeSpan(0, 0, 0, 5, 508),
@@ -60,7 +58,7 @@ public static partial class SegmentAutoDetect {
     ];
 
     // (scope, game checkpoint) of the segments valid from their start point,
-    // beyond every chapter's "Start": the segments after a wake-up (owner)
+    // beyond every chapter's "Start": the segments after a wake-up
     internal static readonly HashSet<(string Scope, string GameName)> CurrentRoomStarts = [
         ("2a", "Awake"),
         ("5a", "Unravelling"),
@@ -68,10 +66,9 @@ public static partial class SegmentAutoDetect {
     ];
 
     // (scope, game checkpoint) -> the room a segment's first room must be
-    // entered from for it to open, and for the one before to close with a
-    // time. Every Next Room segment and every segment after a wake-up has one;
-    // a chapter's Start and 7A's start have none. A room reached by a cutscene
-    // is entered from the room the cutscene starts in
+    // entered from to open it, and to close the one before with a time. Every
+    // Next Room and after-wake-up segment has one; a chapter's Start and 7A's
+    // have none. A cutscene's room is entered from where the cutscene starts
     internal static readonly Dictionary<(string Scope, string GameName), string> EntryRooms = new() {
         [("1a", "Crossing")] = "5",
         [("1a", "Chasm")] = "9",
@@ -83,7 +80,7 @@ public static partial class SegmentAutoDetect {
         [("4a", "Shrine")] = "a-09",
         [("4a", "Old Trail")] = "b-08",
         // d-00 is also entered from c-10, the berry room beside c-08: only the
-        // berry routes, which are not imported, go that way (owner)
+        // berry routes, which are not imported, go that way
         [("4a", "Cliff Face")] = "c-08",
         [("1b", "Contraption")] = "03",
         [("1b", "Scrap Pit")] = "07",
@@ -98,7 +95,7 @@ public static partial class SegmentAutoDetect {
         [("5a", "Depths")] = "a-13",
         [("5a", "Unravelling")] = "void",
         [("5a", "Search")] = "c-13",
-        // e-00 is also reached up the shaft of d-01, which no route takes (owner)
+        // e-00 is also reached up the shaft of d-01, which no route takes
         [("5a", "Rescue")] = "d-20",
         [("5b", "Central Chamber")] = "a-02",
         [("5b", "Through the Mirror")] = "b-09",
@@ -143,10 +140,9 @@ public static partial class SegmentAutoDetect {
     };
 
     // (scope, game checkpoint) -> the spawn a wake-up puts the player on, in
-    // world coordinates: the only spawn a Current Room start that is not a
-    // "Start" opens from. Not the default spawn: in 5A's and 5B's c-00 that is
-    // the bottom one, and the wake-up uses the top one. One missing here never
-    // opens on a restart
+    // world coordinates: the only one such a start opens from. Not the default
+    // spawn: in 5A's and 5B's c-00 that is the bottom one, and the wake-up uses
+    // the top one. A row missing here never opens on a restart
     internal static readonly Dictionary<(string Scope, string GameName), (int X, int Y)> WakeUpSpawns = new() {
         [("2a", "Awake")] = (144, 1880),
         [("5a", "Unravelling")] = (-832, 1688),

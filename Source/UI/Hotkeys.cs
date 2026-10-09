@@ -31,8 +31,8 @@ public static class Hotkeys {
 
     public static void Load() {
         // Keys.None out of what is already on disk: FNA reports it held for
-        // every key absent from its SDL -> XNA table, and Everest's own rebind
-        // screen, where these used to be set, records it unfiltered
+        // every key absent from its SDL -> XNA table, and a settings file
+        // written through Everest's own rebind screen holds it unfiltered
         Bindable.Sanitize(SrsModule.Settings);
 
         // hook order: see SrsModule.Load
@@ -44,11 +44,9 @@ public static class Hotkeys {
     }
 
     /// Whether the hotkey fired this frame. While the level is paused only the
-    /// export screen's own hotkey answers, and only behind the pause that
-    /// screen holds, or the combo that opened it could not close it. The other
-    /// two act on the rows above the timer, which the open screen hides anyway.
-    /// Polled through the pause rather than skipped, so a combo held across it
-    /// does not fire when it ends.
+    /// export screen's hotkey answers, and only behind that screen's own pause,
+    /// so that it can close it. Polled through the pause, not skipped: a combo
+    /// held across it must not fire when it ends.
     internal static bool Pressed(Keybind<SrsSettings> keybind) =>
         Set.Pressed(keybind)
         && (!levelPaused || (keybind == OpenExportMenu && ExportMenu.HoldsThePause));

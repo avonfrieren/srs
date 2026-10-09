@@ -6,10 +6,9 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public bool Enabled { get; set; } = true;
 
-    // the Standards tabs srs reads (StandardsTabs), as full edit URLs,
-    // editable only in the settings file. Stored values: see SheetUrls for
-    // why SrsModule migrates them. One property per tab, and the existing
-    // names stay: a stored value beats a default
+    // the Standards tabs srs reads (StandardsTabs), as full edit URLs, editable
+    // only in the settings file. The property names stay: a stored value beats
+    // a default, which is why SrsModule migrates them (see SheetUrls)
     [SettingIgnore]
     public string ASidesUrl { get; set; } = StandardsTabs.DefaultUrl(StandardsTab.ASides);
 

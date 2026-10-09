@@ -76,9 +76,8 @@ public static class ExportProtocol {
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    /// A deployed Apps Script Web App endpoint. The /dev URL of the same
-    /// script answers a signed-out client with a login page, so it is refused
-    /// here rather than accepted and left to fail at export time.
+    /// A deployed Apps Script Web App endpoint. The /dev URL of the same script
+    /// answers a signed-out client with a login page, so it is refused here.
     public static bool IsEndpointUrl(string url) {
         if (string.IsNullOrWhiteSpace(url)) {
             return false;
@@ -121,9 +120,8 @@ public static class ExportProtocol {
             return false;
         }
         // an explicit null overrides the property's default, for the list, an
-        // entry or a field alike, and the caller walks the list inside a
-        // continuation, where a throw is swallowed and leaves the screen on
-        // "Writing to the sheet..." for good
+        // entry or a field alike, and a throw in the caller's continuation
+        // would leave the screen on "Writing to the sheet..."
         response.Results = response.Results?.FindAll(r => r != null) ?? [];
         foreach (ExportResult r in response.Results) {
             r.Tab ??= "";

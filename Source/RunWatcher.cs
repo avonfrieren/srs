@@ -21,9 +21,8 @@ public static class RunWatcher {
     ];
 
     // with Speed Run Tool's "freeze after load" Off, a player load counts the
-    // frame its wipe ends on, which Session.Time does not. Only the load's own
-    // wipe counts: a TAS load starts none, and restores the one its state was
-    // saved under
+    // frame its own wipe ends on, which Session.Time does not. A TAS load
+    // starts no wipe, and restores the one its state was saved under
     private static readonly long WipeEndFrame = TimeSpan.FromMilliseconds(17).Ticks;
 
     // how the room was loaded since the last fed frame, read from LoadLevel;
@@ -160,12 +159,10 @@ public static class RunWatcher {
         restoredWipe = null;
     }
 
-    // every room load passes here. A walk-in is any intro but Respawn: a
-    // transition, or a cutscene's room change (2A's dream, the mirrors, 6A's
-    // fall, Farewell's intro). A death respawns through Level.Reload; any other
-    // Respawn is Speed Run Tool's teleport, which can stay in the room (PageDown
-    // to 7A's next summit flag). Four cutscene changes run in OnEndOfFrame,
-    // after the update hook: the next fed frame reads the kind
+    // every room load passes here; the kinds are RoomLoad's. A cutscene's room
+    // change (2A's dream, the mirrors, 6A's fall, Farewell's intro) is a
+    // walk-in. Four of them run in OnEndOfFrame, after the update hook: the
+    // next fed frame reads the kind
     private static void LevelOnLoadLevel(On.Celeste.Level.orig_LoadLevel orig, Level self,
         Player.IntroTypes playerIntro, bool isFromLoader) {
         orig(self, playerIntro, isFromLoader);
@@ -202,11 +199,9 @@ public static class RunWatcher {
     }
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
-        // switched off: nothing is fed, and the next frame fed drops what was
-        // open, since the events missed meanwhile would close it wrongly. Moved
-        // is set on every frame off, so a savestate made or loaded meanwhile
-        // opens nothing. Without Speed Run Tool's SaveLoad a load could not be
-        // seen: never fed
+        // switched off, or without Speed Run Tool's SaveLoad: nothing is fed.
+        // Moved is set on every frame off, so a savestate made or loaded
+        // meanwhile opens nothing
         if (!SrsModule.Settings.Enabled || saveLoadAction == null) {
             // cleared after orig too: a LoadLevel or a restart inside it would set them
             fedLastFrame = false;
@@ -305,10 +300,9 @@ public static class RunWatcher {
             lastStopped = stoppedBefore;
             feed = scope != null;
         } else if (load == RoomLoad.Loader) {
-            // entering a chapter, a restart, a console load, the debug map: the
-            // spawn tested is the one the player appears at (an intro starts off
-            // screen). A checkpoint entered from chapter select counts without
-            // its wake-up (owner decision)
+            // the spawn tested is the one the player appears at (an intro
+            // starts off screen). A checkpoint entered from chapter select
+            // counts without its wake-up
             attempt.Clear();
             // == and not Equals: AreaKey.Equals(object) always returns false
             if (chapterRestarted && restartedArea == session.Area) {
@@ -343,9 +337,9 @@ public static class RunWatcher {
 
         if (feed) {
             if (state == Player.StReflectionFall && lastState != Player.StReflectionFall) {
-                // 6A's watched fall is not a run of 6a Start (owner decision):
-                // disqualified, not dropped, so it still closes in Lake's start
-                // room and Lake opens there
+                // 6A's watched fall is not a run of 6a Start: disqualified, not
+                // dropped, so it still closes in Lake's start room and Lake
+                // opens there
                 tracker.Disqualify();
             }
 
@@ -373,8 +367,7 @@ public static class RunWatcher {
 
         // the player appears when control returns, when the intro jump ends
         // (1A's too), and when a restart lands with control; a load restores
-        // the last appearance. A loader, a teleport, a death and the switch
-        // back on set Moved, before an appearance of the same frame
+        // the last appearance
         bool appeared = restarted
             ? control
             : watched && ((!lastControl && control) || (lastState == Player.StIntroJump && !launching));
@@ -404,11 +397,10 @@ public static class RunWatcher {
         fedLastFrame = true;
     }
 
-    // owner decision: a savestate further into the room does not play the
-    // room. The point must be on a start spawn, or at the measured offset from
-    // one. A "Start" row's are the room's default spawn (the game's own,
-    // Level.DefaultSpawnPoint) and the spawn beside each checkpoint; a wake-up
-    // row's is its WakeUpSpawns entry
+    // a savestate further into the room does not play it: the point must be on
+    // a start spawn, or at its SpawnOffsets offset. A "Start" row's are the
+    // room's default spawn (the game's own, Level.DefaultSpawnPoint) and the
+    // one beside each checkpoint
     private static Func<SegmentRule, bool> AtStartSpawn(LevelData data, Vector2? point) =>
         rule => point is { } at && AtStartSpawn(data, at, rule);
 

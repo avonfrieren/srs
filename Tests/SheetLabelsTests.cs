@@ -96,9 +96,9 @@ public class SheetLabelsTests {
         AssertRow("6a/b", "Hollows Tape RTM", "A Sides", "6a", "Hollows \U0001F4FC RTM");
     }
 
-    // the three rows the sheet renamed on 2026-08-28. They were the only places
-    // srs's own name and the sheet's label diverged, and they are identities now:
-    // an edit putting one of the old spellings back would export nowhere
+    // three rows the sheet has spelled differently before. srs's name and the
+    // sheet's label are the same there: an edit putting an old spelling back
+    // would export nowhere
     [Fact]
     public void RenamedRowsKeepTheSheetsSpelling() {
         AssertRow("5a/b", "Unravelling", "A Sides", "5a", "Unravelling");

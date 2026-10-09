@@ -29,10 +29,9 @@ internal readonly record struct EndState(int Dashes, IReadOnlyCollection<string>
 /// A closed segment whose requirements the run met, with its time.
 internal readonly record struct SegmentRecord(SegmentRule Rule, long Ticks);
 
-/// Every segment that can be running, at once. RunWatcher feeds it chapter-time
-/// readings and the game's events; each event returns what it closed.
-/// A reading is chapter time (`Session.Time` ticks), so only differences
-/// between two of them are times.
+/// Every segment that can be running, at once. RunWatcher feeds it the game's
+/// events with chapter-time readings (`Session.Time` ticks: only a difference
+/// of two is a time); each event returns what it closed.
 internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap rooms) {
     // Speed Run Tool's format prints minutes and seconds, never hours: a time
     // this long would be shown and exported an hour short
@@ -74,10 +73,9 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         pendingRoom = null;
     }
 
-    /// Everything open stays open but can no longer be recorded, and starts
-    /// waiting for control are forgotten. For a stretch the run did not play,
-    /// like 6A's watched fall: it must not be timed, yet the segment after it
-    /// must still open, which needs the disqualified one to close on its end.
+    /// Nothing open can be recorded any more, but it stays open, so that the
+    /// segment after it still opens; starts waiting for control are forgotten.
+    /// For a stretch the run did not play (6A's watched fall).
     public void Disqualify() {
         foreach (OpenSegment segment in open) {
             segment.Disqualified = true;
@@ -109,11 +107,10 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
 
     /// The player walked into this room from another. Closes first, then opens:
     /// the segment ending here is never the one starting here. Only an entry
-    /// from the entry room of a segment starting here counts: it closes the
-    /// segment ending here with a time and opens the one starting here. Any
-    /// other way in may be a shortcut, and drops the segment ending here
-    /// unrecorded. A Restart row whose segment ends here is dropped on any way
-    /// in: a restart after it is not a run of the row.
+    /// from the entry room of the segment starting here closes with a time and
+    /// opens; any other way in may be a shortcut, and drops the segment ending
+    /// here unrecorded. A Restart row ending here is dropped on any way in: a
+    /// restart after it is not a run of the row.
     public List<SegmentRecord> RoomEntered(string scope, string from, string room, long reading, bool control,
         bool launching, EndState end) {
         bool entry = IsEntry(scope, from, room);
@@ -291,7 +288,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         return ticks < Longest ? ticks : null;
     }
 
-    // a berry still following at the end counts (owner decision)
+    // a berry still following at the end counts
     private bool HasEveryBerry(OpenSegment segment, EndState end) {
         foreach (string berry in Rooms.BerriesOf(segment.Rule)) {
             if (!segment.Berries.Contains(berry) && !Contains(end.FollowingBerries, berry)) {

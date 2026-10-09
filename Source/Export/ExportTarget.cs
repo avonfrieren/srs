@@ -3,12 +3,9 @@ using System.IO;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// The player's Apps Script Web App URL. It *is* the credential, the Web App
-/// has no auth of its own, so it is never logged or displayed.
-///
-/// ⚠️ Kept out of the settings file on purpose: players share
-/// modsettings-*.celeste when asking for help, and a URL in there would be
-/// handed over with it. It lives in its own file beside the standards cache.
+/// The player's Apps Script Web App URL. It *is* the credential (the Web App
+/// has no auth of its own): never logged or displayed, and ⚠️ kept in its own
+/// file, out of the settings file, which players share when asking for help.
 internal static class ExportTarget {
     private const string LogTag = "srs";
 

@@ -72,11 +72,11 @@ public class PendingUpdateTests {
         Assert.Equal("+0.000", update.DeltaText);
     }
 
-    // the sheet holds a time and this mod cannot read it. Treating that as an
-    // empty cell ticked the row and overwrote it, and a sheet whose Google
-    // locale writes a decimal comma does it on every row, every time
+    // the sheet holds a time and this mod cannot read it. Treated as an empty
+    // cell, the row would be ticked and overwritten, and a sheet whose Google
+    // locale writes a decimal comma would do it on every row, every time
     [Theory]
-    [InlineData("8,704")]   // a French locale, the case that made this a bug
+    [InlineData("8,704")]   // a French locale's decimal comma
     [InlineData("n/a")]
     [InlineData("see below")]
     // an hour or more, which Speed Run Tool's format would show an hour short

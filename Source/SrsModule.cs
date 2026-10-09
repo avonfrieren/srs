@@ -34,11 +34,10 @@ public class SrsModule : EverestModule {
             CopyPath = Path.Combine(Everest.PathSettings, "srs", "sheet-times.json"),
         });
         SheetReader.LoadCopy();
-        // Level.Update hook order matters: each later Load wraps the previous
-        // hooks, so after orig the frame runs innermost-first — Hotkeys reads
-        // the frame's input before anything consumes it, RunWatcher feeds
-        // the tracker, TierComparison computes the tier from its latest record,
-        // and ExportMenu reads its hotkey last
+        // Level.Update hook order: each Load wraps the previous ones, so after
+        // orig the frame runs in Load order. Hotkeys polls the input before
+        // anything reads it, RunWatcher feeds the tracker, TierComparison reads
+        // its latest record, ExportMenu reads its hotkey last
         Hotkeys.Load();
         RunWatcher.Load();
         TierComparison.Load();
@@ -55,12 +54,10 @@ public class SrsModule : EverestModule {
         SheetImporter.Unload();
     }
 
-    /// srs prints its times in Speed Run Tool's format, so it takes the
-    /// formatter rather than copying it. By reflection, the only way in:
-    /// RoomTimerData.FormatTime is public, its class is not, the ModInterop
-    /// does not export it, and a Publicizer is ruled out.
-    ///
-    /// isPbTime false: true returns "" for a zero, Speed Run Tool's absent PB.
+    /// Takes Speed Run Tool's formatter rather than copying it. By reflection,
+    /// the only way in: RoomTimerData.FormatTime is public, its class is not,
+    /// the ModInterop does not export it, and srs uses no Publicizer. isPbTime
+    /// false: true returns "" for a zero, Speed Run Tool's absent PB.
     private static void AdoptSpeedrunToolsTimeFormat() {
         try {
             Assembly assembly = Everest.Modules
@@ -79,9 +76,8 @@ public class SrsModule : EverestModule {
             Logger.Log(LogLevel.Error, "srs", "could not reach SpeedrunTool's time format: " + e);
         }
 
-        // fatal on purpose: a second formatter that agrees today drifts in
-        // silence, and writes a time into the player's sheet that no longer
-        // matches the timer. Failing loudly costs a release instead
+        // fatal on purpose: a second formatter would drift in silence and write
+        // a time into the player's sheet that no longer matches the timer
         throw new InvalidOperationException(
             "SpeedrunTool's RoomTimerData.FormatTime could not be found. It is where srs takes its"
             + " time format from, and srs keeps no copy. This needs a srs update.");
@@ -131,10 +127,9 @@ public class SrsModule : EverestModule {
         }
     }
 
-    // only the header comes from base: every entry of the section is built by
-    // hand in ModMenu, since the master switch has to be able to hide them all.
-    // The header must still come first — entries added before it would land in
-    // the previous mod's section
+    // only the header comes from base: ModMenu builds every entry by hand, so
+    // the master switch can hide them all. The header must come first: entries
+    // added before it land in the previous mod's section
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance snapshot) {
         CreateModMenuSectionHeader(menu, inGame, snapshot);
         ModMenu.CreateMenu(menu, inGame);

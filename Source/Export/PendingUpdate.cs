@@ -37,12 +37,10 @@ public sealed class PendingUpdate {
         return (unreadable, unreadable || parsed == 0 ? null : parsed);
     }
 
-    /// remoteCell is the cell as the script read it, never a parsed time.
-    ///
-    /// ⚠️ Empty and unreadable must not be confused: an unreadable cell counted
-    /// as empty ticks the row and overwrites it, which a Google locale writing
-    /// 8,704 does on every row. 0:00.000 counts as empty, the sheet's own idiom
-    /// for "no time yet".
+    /// remoteCell is the cell as the script read it, never a parsed time. ⚠️ An
+    /// unreadable cell is not an empty one: counted as empty it ticks the row
+    /// and overwrites it, which a Google locale writing 8,704 does on every
+    /// row. 0:00.000 counts as empty, the sheet's own idiom for "no time yet".
     public static PendingUpdate Create(SheetRowRef row, string label, long localTicks, string remoteCell,
         string band = "", bool duplicate = false) {
         string localText = TimeFormat.FromTicks(localTicks);

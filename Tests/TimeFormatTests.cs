@@ -3,10 +3,9 @@ using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-// The time format itself is no longer pinned here: SpeedrunTool's own formatter
-// is the authority, reached by reflection at load, and this project cannot
-// reference it. What TimeFormat still owns is the delta, which SpeedrunTool has
-// no format for.
+// The time format is not pinned here: SpeedrunTool's own formatter is the
+// authority, and this project cannot reference it. TimeFormat owns only the
+// delta.
 public class TimeFormatTests {
     [Fact]
     public void DeltaIsSignedSecondsEvenPastAMinute() {

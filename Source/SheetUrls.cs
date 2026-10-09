@@ -2,21 +2,16 @@ using System.Text.RegularExpressions;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// Where the reference workbook lives, and how to move a player who is still
-// pointed at the previous one. Game-free so the migration is testable.
-//
-// The tab URLs are ordinary settings: [SettingIgnore] hides them from the
-// menu, it does not stop them being serialized, and a stored value always beats
-// a new default. Repointing the constants alone would move nobody who has ever
-// saved settings — which is everybody.
+// Where the reference workbook lives, and how to move a player still pointed at
+// the previous one. Game-free, so tested. [SettingIgnore] does not stop the tab
+// URLs being serialized, and a stored value beats a new default: repointing the
+// constants alone moves nobody who has ever saved settings.
 public static class SheetUrls {
     // the reference workbook srs reads
     public const string ReferenceId = "1Gjr0t5Ncl30SnD34HYvdihVZToMMau3L2mw-b6XWSDY";
 
-    // its predecessor, frozen 2026-08-28. It still answers, which is exactly
-    // what makes it worth recognising: a player left on it keeps working and
-    // stops seeing every later retiming. A value to migrate away from, never a
-    // default
+    // its frozen predecessor, which still answers: a player left on it would
+    // miss every later retiming. To migrate away from, never a default
     private const string FrozenId = "18iSckSLnGQw13Ql_mpMLSVRbJKllp0lWZI6U0gP8x0Y";
 
     // StandardsTabs.DefaultUrl builds the settings' defaults from this, so a
@@ -24,12 +19,10 @@ public static class SheetUrls {
     public const string EditUrlPrefix =
         "https://docs.google.com/spreadsheets/d/" + ReferenceId + "/edit?gid=";
 
-    /// Substitutes the frozen spreadsheet id, and nothing else, in a stored URL.
-    /// Returns null when there is nothing to do, so the caller knows whether to
-    /// save. The reference is a Drive copy of the frozen workbook and a Drive
-    /// copy preserves sheetIds: every gid still names the same tab, so replacing
-    /// the id alone keeps a gid a player changed on purpose. A URL naming any
-    /// other workbook is left untouched.
+    /// Substitutes the frozen spreadsheet id, and nothing else, in a stored
+    /// URL; null when there is nothing to do. The reference is a Drive copy of
+    /// the frozen workbook, which preserves sheetIds, so a gid a player changed
+    /// still names the same tab. Any other workbook's URL is left untouched.
     public static string Migrate(string url) {
         if (string.IsNullOrEmpty(url)) {
             return null;

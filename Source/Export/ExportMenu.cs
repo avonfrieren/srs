@@ -74,9 +74,8 @@ internal sealed class UpdateRow : TextMenu.Item {
     };
 }
 
-/// The column titles, over the chapter they belong to. TextMenu moves the whole
-/// menu when it scrolls, so a single header at the top goes with it; repeating
-/// it is what a grouped spreadsheet does.
+/// The column titles, repeated over each chapter: TextMenu scrolls the whole
+/// menu, so a single header at the top would scroll away.
 internal sealed class GroupRow(ExportColumns columns, string label) : TextMenu.Item {
     public override float LeftWidth() => columns.TotalWidth;
     public override float Height() => ExportColumns.RowHeight;
@@ -201,10 +200,8 @@ internal sealed class ExportColumns {
 }
 
 /// The review screen: which of this session's times to push to the sheet, with
-/// nothing written before it is confirmed. Opened and closed by the same hotkey;
-/// it pauses the level, and Hotkeys reads HoldsThePause to keep that one combo
-/// alive behind the pause it caused. Cancel, Back/ESC and pause close it too.
-/// SheetReader owns every read; this file only draws.
+/// nothing written before it is confirmed. It pauses the level, and the hotkey
+/// that opens it closes it. SheetReader owns every read; this file only draws.
 ///
 /// ⚠️ Hook order: see SrsModule.Load.
 internal static class ExportMenu {
@@ -265,10 +262,10 @@ internal static class ExportMenu {
     private static void OnLevelUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         orig(self);
 
-        // a level replaced under an open screen would leave `menu` set and Open()
-        // refusing for the session. A console load reaches it. Speed Run Tool
-        // 3.27.17 refuses its own loads while paused, which is its guarantee and
-        // not ours (everest.yaml pins only a minimum), and Open refuses under a wipe
+        // a level replaced under an open screen would leave `menu` set and
+        // Open() refusing for the session: a console load does it. Speed Run
+        // Tool 3.27.17 refuses its own loads while paused, which everest.yaml's
+        // minimum does not pin
         if (menu != null && menu.Scene != self) {
             Logger.Log(LogLevel.Warn, LogTag, "the level was replaced under the export screen; closed it");
             Close();
@@ -447,21 +444,18 @@ internal static class ExportMenu {
         }
     }
 
-    // a table needs an answer, fresh or saved, and none while an export is out
-    // or its outcome is unknown: rows it wrote would be offered again. IsWriting
-    // is read first: EndWrite changes both in one locked section, and this order
-    // leaves no frame where both read false mid-record
+    // no export while one is out or its outcome is unknown: rows it wrote would
+    // be offered again. IsWriting is read first: EndWrite changes both in one
+    // locked section, and this order leaves no frame where both read false
     private static bool CanExport() =>
         RemoteBests.IsResolved && !SheetReader.IsWriting && !SheetReader.UnansweredWrite;
 
     private static string ExportLabel(List<PendingUpdate> updates) =>
         $"{Dialog.Clean("SRS_EXPORT_CONFIRM")} ({updates.Count(u => u.Selected && !u.Duplicate)})";
 
-    /// The two lines under the title, recomputed every frame: they follow a read
-    /// that fails and an age that grows. Line one says what is held, line two
-    /// what the read did, and is hidden (no height) when empty. Both are cut to
-    /// maxWidth: a line wider than the table widens the menu and shifts the
-    /// table off its place.
+    /// The two lines under the title, recomputed every frame: what is held,
+    /// then what the read did (hidden, with no height, when empty). Both are
+    /// cut to maxWidth: a wider line widens the menu and shifts the table.
     private static void AddStatus(TextMenu newMenu, float maxWidth) {
         (string one, string two) = StatusLines();
         TextMenu.SubHeader first = new(FitOnScreen(one, maxWidth));
@@ -524,9 +518,7 @@ internal static class ExportMenu {
                 Chapter = u.Row.Chapter,
                 Cp = u.Row.Cp,
                 Time = TimeFormat.FromTicks(u.LocalTicks),
-                // the raw cell, so the script compares what the sheet displays
-                // against itself: a reformat of it would differ on every row
-                // the sheet writes short ("1:36.9")
+                // the raw cell, never a reformat: see PendingUpdate.RemoteCell
                 Expect = u.RemoteCell,
             }).ToList(),
         };
@@ -558,7 +550,7 @@ internal static class ExportMenu {
                             + (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
                     }
 
-                    // no batch had been timed when the timeout was set: this is the measurement
+                    // the measurement the timeout is checked against
                     Logger.Log(LogLevel.Info, LogTag,
                         $"the script took {response.Ms?.ToString() ?? "?"} ms for {request.Updates.Count} update(s)");
                     lines = ExportTable.SummaryLines(response.Results);
@@ -592,8 +584,7 @@ internal static class ExportMenu {
     }
 
     /// Up while nothing is held, in place of the table: rows built before the
-    /// sheet answers compare against values that have not arrived and pre-tick
-    /// as improvements, which reads as a finished table and is not one.
+    /// sheet answers would pre-tick as improvements.
     private static void ShowLoading(Level level, int accepts) {
         builtOnAccepts = accepts;
         TextMenu newMenu = new();
