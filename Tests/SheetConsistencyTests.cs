@@ -186,6 +186,7 @@ public class SheetConsistencyTests {
         Assert.Equal(SheetRows.All.Length, Fixtures.Parsed.SegmentCount);
         Assert.Equal(
             ["Prologue", "1a", "2a", "3a", "4a", "5a/b", "6a/b", "7a", "8a",
+             "1b", "2b", "3b", "4b", "7b", "8b",
              "1c", "2c", "3c", "4c", "5c", "6c", "7c", "8c", "Farewell"],
             Fixtures.Parsed.CheckpointBlock.Segments.Select(segment => segment.Chapter).Distinct());
     }
@@ -262,12 +263,9 @@ public class SheetConsistencyTests {
     }
 
     [Theory]
-    [InlineData("1b")]
-    [InlineData("7b")]
-    [InlineData("8b")]
     [InlineData("Chapter Times")]
     [InlineData("Filetime Buffer")]
-    public void LeavesTheNotYetSupportedChaptersOut(string chapter) {
+    public void LeavesTheSheetsOtherBlocksOut(string chapter) {
         Assert.DoesNotContain(Fixtures.Imported, segment => segment.Chapter.Contains(chapter));
     }
 

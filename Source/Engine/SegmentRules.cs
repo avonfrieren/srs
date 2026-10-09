@@ -25,7 +25,8 @@ internal static class SegmentRules {
             Collectibles marked = MarkersOf(row.Label);
             bool chapterRun = row.Tab == StandardsTab.CSides
                               || row.SheetChapter.EndsWith(" IL", StringComparison.Ordinal)
-                              || row.Label.EndsWith(" IL", StringComparison.Ordinal);
+                              || row.Label.EndsWith(" IL", StringComparison.Ordinal)
+                              || (row.Tab == StandardsTab.BSides && row.Label.EndsWith(" Clear", StringComparison.Ordinal));
             EndKind end = EndOf(row.Label, marked);
             // an IL's "RTM" keeps its collect
             if (chapterRun && end == EndKind.NextStart) {
@@ -53,8 +54,8 @@ internal static class SegmentRules {
 
     // "RTM" and "RC" are the only suffixes that end a run before its segment
     // does: RTM at the heart or cassette it marks, RC at Restart Chapter, where
-    // what it marks is a requirement. On a checkpoint row, "Clear" means collect
-    // and keep going
+    // what it marks is a requirement. On an A-side checkpoint row, "Clear" means
+    // collect and keep going
     private static EndKind EndOf(string label, Collectibles marked) {
         string name = label.TrimEnd();
         if (name.EndsWith("RC", StringComparison.Ordinal)) {

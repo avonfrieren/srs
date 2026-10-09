@@ -26,6 +26,8 @@ public static partial class SegmentAutoDetect {
         // neither a-00-intro nor the landing in a-00 is timed: the sheet adds
         // them (UntimedSegmentHead)
         [("7a", "Start")] = "a-00",
+        // 7B starts like 7A (owner)
+        [("7b", "Start")] = "a-00",
         // HotM Horizontal has no checkpoint of its own: d-08 is where the chase
         // to the right begins
         [("8a", "HotM Horizontal")] = "d-08",
@@ -38,6 +40,7 @@ public static partial class SegmentAutoDetect {
     // of the intro before its savestate
     internal static readonly Dictionary<(string Scope, string GameName), TimeSpan> UntimedSegmentHead = new() {
         [("7a", "Start")] = new TimeSpan(0, 0, 0, 5, 508),
+        [("7b", "Start")] = new TimeSpan(0, 0, 0, 5, 508),
         [("Prologue", "Start")] = new TimeSpan(0, 0, 0, 1, 37),
     };
 
@@ -53,6 +56,7 @@ public static partial class SegmentAutoDetect {
     // opening on the entry would count it twice
     internal static readonly HashSet<(string Scope, string GameName)> AfterLaunchStarts = [
         ("7a", "Start"),
+        ("7b", "Start"),
     ];
 
     // (scope, game checkpoint) of the segments valid from their start point,
@@ -81,6 +85,16 @@ public static partial class SegmentAutoDetect {
         // d-00 is also entered from c-10, the berry room beside c-08: only the
         // berry routes, which are not imported, go that way (owner)
         [("4a", "Cliff Face")] = "c-08",
+        [("1b", "Contraption")] = "03",
+        [("1b", "Scrap Pit")] = "07",
+        [("2b", "Combination Lock")] = "02",
+        [("2b", "Dream Altar")] = "07",
+        [("3b", "Staff Quarters")] = "05",
+        [("3b", "Library")] = "10",
+        [("3b", "Rooftop")] = "12",
+        [("4b", "Stepping Stones")] = "a-04",
+        [("4b", "Gusty Canyon")] = "b-04",
+        [("4b", "Eye of the Storm")] = "c-04",
         [("5a", "Depths")] = "a-13",
         [("5a", "Unravelling")] = "void",
         [("5a", "Search")] = "c-13",
@@ -105,10 +119,19 @@ public static partial class SegmentAutoDetect {
         [("7a", "2000 M")] = "d-11",
         [("7a", "2500 M")] = "e-13",
         [("7a", "3000 M")] = "f-11",
+        [("7b", "500 M")] = "a-03",
+        [("7b", "1000 M")] = "b-03",
+        [("7b", "1500 M")] = "c-03",
+        [("7b", "2000 M")] = "d-03",
+        [("7b", "2500 M")] = "e-03",
+        [("7b", "3000 M")] = "f-03",
         [("8a", "Into the Core")] = "02",
         [("8a", "Hot and Cold")] = "b-07",
         [("8a", "Heart of the Mountain")] = "c-04",
         [("8a", "HotM Horizontal")] = "d-07",
+        [("8b", "Into the Core")] = "01",
+        [("8b", "Burning or Freezing")] = "a-05",
+        [("8b", "Heartbeat")] = "b-05",
         [("Farewell", "Singular")] = "intro-03-space",
         [("Farewell", "Power Source")] = "b-07",
         [("Farewell", "Remembered")] = "e-00y",
