@@ -9,9 +9,8 @@ using Monocle;
 namespace Celeste.Mod.SpeedrunSheet;
 
 /// Talks to the player's Apps Script Web App. Never runs on the game thread and
-/// never throws: failures come back as a message in the second tuple slot.
-/// Messages go through ExportProtocol.Localize, which is safe before the game's
-/// dialog has loaded; the launch refresh can be answered that early.
+/// never throws: a failure comes back as a message in the second tuple slot,
+/// through ExportProtocol.Localize, which is safe before Dialog has loaded.
 internal static class ExportClient {
     private const string LogTag = "srs";
 

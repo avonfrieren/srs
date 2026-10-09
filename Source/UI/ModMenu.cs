@@ -41,11 +41,10 @@ internal static class ModMenu {
                     return;
                 }
 
-                // Unpause tears the pause menu down properly — closing coroutine,
-                // settings save, unpause sound. Opening on the next frame lets it
-                // finish, and leaves ExportMenu recording an unpaused level, so
-                // closing the export screen returns to the game rather than to a
-                // pause with no menu in it
+                // Unpause tears the pause menu down (coroutine, settings save,
+                // sound). Opening after it lets that finish, and ExportMenu
+                // records an unpaused level: closing the export screen returns
+                // to the game, not to a pause with no menu
                 level.Unpause();
                 Engine.Scene.OnEndOfFrame += () => ExportMenu.Open(level);
             });
@@ -82,7 +81,7 @@ internal static class ModMenu {
     }
 
     // the master switch hides everything, but turning the mod back on must not
-    // reveal entries their own owner decided to keep hidden
+    // reveal the entries ExportUrlMenu keeps hidden until a URL is set
     private static void ShowSubOptions(List<TextMenu.Item> subOptions, List<TextMenu.Item> urlDependent, bool on) {
         SetVisible(subOptions, on);
         SetVisible(urlDependent, on && ExportUrlMenu.HasUrl);

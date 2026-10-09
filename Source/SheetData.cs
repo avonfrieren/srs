@@ -12,11 +12,9 @@ public class SheetData {
     /// merged under one header; null when nothing parsed.
     public SheetBlock CheckpointBlock { get; private set; }
 
-    /// The SheetRows keys none of the parsed tabs had. A row the
-    /// sheet renamed misses the allowlist without a sound and drops out of the
-    /// tracked rows and the tier; this is how it gets noticed.
-    /// Covers only what was given: the rows of a tab left out of the parse
-    /// are all here.
+    /// The SheetRows keys none of the parsed tabs had: how a row the sheet
+    /// renamed gets noticed. Covers only what was given: the rows of a tab left
+    /// out of the parse are all here.
     public readonly List<(string Chapter, string Name)> MissingRows = [];
 
     public int SegmentCount => CheckpointBlock?.Segments.Count ?? 0;
@@ -59,11 +57,10 @@ public class SheetData {
     private static bool Ranks(string column, TimeSpan? threshold) =>
         column != "WR" && threshold > TimeSpan.Zero;
 
-    // never throws on malformed content: unparseable cells become null times,
-    // and rows outside any block or off the SheetRows allowlist are skipped.
-    // The tabs merge into one block in StandardsTabs' order, under the header
-    // of the first tab that has one. A tab missing from csvByTab, or blank, is
-    // skipped
+    // never throws on malformed content: an unparseable cell is a null time; a
+    // row outside any block or off the SheetRows allowlist is skipped, and so
+    // is a tab missing or blank. The tabs merge into one block in
+    // StandardsTabs' order, under the header of the first tab that has one
     public static SheetData Parse(IReadOnlyDictionary<StandardsTab, string> csvByTab) {
         SheetData data = new();
         SheetBlock merged = null;
@@ -113,8 +110,7 @@ public class SheetData {
 
     // the raw pass: the CSV's blocks of segments, one per header row, under the
     // sheet's own names (internal for the allowlist tests). implicitChapter is
-    // the Farewell tab's, which has no Chapter column: each label is a
-    // row of that one chapter
+    // for the Farewell tab, which has no Chapter column
     internal static List<SheetBlock> ParseBlocks(string csvText, string implicitChapter = null) {
         List<SheetBlock> blocks = [];
         SheetBlock currentBlock = null;
@@ -244,10 +240,9 @@ public class SheetBlock(int tierStart, bool hasCheckpoints) {
     public readonly List<string> Columns = [];
     public readonly List<SheetSegment> Segments = [];
 
-    /// The segment of that chapter and name ("Start" is in nearly every
-    /// chapter), or null. Callers address segments by name, never by reference:
-    /// SheetImporter.Data is reassigned from a worker, and the new instances are
-    /// not equal to the old ones.
+    /// The segment of that chapter and name, or null. Callers address segments
+    /// by name, never by reference: SheetImporter.Data is reassigned from a
+    /// worker, and the new instances are not equal to the old ones.
     public SheetSegment Find(string chapter, string name) {
         foreach (SheetSegment segment in Segments) {
             if (segment.Chapter == chapter && segment.Name == name) {

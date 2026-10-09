@@ -12,11 +12,9 @@ internal readonly record struct SheetRow(
     string Scope, string Chapter, string Name, string Anchor,
     SheetRowRef? Target = null);
 
-/// The rows srs imports. A hardcoded allowlist with no name normalisation
-/// (owner decision): a row the sheet renames is reported by SheetData.MissingRows.
-/// The two documents are described by one table, but they stay two documents,
-/// corrected on their own dates: a difference between them is a Target
-/// override, never an edit of the label.
+/// The rows srs imports: a hardcoded allowlist with no name normalisation, so a
+/// row the sheet renames is reported by SheetData.MissingRows. A difference
+/// between the two documents is a Target override, never an edit of the label.
 internal static class SheetRows {
     private const StandardsTab A = StandardsTab.ASides;
     private const StandardsTab B = StandardsTab.BSides;

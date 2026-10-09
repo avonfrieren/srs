@@ -164,10 +164,9 @@ public static class ExportUrlMenu {
         return new List<TextMenu.Item> { forgetButton };
     }
 
-    /// Reads the sheet through the one reader and says what came back. The
-    /// wrong deployment and an unauthorised one both answer 200 with something
-    /// that is not ours, so the check is that it parses rather than that it
-    /// responded.
+    /// Reads the sheet through the one reader and says what came back. A wrong
+    /// or unauthorised deployment also answers 200, so the check is that the
+    /// answer parses.
     private static void BeginCheck() {
         int fetch = ++generation;
         checking = true;
@@ -218,8 +217,7 @@ public static class ExportUrlMenu {
             ? "SRS_EXPORT_URL_FROM_CLIPBOARD"
             : "SRS_EXPORT_URL_REPLACE_FROM_CLIPBOARD");
 
-    // never includes the URL itself — just enough to reassure the player
-    // something is configured, and when
+    // never includes the URL itself: only that one is set, and when
     private static string DetailLine(SrsSettings settings) =>
         $"{Dialog.Clean("SRS_EXPORT_URL_DETAIL")} {settings.ExportUrlSetOn}";
 }

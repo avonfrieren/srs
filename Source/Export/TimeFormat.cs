@@ -20,8 +20,7 @@ public static class TimeFormat {
                 "TimeFormat.Format was never set; SpeedrunTool's formatter is the only one srs has");
 
     /// A signed difference, always in seconds: "+1.250", "-73.000". Ours,
-    /// SpeedrunTool has no such format. Deltas are read against each other,
-    /// where seconds stay comparable at a glance and m:ss stops being so.
+    /// SpeedrunTool has no such format.
     public static string Delta(long ticks) {
         double seconds = TimeSpan.FromTicks(ticks).TotalSeconds;
         return (seconds < 0 ? "-" : "+")

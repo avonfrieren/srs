@@ -1,14 +1,12 @@
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// Where the player last appeared and whether they have moved since: what a
-/// savestate carries for the load rule, which opens a Current Room segment only
-/// for a player who has not moved since appearing. Positions are exact, the
+/// Where the player last appeared and whether they have moved since: a load
+/// opens a Current Room segment only for one who has not. Positions are exact,
 /// sub-pixel remainder included: a tap shorter than a pixel is a move.
 internal readonly record struct Stillness(float X, float Y, bool Moved) {
-    /// One fed frame, after the update. A disturbance (a level from the loader,
-    /// a teleport, a death, switching srs off) comes before an appearance on the
-    /// same frame, and the move check comes last. With no player (at is null)
-    /// there is no appearance and no move.
+    /// One fed frame, after the update. A disturbance (loader, teleport, death,
+    /// srs switched off) comes before an appearance on the same frame, and the
+    /// move check comes last. No player (at is null): no appearance, no move.
     public Stillness After(bool disturbed, bool appeared, (float X, float Y)? at) {
         Stillness next = disturbed ? this with { Moved = true } : this;
         if (at is not { } position) {

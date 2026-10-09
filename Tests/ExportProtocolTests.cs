@@ -22,7 +22,7 @@ public class ExportProtocolTests {
             json);
     }
 
-    // the payloads below are what the deployed script answered on 2026-08-28, plus the version v2 added
+    // the payloads below are the deployed script's own answers
     [Fact]
     public void ParsesAResponse() {
         const string json = """

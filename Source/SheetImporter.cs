@@ -25,10 +25,9 @@ public static class SheetImporter {
     private static Task<bool> running;
     private static readonly object RunningGate = new();
 
-    // the caches double as the manual-import fallback: dropping hand-exported
-    // CSVs of the tabs at these paths is equivalent to pressing the update
-    // button once. A cache missing some files still loads the others, and the
-    // rest appear on the next update
+    // the caches double as the manual import: hand-exported CSVs of the tabs
+    // dropped at these paths load like downloaded ones. A cache missing some
+    // files still loads the others
     private static string CachePathOf(StandardsTabInfo tab) =>
         Path.Combine(Everest.PathSettings, "srs", tab.CacheFile);
 

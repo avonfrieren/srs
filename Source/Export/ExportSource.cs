@@ -4,9 +4,9 @@ using System.Collections.Generic;
 namespace Celeste.Mod.SpeedrunSheet;
 
 /// Turns this session's bests into the export screen's rows, in the sheet's
-/// order. Not SpeedrunTool's PbTimes: srs never sets NumberOfRooms, so those
-/// are cut on the player's setting and describe no sheet segment. Mapped
-/// through srs's own row table, so a session with no standards still exports.
+/// order. Not SpeedrunTool's PbTimes, which are cut on the player's setting
+/// and describe no sheet segment. Mapped through srs's own row table, so a
+/// session with no standards still exports.
 internal static class ExportSource {
     public static List<PendingUpdate> Collect(IEnumerable<RunBook.Run> runs) {
         List<(int Order, PendingUpdate Update)> found = [];

@@ -16,7 +16,7 @@ internal static class Fixtures {
 
     public static SheetData Parsed { get; } = SheetData.Parse(ByTab);
 
-    /// The three tabs srs has always read, by position, for tests about them.
+    /// The A Sides, B Sides and Farewell tabs, by position, for tests about them.
     public static SheetData Parse(string aSides, string bSides, string farewell = null) =>
         SheetData.Parse(new Dictionary<StandardsTab, string> {
             [StandardsTab.ASides] = aSides,

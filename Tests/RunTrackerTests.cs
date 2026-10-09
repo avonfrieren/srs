@@ -5,10 +5,9 @@ using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-// the engine on synthetic rules: every situation the engine must handle, event by event.
-// A segment ending in a room closes with a time only on an entry from the
-// entry room of the segment starting there, so most tests give the segment
-// after the one they time
+// the engine on synthetic rules, event by event. A segment ending in a room
+// closes with a time only on an entry from the entry room of the segment
+// starting there, so most tests give the segment after the one they time
 public class RunTrackerTests {
     private sealed class Rooms : IRoomMap {
         public readonly Dictionary<string, (string Start, string End)> ByName = [];
