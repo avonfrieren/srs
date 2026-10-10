@@ -29,11 +29,8 @@ public static class TimeFormat {
              + span.ToString("\\:mm\\:ss\\.fff", CultureInfo.InvariantCulture);
     }
 
-    /// A signed difference, always in seconds: "+1.250", "-73.000". Ours,
-    /// SpeedrunTool has no such format.
-    public static string Delta(long ticks) {
-        double seconds = TimeSpan.FromTicks(ticks).TotalSeconds;
-        return (seconds < 0 ? "-" : "+")
-             + Math.Abs(seconds).ToString("0.000", CultureInfo.InvariantCulture);
-    }
+    /// A signed difference, written as a time: "+1.250", "-1:13.500",
+    /// "-1:04:47.491".
+    public static string Delta(long ticks) =>
+        (ticks < 0 ? "-" : "+") + FromTicks(Math.Abs(ticks));
 }

@@ -24,13 +24,16 @@ public class TimeFormatTests {
     }
 
     [Fact]
-    public void DeltaIsSignedSecondsEvenPastAMinute() {
-        Assert.Equal("-73.500", TimeFormat.Delta(-TimeSpan.FromSeconds(73.5).Ticks));
-        Assert.Equal("+0.499", TimeFormat.Delta(TimeSpan.FromSeconds(0.499).Ticks));
+    public void ADeltaIsATimeWithItsSign() {
+        long ticks = TimeSpan.FromSeconds(73.5).Ticks;
+
+        Assert.Equal("-" + TimeFormat.FromTicks(ticks), TimeFormat.Delta(-ticks));
+        Assert.Equal("+" + TimeFormat.FromTicks(ticks), TimeFormat.Delta(ticks));
+        Assert.Equal("+" + TimeFormat.FromTicks(0), TimeFormat.Delta(0));
     }
 
     [Fact]
-    public void DeltaKeepsThreeDecimalsAndSignsZeroPositive() {
-        Assert.Equal("+0.000", TimeFormat.Delta(0));
+    public void ADeltaOfAnHourOrMoreCarriesItsHours() {
+        Assert.Equal("-1:04:47.491", TimeFormat.Delta(-new TimeSpan(0, 1, 4, 47, 491).Ticks));
     }
 }
