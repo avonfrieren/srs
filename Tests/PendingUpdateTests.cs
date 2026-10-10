@@ -79,8 +79,6 @@ public class PendingUpdateTests {
     [InlineData("8,704")]   // a French locale's decimal comma
     [InlineData("n/a")]
     [InlineData("see below")]
-    // an hour or more, which Speed Run Tool's format would show an hour short
-    [InlineData("1:05:03")]
     public void AnUnreadableCellIsNeverAnImprovement(string cell) {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "5a", "Depths"), "5a Depths",
             Ticks(30.0), cell);
@@ -99,6 +97,19 @@ public class PendingUpdateTests {
 
         Assert.True(update.Selected);
         Assert.Equal("", update.DeltaText);
+    }
+
+    // "65:03.250" is the same hour written as the standards write theirs
+    [Theory]
+    [InlineData("1:05:03.250")]
+    [InlineData("65:03.250")]
+    public void ACellOfAnHourOrMoreIsCompared(string cell) {
+        var update = PendingUpdate.Create(new SheetRowRef("Farewell", "", "DTS IL"), "DTS IL",
+            Ticks(3900.0), cell);
+
+        Assert.Equal(Ticks(3903.25), update.RemoteTicks);
+        Assert.True(update.Selected);
+        Assert.Equal("1:05:00.000", update.LocalText);
     }
 
     // what the format looks like is Speed Run Tool's business and only the

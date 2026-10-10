@@ -29,11 +29,9 @@ public sealed class PendingUpdate {
     /// empty, 0:00.000 or unreadable.
     public static long? TicksOf(string remoteCell) => Read(remoteCell).Ticks;
 
-    // an hour or more is unreadable too: Speed Run Tool's format has no hours,
-    // and would show the cell an hour short
     private static (bool Unreadable, long? Ticks) Read(string remoteCell) {
         long? parsed = SheetData.TryParseTime(remoteCell)?.Ticks;
-        bool unreadable = (parsed == null && !string.IsNullOrWhiteSpace(remoteCell)) || parsed >= TimeSpan.TicksPerHour;
+        bool unreadable = (parsed == null && !string.IsNullOrWhiteSpace(remoteCell));
         return (unreadable, unreadable || parsed == 0 ? null : parsed);
     }
 
