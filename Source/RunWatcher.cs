@@ -84,6 +84,10 @@ public static class RunWatcher {
     private static bool inUpdate;
     private static long frameStart;
 
+    // the berries following the player, rebuilt on every fed frame and read
+    // inside it only
+    private static readonly List<string> following = [];
+
     /// The segments closed with a time since the attempt started, oldest
     /// first, the most specific segment of each frame then the most specific
     /// chapter run, each with its serial; empty after a load. The HUD's tier rows show the last and step back from it.
@@ -119,6 +123,8 @@ public static class RunWatcher {
         On.Celeste.Session.Restart += SessionOnRestart;
         On.Celeste.SaveData.RegisterCassette += OnRegisterCassette;
         On.Celeste.HeartGem.RegisterAsCollected += OnRegisterHeart;
+        // Hook: a berry banked, for the rows that require it
+        On.Celeste.Strawberry.OnCollect += OnBerryCollect;
 
         typeof(SaveLoadImports).ModInterop();
         saveLoadAction = SaveLoadImports.RegisterStaticTypes?.Invoke(typeof(Saved),
@@ -145,6 +151,7 @@ public static class RunWatcher {
         On.Celeste.Session.Restart -= SessionOnRestart;
         On.Celeste.SaveData.RegisterCassette -= OnRegisterCassette;
         On.Celeste.HeartGem.RegisterAsCollected -= OnRegisterHeart;
+        On.Celeste.Strawberry.OnCollect -= OnBerryCollect;
 
         if (saveLoadAction != null) {
             SaveLoadImports.Unregister?.Invoke(saveLoadAction);
@@ -257,7 +264,7 @@ public static class RunWatcher {
         bool launching = state == Player.StIntroJump;
         bool stopped = self.TimerStopped || self.Completed;
         tracker.Rooms = RoomMap.For(session);
-        EndState end = EndState.With(session.Inventory.Dashes);
+        EndState end = EndOf(session, player);
         RoomLoad load = roomLoad;
         roomLoad = RoomLoad.None;
         // a room change no LoadLevel walked into is a teleport too. Not on a
@@ -413,6 +420,10 @@ public static class RunWatcher {
         Vector2 offset = new(x, y);
         bool On(Vector2 spawn) => Near(point, spawn) || Near(point, spawn + offset);
 
+        if (rule.Setup == StartSetup.MapSpawn) {
+            return CheckpointSpawn(data) is { } spawn && On(spawn);
+        }
+
         if (rule.Anchor != "Start") {
             return SegmentAutoDetect.WakeUpSpawns.TryGetValue((rule.Scope, rule.Anchor), out (int X, int Y) wakeUp)
                    && On(new Vector2(wakeUp.X, wakeUp.Y));
@@ -431,11 +442,51 @@ public static class RunWatcher {
         return false;
     }
 
+    // where the game puts the player when the room's checkpoint is picked on
+    // the map: the spawn closest to the checkpoint's node, or to the checkpoint.
+    // The game keeps the last checkpoint of a room
+    private static Vector2? CheckpointSpawn(LevelData data) {
+        Vector2? spawn = null;
+        foreach (EntityData entity in data.Entities) {
+            if (entity.Name == "checkpoint") {
+                Vector2 at = entity.Nodes is { Length: > 0 } nodes ? nodes[0] : entity.Position;
+                spawn = data.Spawns.ClosestTo(data.Position + at);
+            }
+        }
+
+        return spawn;
+    }
+
     private static bool Near(Vector2 a, Vector2 b) => Math.Abs(a.X - b.X) <= 1f && Math.Abs(a.Y - b.Y) <= 1f;
+
+    // a berry still following when a row ends counts for it
+    private static EndState EndOf(Session session, Player player) {
+        following.Clear();
+        if (player != null) {
+            foreach (Follower follower in player.Leader.Followers) {
+                if (follower.Entity is Strawberry berry) {
+                    following.Add(berry.ID.Key);
+                }
+            }
+        }
+
+        return new EndState(session.Inventory.Dashes, following);
+    }
 
     private static void OnRegisterCassette(On.Celeste.SaveData.orig_RegisterCassette orig, SaveData self, AreaKey area) {
         orig(self, area);
         OnCollect(Collectibles.Cassette);
+    }
+
+    // a banked berry stays banked through a death; one lost while following
+    // was never fed. Goldens pass here too, and no row asks for them
+    private static void OnBerryCollect(On.Celeste.Strawberry.orig_OnCollect orig, Strawberry self) {
+        orig(self);
+        if (!SrsModule.Settings.Enabled || saveLoadAction == null || !fedLastFrame || Saved.Stamp != stamp) {
+            return;
+        }
+
+        tracker.BerryCollected(self.ID.Key);
     }
 
     private static void OnRegisterHeart(On.Celeste.HeartGem.orig_RegisterAsCollected orig, HeartGem self, Level level, string poemId) {
@@ -453,7 +504,7 @@ public static class RunWatcher {
 
         tracker.Rooms = RoomMap.For(level.Session);
         long reading = inUpdate ? frameStart : level.Session.Time;
-        Emit(level.Session, tracker.Collected(kind, reading, EndState.With(level.Session.Inventory.Dashes)));
+        Emit(level.Session, tracker.Collected(kind, reading, EndOf(level.Session, level.Tracker.GetEntity<Player>())));
     }
 
     private static void Emit(Session session, List<SegmentRecord> records) {

@@ -34,6 +34,7 @@ public class SheetConsistencyTests {
     [Fact]
     public void EveryNextRoomAndWakeUpRowHasAnEntryRoom() {
         List<string> wrong = SegmentRules.All
+            .Where(rule => rule.Setup != StartSetup.MapSpawn)
             .Where(rule => SegmentAutoDetect.EntryRooms.ContainsKey((rule.Scope, rule.Anchor))
                            != (rule.Setup == StartSetup.NextRoom
                                || SegmentAutoDetect.CurrentRoomStarts.Contains((rule.Scope, rule.Anchor))))
@@ -253,6 +254,89 @@ public class SheetConsistencyTests {
     [InlineData("SoB")]
     public void LeavesTheNotYetSupportedRowsOut(string marker) {
         Assert.DoesNotContain(Fixtures.Imported, segment => segment.Name.Contains(marker));
+    }
+
+    // a trait keyed on a name no row has never applies, and its row would be
+    // recorded without its heart or from a walk-in
+    [Fact]
+    public void EveryRowTraitNamesAnImportedRow() {
+        Assert.All(RowTraits.All.Keys, key =>
+            Assert.True(SheetRows.TryFind(key.Chapter, key.Name, out _), $"{key.Chapter}/{key.Name}"));
+    }
+
+    // the spawn is read from the checkpoint entity of the anchor's own room:
+    // a chapter's Start, or an anchor timed from another room, has none there
+    [Fact]
+    public void EveryMapSpawnRowIsAnchoredOnACheckpointsOwnRoom() {
+        Assert.All(SegmentRules.All.Where(rule => rule.Setup == StartSetup.MapSpawn), rule => {
+            Assert.NotEqual("Start", rule.Anchor);
+            Assert.DoesNotContain((rule.Scope, rule.Anchor), SegmentAutoDetect.StartRoomOverrides.Keys);
+            Assert.DoesNotContain(rule.Anchor, SegmentAutoDetect.SplitCheckpoints.Values);
+        });
+    }
+
+    [Fact]
+    public void TheBerryCliffFaceHasItsOwnEntryRoom() {
+        Assert.Equal("c-10", TestRules.Find("4a", "ARB Cliff Face").EntryRoom);
+        Assert.Null(TestRules.Find("4a", "Cliff Face").EntryRoom);
+        Assert.Null(TestRules.Find("4a", "ARB Old Trail").EntryRoom);
+        Assert.All(SegmentRules.All.Where(rule => rule.EntryRoom != null),
+            rule => Assert.Equal(StartSetup.NextRoom, rule.Setup));
+    }
+
+    // a segment ends on the entry of its own route's next row: with one way
+    // into every other start room, that changes nothing but Cliff Face
+    [Fact]
+    public void OnlyCliffFaceHasTwoWaysIn() {
+        var severalWaysIn = SegmentRules.All
+            .Where(rule => rule.Setup != StartSetup.MapSpawn)
+            .Select(rule => (rule.Scope, rule.Anchor,
+                Entry: rule.EntryRoom ?? SegmentAutoDetect.EntryRooms.GetValueOrDefault((rule.Scope, rule.Anchor))))
+            .Where(way => way.Entry != null)
+            .GroupBy(way => (way.Scope, way.Anchor))
+            .Where(group => group.Select(way => way.Entry).Distinct().Count() > 1)
+            .Select(group => group.Key)
+            .ToList();
+
+        Assert.Equal([("4a", "Cliff Face")], severalWaysIn);
+    }
+
+    // the chapter row and the checkpoint rows of one chapter cell are read apart
+    [Fact]
+    public void TheBerryTabsChapterRowIsReadBesideItsCheckpointRows() {
+        SheetBlock block = Fixtures.Parsed.CheckpointBlock;
+        int wr = block.Columns.IndexOf("WR");
+
+        SheetSegment[] rows = [
+            block.Find("2a", "ARB IL"), block.Find("2a", "ARB Start"),
+            block.Find("4a", "ARB Cliff Face (from RTM)"), block.Find("4a", "ARB Cliff Face"),
+        ];
+
+        Assert.All(rows, row => {
+            Assert.NotNull(row);
+            Assert.NotNull(row.Times[wr]);
+        });
+        Assert.Equal(4, rows.Distinct(ReferenceEqualityComparer.Instance).Count());
+        Assert.NotEqual(rows[0].Times[wr], rows[1].Times[wr]);
+    }
+
+    // the rows whose route returns to the map and the drafts stay out
+    [Theory]
+    [InlineData("to RTM")]
+    [InlineData("-2")]
+    [InlineData("2500m-1")]
+    [InlineData("raft")]
+    public void LeavesTheBerryRowsNotYetSupportedOut(string marker) {
+        Assert.DoesNotContain(Fixtures.Imported, segment => segment.Name.Contains(marker));
+    }
+
+    // the chapter rows of 1A and 5A stay out; 8A has no berry before Into the Core
+    [Fact]
+    public void LeavesTheBerryRowsWithNoBerriesOut() {
+        Assert.False(SheetRows.TryFind("1a", "ARB IL", out _));
+        Assert.False(SheetRows.TryFind("5a/b", "ARB IL", out _));
+        Assert.False(SheetRows.TryFind("5a/b", "ARB Start", out _));
+        Assert.False(SheetRows.TryFind("8a", "ARB Start", out _));
     }
 
     [Theory]

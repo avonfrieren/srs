@@ -7,7 +7,9 @@ public class SpecificityTests {
     private static SegmentRule Rule(Collectibles requires, bool berries = false, int order = 0,
         bool chapterRun = false) =>
         new("3a", "3a", $"r{order}", "Huge Mess", StartKind.Room, StartSetup.NextRoom, EndKind.NextStart,
-            Collectibles.None, requires, berries, null, 0, 0, order) { ChapterRun = chapterRun };
+            Collectibles.None, requires, null, 0, 0, order) {
+            ChapterRun = chapterRun, Berries = berries ? BerrySet.WholeChapter : null,
+        };
 
     private static int MostSpecific(params SegmentRule[] rules) => Specificity.MostSpecific(rules, chapterRun: false);
 

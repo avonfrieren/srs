@@ -26,8 +26,8 @@ public class RunTrackerTests {
         EndKind endKind = EndKind.NextStart, Collectibles endsOn = Collectibles.None, int? dashes = null,
         StartKind startKind = StartKind.Room, StartSetup setup = StartSetup.NextRoom, long head = 0, long tail = 0,
         bool berries = false, string scope = "1a", string entry = null) {
-        SegmentRule rule = new(scope, scope, name, name, startKind, setup, endKind, endsOn, requires, berries, dashes,
-            head, tail, rules.Count);
+        SegmentRule rule = new(scope, scope, name, name, startKind, setup, endKind, endsOn, requires, dashes,
+            head, tail, rules.Count) { Berries = berries ? BerrySet.WholeChapter : null };
         rules.Add(rule);
         rooms.ByName[name] = (start, end);
         if (entry != null) {
@@ -39,7 +39,7 @@ public class RunTrackerTests {
 
     private RunTracker Tracker() => new(rules, rooms);
 
-    private static readonly EndState One = EndState.With(1);
+    private static readonly EndState One = new(1, []);
 
     private static List<(string, long)> Of(List<SegmentRecord> records) =>
         records.Select(r => (r.Rule.Name, r.Ticks)).ToList();
@@ -191,7 +191,7 @@ public class RunTrackerTests {
         t.Restart("1a", "intro", 0, true, false, _ => true);
 
         Assert.Equal([(recorded, 100L)],
-            Of(t.RoomEntered("1a", "intro-03-space", "a-00", 100, true, false, EndState.With(dashes))));
+            Of(t.RoomEntered("1a", "intro-03-space", "a-00", 100, true, false, new EndState(dashes, []))));
     }
 
     // by the end of Farewell both routes carry the same dashes: the IL is
@@ -208,12 +208,12 @@ public class RunTrackerTests {
 
         t.Restart("1a", "intro", 0, true, false, _ => true);
         // a room that starts no checkpoint is not read: the dash is lost after it
-        t.RoomEntered("1a", "intro", "intro-01", 50, true, false, EndState.With(3 - dashes));
-        t.RoomEntered("1a", "intro-03-space", "a-00", 100, true, false, EndState.With(dashes));
-        t.RoomEntered("1a", "b-07", "c-00", 200, true, false, EndState.With(3 - dashes));
+        t.RoomEntered("1a", "intro", "intro-01", 50, true, false, new EndState(3 - dashes, []));
+        t.RoomEntered("1a", "intro-03-space", "a-00", 100, true, false, new EndState(dashes, []));
+        t.RoomEntered("1a", "b-07", "c-00", 200, true, false, new EndState(3 - dashes, []));
 
         Assert.Equal([(recorded, 400L), ("Power Source", 200L)],
-            Of(t.ChapterTimeStopped(400, EndState.With(2))));
+            Of(t.ChapterTimeStopped(400, new EndState(2, []))));
     }
 
     // without a checkpoint crossed, nothing says which IL it was
@@ -224,7 +224,7 @@ public class RunTrackerTests {
 
         t.Restart("1a", "intro", 0, true, false, _ => true);
 
-        Assert.Empty(t.ChapterTimeStopped(400, EndState.With(2)));
+        Assert.Empty(t.ChapterTimeStopped(400, new EndState(2, [])));
     }
 
     [Fact]
@@ -394,7 +394,7 @@ public class RunTrackerTests {
     [Fact]
     public void OnlyTheScopesRulesOpen() {
         SegmentRule other = new("6b", "6a/b", "Elsewhere", "Start", StartKind.Room, StartSetup.CurrentRoom, EndKind.NextStart,
-            Collectibles.None, Collectibles.None, false, null, 0, 0, 0);
+            Collectibles.None, Collectibles.None, null, 0, 0, 0);
         rules.Add(other);
         rooms.ByName["Elsewhere"] = ("1", "6");
         RunTracker t = Tracker();
@@ -728,5 +728,207 @@ public class RunTrackerTests {
         Assert.Equal(["Intervention"], t.Open.Select(r => r.Name));
 
         Assert.Empty(t.ChapterRestarted(9000, One));
+    }
+
+    // the tracker itself refuses: the double would let the row in from room 5
+    [Fact]
+    public void AMapSpawnRowNeverOpensOnAWalkIn() {
+        Add("Start", "1", "6", setup: StartSetup.CurrentRoom);
+        Add("Crossing", "6", "9b", entry: "5");
+        Add("ARB Crossing", "6", "9b", berries: true, setup: StartSetup.MapSpawn, entry: "5");
+        rooms.Berries["ARB Crossing"] = ["b1"];
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "1", 0, true, false, _ => true);
+        Assert.Equal([("Start", 100L)], Of(t.RoomEntered("1a", "5", "6", 100, true, false, One)));
+
+        Assert.Equal(["Crossing"], t.Open.Select(r => r.Name));
+    }
+
+    // a map-spawn row does not open on a walk-in, even where an entry room is named for it
+    [Fact]
+    public void AMapSpawnRowDoesNotOpenOnAWalkInEvenWithAnEntryRoom() {
+        Add("Start", "1", "6", setup: StartSetup.CurrentRoom);
+        Add("ARB Crossing", "6", "9b", berries: true, setup: StartSetup.MapSpawn, entry: "5");
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "1", 0, true, false, _ => true);
+
+        Assert.Empty(t.RoomEntered("1a", "5", "6", 100, true, false, One));
+        Assert.Empty(t.Open);
+    }
+
+    [Fact]
+    public void AMapSpawnRowOpensOnARestartAtItsSpawn() {
+        Add("Crossing", "6", "9b", entry: "5");
+        Add("ARB Crossing", "6", "9b", berries: true, setup: StartSetup.MapSpawn);
+        Add("Chasm", "9b", null, entry: "9");
+        rooms.Berries["ARB Crossing"] = ["b1"];
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "6", 0, true, false, _ => false);
+        Assert.Empty(t.Open);
+
+        t.Restart("1a", "6", 10, true, false, _ => true);
+        Assert.Equal(["ARB Crossing"], t.Open.Select(r => r.Name));
+        t.BerryCollected("b1");
+        Assert.Equal([("ARB Crossing", 90L)], Of(t.RoomEntered("1a", "9", "9b", 100, true, false, One)));
+    }
+
+    [Fact]
+    public void AMapSpawnRowLoadedWithoutControlWaitsForTheAppearance() {
+        Add("ARB Chasm", "9b", null, berries: true, setup: StartSetup.MapSpawn);
+        RunTracker t = Tracker();
+
+        t.RestartAtAppearance("1a", "9b");
+        Assert.Empty(t.Open);
+        t.ControlReturned("9b", 20, _ => true);
+
+        Assert.Equal(["ARB Chasm"], t.Open.Select(r => r.Name));
+    }
+
+    // no berries resolved is not "no berries required"
+    [Fact]
+    public void ABerryRowWhoseBerriesAreUnknownIsNeverRecorded() {
+        Add("ARB Start", "1", "6", berries: true, setup: StartSetup.CurrentRoom);
+        Add("Crossing", "6", "9b", entry: "5");
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "1", 0, true, false, _ => true);
+
+        Assert.Empty(t.RoomEntered("1a", "5", "6", 100, true, false, One));
+    }
+
+    [Fact]
+    public void ARunMissingOneBerryRecordsThePlainRowOnly() {
+        Add("Start", "1", "6", setup: StartSetup.CurrentRoom);
+        Add("ARB Start", "1", "6", berries: true, setup: StartSetup.CurrentRoom);
+        Add("Crossing", "6", "9b", entry: "5");
+        rooms.Berries["ARB Start"] = ["b1", "b2"];
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "1", 0, true, false, _ => true);
+        t.BerryCollected("b1");
+        Assert.Equal([("Start", 100L)], Of(t.RoomEntered("1a", "5", "6", 100, true, false, One)));
+
+        t.Restart("1a", "1", 0, true, false, _ => true);
+        t.BerryCollected("b1");
+        t.BerryCollected("b2");
+        Assert.Equal([("Start", 100L), ("ARB Start", 100L)], Of(t.RoomEntered("1a", "5", "6", 100, true, false, One)));
+    }
+
+    // a berry banked before the row opened is not the run's
+    [Fact]
+    public void ABerryCollectedBeforeTheRowOpenedDoesNotCount() {
+        Add("ARB Start", "1", "6", berries: true, setup: StartSetup.CurrentRoom);
+        Add("Crossing", "6", "9b", entry: "5");
+        rooms.Berries["ARB Start"] = ["b1"];
+        RunTracker t = Tracker();
+
+        t.BerryCollected("b1");
+        t.Restart("1a", "1", 0, true, false, _ => true);
+
+        Assert.Empty(t.RoomEntered("1a", "5", "6", 100, true, false, One));
+    }
+
+    [Fact]
+    public void ARowEndingOnTheHeartCountsTheBerriesStillFollowing() {
+        Add("ARB Start to Heart", "1", null, requires: Collectibles.Heart, endKind: EndKind.Collect,
+            endsOn: Collectibles.Heart, berries: true, setup: StartSetup.CurrentRoom);
+        rooms.Berries["ARB Start to Heart"] = ["b1", "b2"];
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "1", 0, true, false, _ => true);
+        t.BerryCollected("b1");
+        Assert.Equal([("ARB Start to Heart", 250L)],
+            Of(t.Collected(Collectibles.Heart, 250, new EndState(1, ["b2"]))));
+
+        // without the second berry the heart still closes the row, unrecorded
+        t.Restart("1a", "1", 0, true, false, _ => true);
+        t.BerryCollected("b1");
+        Assert.Empty(t.Collected(Collectibles.Heart, 250, One));
+        Assert.Empty(t.Open);
+    }
+
+    // a berry still following when chapter time stops counts
+    [Fact]
+    public void AFollowingBerryCountsWhenChapterTimeStops() {
+        Add("ARB Chasm", "9b", null, berries: true, setup: StartSetup.MapSpawn);
+        Add("ARB IL", "9b", null, endKind: EndKind.ChapterEnd, berries: true, setup: StartSetup.CurrentRoom);
+        rooms.Berries["ARB Chasm"] = ["b1"];
+        rooms.Berries["ARB IL"] = ["b1", "b2"];
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "9b", 0, true, false, _ => true);
+        t.BerryCollected("b1");
+
+        Assert.Equal([("ARB Chasm", 400L), ("ARB IL", 400L)],
+            Of(t.ChapterTimeStopped(400, new EndState(1, ["b2"]))));
+    }
+
+    // the heart is required and ends nothing
+    [Fact]
+    public void ABerryRowWithAHeartNeedsBoth() {
+        Add("ARB Huge Mess", "a", "b", requires: Collectibles.Heart, berries: true, setup: StartSetup.CurrentRoom);
+        Add("Elevator Shaft", "b", null, entry: "a9");
+        rooms.Berries["ARB Huge Mess"] = ["b1"];
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "a", 0, true, false, _ => true);
+        t.BerryCollected("b1");
+        Assert.Empty(t.RoomEntered("1a", "a9", "b", 100, true, false, One));
+
+        t.Restart("1a", "a", 0, true, false, _ => true);
+        t.BerryCollected("b1");
+        Assert.Empty(t.Collected(Collectibles.Heart, 50, One));
+        Assert.Equal([("ARB Huge Mess", 100L)], Of(t.RoomEntered("1a", "a9", "b", 100, true, false, One)));
+    }
+
+    // 4A's d-00 has two ways in. Each route keeps to itself: a segment ends
+    // with a time only on the entry of the row that follows it on its route
+    [Fact]
+    public void EachRouteThroughCliffFaceKeepsToItself() {
+        Add("Old Trail", "c-00", "d-00", scope: "4a", entry: "b-08");
+        Add("Cliff Face", "d-00", null, scope: "4a", entry: "c-08");
+        Add("ARB Old Trail", "c-00", "d-00", scope: "4a", entry: "b-08", berries: true);
+        Add("ARB Cliff Face", "d-00", null, scope: "4a", entry: "c-10", berries: true);
+        rooms.Berries["ARB Old Trail"] = ["b1"];
+        rooms.Berries["ARB Cliff Face"] = ["b2"];
+
+        RunTracker berryRoute = Tracker();
+        berryRoute.RoomEntered("4a", "b-08", "c-00", 0, true, false, One);
+        berryRoute.BerryCollected("b1");
+        Assert.Equal([("ARB Old Trail", 500L)], Of(berryRoute.RoomEntered("4a", "c-10", "d-00", 500, true, false, One)));
+        Assert.Equal(["ARB Cliff Face"], berryRoute.Open.Select(r => r.Name));
+
+        // with every berry, and still not the berry row's way in
+        RunTracker anyRoute = Tracker();
+        anyRoute.RoomEntered("4a", "b-08", "c-00", 0, true, false, One);
+        anyRoute.BerryCollected("b1");
+        Assert.Equal([("Old Trail", 500L)], Of(anyRoute.RoomEntered("4a", "c-08", "d-00", 500, true, false, One)));
+        Assert.Equal(["Cliff Face"], anyRoute.Open.Select(r => r.Name));
+    }
+
+    // 8A's berry HotM Vertical ends where only the plain HotM Horizontal
+    // starts, and 1A's berry Start where the berry rows are map-spawn only
+    [Fact]
+    public void ABerryRowEndsOnThePlainEntryWhereNoBerryRowFollows() {
+        Add("ARB HotM Vertical", "d-00", "d-08", berries: true, setup: StartSetup.CurrentRoom);
+        Add("HotM Horizontal", "d-08", null, entry: "d-07");
+        Add("ARB Start", "1", "6", berries: true, setup: StartSetup.CurrentRoom);
+        Add("ARB Crossing", "6", "9b", berries: true, setup: StartSetup.MapSpawn, entry: "5");
+        Add("Crossing", "6", "9b", entry: "5");
+        rooms.Berries["ARB HotM Vertical"] = ["b1"];
+        rooms.Berries["ARB Start"] = ["b2"];
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "d-00", 0, true, false, _ => true);
+        t.BerryCollected("b1");
+        Assert.Equal([("ARB HotM Vertical", 100L)], Of(t.RoomEntered("1a", "d-07", "d-08", 100, true, false, One)));
+
+        t.Restart("1a", "1", 0, true, false, _ => true);
+        t.BerryCollected("b2");
+        Assert.Equal([("ARB Start", 100L)], Of(t.RoomEntered("1a", "5", "6", 100, true, false, One)));
+        Assert.Equal(["Crossing"], t.Open.Select(r => r.Name));
     }
 }

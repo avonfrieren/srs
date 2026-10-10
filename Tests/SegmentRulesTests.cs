@@ -45,6 +45,13 @@ public class SegmentRulesTests {
         "Farewell/Start DTS",
         "Farewell/DTS IL",
         "Farewell/No DTS IL",
+        "1a/ARB Start to Heart", "1a/ARB Start",
+        "2a/ARB Start", "2a/ARB Awake", "2a/ARB IL",
+        "3a/ARB Start", "3a/ARB IL",
+        "4a/ARB Start", "4a/ARB IL",
+        "5a/b/ARB Unravelling",
+        "7a/ARB Start", "7a/ARB IL",
+        "8a/ARB IL",
     ];
 
     // a row given ChapterEnd by mistake would stay open across its checkpoints
@@ -59,6 +66,7 @@ public class SegmentRulesTests {
                 "1b/IL", "2b/IL", "3b/IL", "4b/IL", "5a/b/5b IL", "6a/b/6b IL", "7b/IL", "8b/IL",
                 "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
                 "Farewell/DTS IL", "Farewell/No DTS IL",
+                "2a/ARB IL", "3a/ARB IL", "4a/ARB IL", "7a/ARB IL", "8a/ARB IL",
             ],
             SegmentRules.All.Where(r => r.End == EndKind.ChapterEnd).Select(r => $"{r.Chapter}/{r.Name}"));
     }
@@ -67,14 +75,15 @@ public class SegmentRulesTests {
     [Fact]
     public void AnIlStartsLikeItsChaptersStart() {
         foreach (SegmentRule il in SegmentRules.All.Where(r => r.Name.Contains("IL"))) {
-            SegmentRule start = SegmentRules.All.Single(r => r.Scope == il.Scope && r.Name.EndsWith("Start"));
+            SegmentRule start = SegmentRules.All.Single(r =>
+                r.Scope == il.Scope && r.Name.EndsWith("Start") && !r.Name.StartsWith("ARB "));
 
             Assert.Equal((start.Anchor, start.Start, start.Setup, start.HeadTicks, start.TailTicks),
                 (il.Anchor, il.Start, il.Setup, il.HeadTicks, il.TailTicks));
         }
     }
 
-    // every other row is NextRoom: a new Start-anchored row, or a new
+    // every other row is NextRoom or MapSpawn (TheMapSpawnRows): a new Start-anchored row, or a new
     // wake-up, shows up here as a diff
     [Fact]
     public void CurrentRoomRowsAreTheChapterStartsAndTheWakeUps() {
@@ -91,12 +100,12 @@ public class SegmentRulesTests {
             SegmentRules.All.Select(r => (r.Chapter, r.Name)).Distinct().Count());
     }
 
-    // two rules with the same start, end, requirements and exclusivity could not
+    // two rules with the same start, setup, end, requirements and exclusivity could not
     // be told apart by anything a run does
     [Fact]
     public void NoTwoRulesAreIndistinguishable() {
         var clashes = SegmentRules.All
-            .GroupBy(r => (r.Scope, r.Anchor, r.Start, r.End, r.EndsOn, r.Requires, r.RequiresBerries, r.Dashes))
+            .GroupBy(r => (r.Scope, r.Anchor, r.Start, r.Setup, r.End, r.EndsOn, r.Requires, r.RequiresBerries, r.Dashes))
             .Where(group => group.Count() > 1)
             .Select(group => string.Join(" / ", group.Select(r => r.Name)))
             .ToList();
@@ -110,10 +119,51 @@ public class SegmentRulesTests {
             r => Assert.NotEqual(Collectibles.None, r.EndsOn));
     }
 
-    // RoomMap.BerriesOf answers nothing for now, which is only safe while this holds
+    // a berry row with no set would never be met, and a set on another row would never be read
     [Fact]
-    public void NoImportedRowRequiresBerriesYet() {
-        Assert.DoesNotContain(SegmentRules.All, r => r.RequiresBerries);
+    public void OnlyTheBerryTabsRowsRequireBerries() {
+        Assert.All(SegmentRules.All, r => {
+            Assert.Equal(r.Name.StartsWith("ARB "), r.RequiresBerries);
+        });
+        Assert.Equal(36, SegmentRules.All.Count(r => r.RequiresBerries));
+        Assert.Equal(5, SegmentRules.All.Count(r => r.RequiresBerries && r.ChapterRun));
+    }
+
+    [Fact]
+    public void TheMapSpawnRows() {
+        Assert.Equal(
+            ["1a/ARB Crossing to Heart", "1a/ARB Crossing", "1a/ARB Chasm", "4a/ARB Cliff Face (from RTM)", "5a/b/ARB Depths"],
+            SegmentRules.All.Where(r => r.Setup == StartSetup.MapSpawn).Select(r => $"{r.Chapter}/{r.Name}"));
+    }
+
+    // 7A's heart needs the gems, which the berry route does not take
+    [Fact]
+    public void TheBerryRowsThatNeedTheHeart() {
+        Assert.Equal(
+            ["1a/ARB Crossing to Heart", "1a/ARB Start to Heart", "1a/ARB Crossing", "3a/ARB Huge Mess", "4a/ARB Shrine",
+             "3a/ARB IL", "4a/ARB IL"],
+            SegmentRules.All.Where(r => r.RequiresBerries && r.Requires == Collectibles.Heart)
+                .Select(r => $"{r.Chapter}/{r.Name}"));
+        Assert.All(SegmentRules.All.Where(r => r.RequiresBerries),
+            r => Assert.True(r.Requires is Collectibles.None or Collectibles.Heart));
+    }
+
+    // the berry rows on the virtual split and on the override start and end
+    // where their A-side rows do, since both hang on the anchor
+    [Fact]
+    public void ABerryRowKeepsItsAnchorsBoundaries() {
+        Assert.Equal("Heart of the Mountain", Rule("8a", "ARB HotM Vertical").Anchor);
+        Assert.Equal("Awake", Rule("2a", "ARB Awake").Anchor);
+        Assert.Equal("2500 M", Rule("7a", "ARB 2500m-full").Anchor);
+        Assert.Equal((Rule("7a", "7a Start").Start, Rule("7a", "7a Start").HeadTicks),
+            (Rule("7a", "ARB Start").Start, Rule("7a", "ARB Start").HeadTicks));
+    }
+
+    // what the rows above the timer and the export screen print
+    [Fact]
+    public void NoTwoRowsShowTheSameName() {
+        Assert.Equal(SegmentRules.All.Count,
+            SegmentRules.All.Select(r => TierLine.NameOf(r.Scope, r.Name)).Distinct().Count());
     }
 
     [Fact]
@@ -187,9 +237,10 @@ public class SegmentRulesTests {
 
     // a marker read wrong mistimes its row without a sound
     [Fact]
-    public void OnlyTheRcAndRtmRowsEndEarly() {
+    public void OnlyTheRcRtmAndToHeartRowsEndEarly() {
         Assert.Equal(
-            SheetRows.All.Where(r => r.Label.EndsWith("RTM") || r.Label.EndsWith("RC")).Select(r => $"{r.Chapter}/{r.Name}"),
+            SheetRows.All.Where(r => r.Label.EndsWith("RTM") || r.Label.EndsWith("RC") || r.Label.EndsWith("to Heart"))
+                .Select(r => $"{r.Chapter}/{r.Name}"),
             SegmentRules.All.Where(r => r.End is EndKind.Collect or EndKind.Restart).Select(r => $"{r.Chapter}/{r.Name}"));
     }
 
@@ -266,5 +317,41 @@ public class SegmentRulesTests {
     [Fact]
     public void RulesKeepSheetOrder() {
         Assert.Equal(Enumerable.Range(0, SegmentRules.All.Count), SegmentRules.All.Select(r => r.Order));
+    }
+
+    [Fact]
+    public void ABerryTabRowRequiresItsCheckpointsBerries() {
+        SegmentRule rule = Rule("2a", "ARB Intervention");
+
+        Assert.True(rule.RequiresBerries);
+        Assert.Equal("Intervention", rule.Berries.Checkpoint);
+        Assert.Null(rule.Berries.Rooms);
+        Assert.Null(rule.Berries.Except);
+        Assert.False(rule.Berries.Chapter);
+        Assert.Equal((StartSetup.NextRoom, EndKind.NextStart, Collectibles.None, false),
+            (rule.Setup, rule.End, rule.Requires, rule.ChapterRun));
+        Assert.Null(rule.EntryRoom);
+    }
+
+    // the second block names a row by its chapter cell
+    [Fact]
+    public void ABerryTabChapterRowIsAChapterRunOverEveryBerry() {
+        SegmentRule rule = Rule("2a", "ARB IL");
+
+        Assert.True(rule.ChapterRun);
+        Assert.Equal((StartSetup.CurrentRoom, EndKind.ChapterEnd, Collectibles.None),
+            (rule.Setup, rule.End, rule.Requires));
+        Assert.True(rule.Berries.Chapter);
+    }
+
+    // no emoji in the label says so
+    [Theory]
+    [InlineData("ARB Start to Heart")]
+    [InlineData("ARB Crossing to Heart")]
+    public void TheToHeartRowsEndOnTheHeart(string name) {
+        SegmentRule rule = Rule("1a", name);
+
+        Assert.Equal((EndKind.Collect, Collectibles.Heart, Collectibles.Heart), (rule.End, rule.EndsOn, rule.Requires));
+        Assert.False(rule.ChapterRun);
     }
 }

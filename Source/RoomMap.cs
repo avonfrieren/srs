@@ -14,6 +14,8 @@ internal sealed class RoomMap : IRoomMap {
     private readonly string firstRoom;
     private readonly CheckpointData[] checkpoints;
     private readonly HashSet<string> warned = [];
+    private readonly List<MapBerry> berries = [];
+    private readonly Dictionary<int, IReadOnlyCollection<string>> berriesByRule = [];
 
     private RoomMap(Session session) {
         area = session.Area;
@@ -21,11 +23,46 @@ internal sealed class RoomMap : IRoomMap {
         firstRoom = session.MapData?.StartLevel()?.Name;
         checkpoints = AreaData.Get(session.Area)?.Mode[(int)session.Area.Mode]?.Checkpoints ?? [];
 
+        if (session.MapData == null) {
+            return;
+        }
+
+        // red only: a golden is another entity, and a moon berry says so
+        foreach (LevelData level in session.MapData.Levels) {
+            foreach (EntityData entity in level.Entities) {
+                if (entity.Name == "strawberry" && !entity.Bool("moon")) {
+                    berries.Add(new MapBerry(level.Name, entity.ID, entity.Int("checkpointID")));
+                }
+            }
+        }
+
         // a misspelt entry room never matches, and its segment never opens
-        if (session.MapData != null) {
-            foreach (KeyValuePair<(string Scope, string GameName), string> entry in SegmentAutoDetect.EntryRooms) {
-                if (entry.Key.Scope == scope && session.MapData.Get(entry.Value) == null) {
-                    Logger.Log(LogLevel.Warn, "srs", $"room map: the entry room {entry.Value} of {entry.Key.GameName} is not a room of {scope}");
+        foreach (KeyValuePair<(string Scope, string GameName), string> entry in SegmentAutoDetect.EntryRooms) {
+            if (entry.Key.Scope == scope && session.MapData.Get(entry.Value) == null) {
+                Logger.Log(LogLevel.Warn, "srs", $"room map: the entry room {entry.Value} of {entry.Key.GameName} is not a room of {scope}");
+            }
+        }
+
+        // said on entering the chapter, not at the end of a run it costs
+        foreach (SegmentRule rule in SegmentRules.All) {
+            if (rule.Scope != scope) {
+                continue;
+            }
+
+            if (rule.EntryRoom != null && session.MapData.Get(rule.EntryRoom) == null) {
+                Logger.Log(LogLevel.Warn, "srs", $"room map: the entry room {rule.EntryRoom} of {rule.Name} is not a room of {scope}");
+            }
+
+            if (rule.Setup == StartSetup.MapSpawn
+                && !(StartRoomOf(rule) is { } start && session.MapData.Get(start) is { HasCheckpoint: true })) {
+                Logger.Log(LogLevel.Warn, "srs", $"room map: no checkpoint in the first room of {rule.Name} in {scope}: the row never opens");
+            }
+
+            if (rule.Berries != null) {
+                IReadOnlyCollection<string> keys = BerrySets.Resolve(rule.Berries, berries, CheckpointId);
+                berriesByRule[rule.Order] = keys;
+                if (keys == null) {
+                    Logger.Log(LogLevel.Warn, "srs", $"room map: the berries of {rule.Name} are not in the map of {scope}: the row is never recorded");
                 }
             }
         }
@@ -74,14 +111,34 @@ internal sealed class RoomMap : IRoomMap {
         return null;
     }
 
-    public string EntryRoomOf(SegmentRule rule) =>
-        rule.Scope == scope && SegmentAutoDetect.EntryRooms.TryGetValue((scope, rule.Anchor), out string room)
-            ? room
-            : null;
+    // a map-spawn row is never entered; a row with an entry of its own keeps
+    // it (4A's berry Cliff Face), the others take their anchor's
+    public string EntryRoomOf(SegmentRule rule) {
+        if (rule.Scope != scope || rule.Setup == StartSetup.MapSpawn) {
+            return null;
+        }
 
-    // no imported row requires berries yet (SegmentRulesTests pins it): the
-    // map's berries per checkpoint come with the rows that need them
-    public IReadOnlyCollection<string> BerriesOf(SegmentRule rule) => [];
+        return rule.EntryRoom ?? SegmentAutoDetect.EntryRooms.GetValueOrDefault((scope, rule.Anchor));
+    }
+
+    public IReadOnlyCollection<string> BerriesOf(SegmentRule rule) =>
+        rule.Scope == scope ? berriesByRule.GetValueOrDefault(rule.Order) : null;
+
+    // the map's checkpointID: 0 before the first checkpoint, then the
+    // checkpoints in order
+    private int CheckpointId(string gameName) {
+        if (gameName == "Start") {
+            return 0;
+        }
+
+        for (int i = 0; i < checkpoints.Length; i++) {
+            if (EnglishName(checkpoints[i]) == gameName) {
+                return i + 1;
+            }
+        }
+
+        return -1;
+    }
 
     // the override when the sheet does not start the segment at the
     // checkpoint's own room (2A Awake, 7A Start, 8A HotM Horizontal), the map's

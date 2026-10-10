@@ -51,13 +51,30 @@ public class SheetLabelsTests {
     }
 
     [Fact]
-    public void OnlyTheThreeWritableTabsAreTargeted() {
+    public void OnlyTheFourWritableTabsAreTargeted() {
         HashSet<string> tabs = [.. SheetRows.All.Select(row => SheetRows.TargetOf(row).Tab)];
 
-        Assert.Equal(["A Sides", "B+C Sides", "Farewell"], tabs);
+        Assert.Equal(["A Sides", "B+C Sides", "Farewell", "ARB/Full Clear"], tabs);
         Assert.Equal("A Sides", SheetLabels.TabASides);
         Assert.Equal("B+C Sides", SheetLabels.TabBCSides);
         Assert.Equal("Farewell", SheetLabels.TabFarewell);
+        Assert.Equal("ARB/Full Clear", SheetLabels.TabArbFullClear);
+    }
+
+    // the berry tab's chapter cell has no " CP" to drop: it is the entry tab's
+    // cell as it stands, and a chapter row is matched on that cell twice
+    [Fact]
+    public void ABerryRowIsWrittenUnderItsChapterCell() {
+        const string berry = "\U0001F353";
+        AssertRow("1a", "ARB Start", "ARB/Full Clear", $"1a {berry}", "Start");
+        AssertRow("1a", "ARB Start to Heart", "ARB/Full Clear", $"1a {berry}", "Start to Heart");
+        AssertRow("2a", "ARB Start", "ARB/Full Clear", $"2a {berry}", "2a Start");
+        AssertRow("4a", "ARB Cliff Face (from RTM)", "ARB/Full Clear", $"4a {berry}", "Cliff Face (from RTM)");
+        AssertRow("5a/b", "ARB Depths", "ARB/Full Clear", $"5a {berry}", "Depths");
+        AssertRow("7a", "ARB 2500m-full", "ARB/Full Clear", $"7a {berry}", "2500m-full");
+        AssertRow("8a", "ARB HotM Vertical", "ARB/Full Clear", $"8a {berry}", "HotM Vertical");
+        AssertRow("2a", "ARB IL", "ARB/Full Clear", $"2a {berry}", $"2a {berry}");
+        Assert.All(SheetRows.All.Where(row => row.Tab == StandardsTab.Arb), row => Assert.Null(row.Target));
     }
 
     [Fact]

@@ -14,17 +14,16 @@ internal interface IRoomMap {
     string EndRoomOf(SegmentRule rule);
 
     /// The room the rule's start room must be entered from; null when the rule
-    /// never opens on an entry (a chapter's Start, 7A's start).
+    /// never opens on an entry (a chapter's Start, 7A's start, a map-spawn row).
     string EntryRoomOf(SegmentRule rule);
 
-    /// The red berries of the rule's anchor checkpoint, as EntityID keys.
+    /// The red berries the rule requires, as EntityID keys. Null or empty
+    /// when they cannot be resolved: the rule is then never met.
     IReadOnlyCollection<string> BerriesOf(SegmentRule rule);
 }
 
 /// What the run carries when a segment ends, for the requirement checks.
-internal readonly record struct EndState(int Dashes, IReadOnlyCollection<string> FollowingBerries) {
-    public static EndState With(int dashes) => new(dashes, []);
-}
+internal readonly record struct EndState(int Dashes, IReadOnlyCollection<string> FollowingBerries);
 
 /// A closed segment whose requirements the run met, with its time.
 internal readonly record struct SegmentRecord(SegmentRule Rule, long Ticks);
@@ -87,30 +86,32 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
 
     /// A new attempt (a level from the loader, a room teleport, a first-room
     /// reset, a savestate loaded with control): nothing open is recorded.
-    /// The Current Room segments starting in this room then open where atStart
-    /// says the player is at their start; nothing else does.
+    /// The Current Room and map-spawn segments starting in this room then open
+    /// where atStart says the player is at their start; nothing else does.
     public void Restart(string scope, string room, long reading, bool control, bool launching,
         Func<SegmentRule, bool> atStart) {
         Drop();
         OpenAt(scope, room, reading, control, launching, standalone: true,
-            rule => rule.Setup == StartSetup.CurrentRoom && atStart(rule), fromLoad: false);
+            rule => rule.Setup != StartSetup.NextRoom && atStart(rule), fromLoad: false);
     }
 
     /// A savestate loaded without control (mid-wake-up, mid-respawn, mid-intro):
-    /// nothing open is recorded, and the Current Room segments starting in this
-    /// room wait for the player to appear, where ControlReturned tests them.
+    /// nothing open is recorded, and the Current Room and map-spawn segments
+    /// starting in this room wait for the player to appear, where
+    /// ControlReturned tests them.
     public void RestartAtAppearance(string scope, string room) {
         Drop();
         OpenAt(scope, room, 0, control: false, launching: false, standalone: true,
-            rule => rule.Setup == StartSetup.CurrentRoom, fromLoad: true);
+            rule => rule.Setup != StartSetup.NextRoom, fromLoad: true);
     }
 
     /// The player walked into this room from another. Closes first, then opens:
-    /// the segment ending here is never the one starting here. Only an entry
-    /// from the entry room of the segment starting here closes with a time and
-    /// opens; any other way in may be a shortcut, and drops the segment ending
-    /// here unrecorded. A Restart row ending here is dropped on any way in: a
-    /// restart after it is not a run of the row.
+    /// the segment ending here is never the one starting here. A segment
+    /// ending here closes with a time only on an entry from the entry room of
+    /// the row that follows it on its own route; any other way in may be a
+    /// shortcut, or another route's door, and drops it unrecorded. A Restart
+    /// row ending here is dropped on any way in: a restart after it is not a
+    /// run of the row.
     public List<SegmentRecord> RoomEntered(string scope, string from, string room, long reading, bool control,
         bool launching, EndState end) {
         bool entry = IsEntry(scope, from, room);
@@ -122,14 +123,14 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
 
         List<SegmentRecord> records = CloseWhere(
             segment => segment.Rule.End == EndKind.NextStart && Rooms.EndRoomOf(segment.Rule) == room,
-            reading, end, record: entry);
+            reading, end, records: segment => from != null && SuccessorEntryOf(segment.Rule, scope, room) == from);
         CloseWhere(segment => segment.Rule.End == EndKind.Restart && Rooms.EndRoomOf(segment.Rule) == room,
-            reading, end, record: false);
+            reading, end, records: _ => false);
         pending.Clear();
         pendingRoom = null;
         if (entry) {
             OpenAt(scope, room, reading, control, launching, standalone: false,
-                rule => Rooms.EntryRoomOf(rule) == from, fromLoad: false);
+                rule => rule.Setup != StartSetup.MapSpawn && Rooms.EntryRoomOf(rule) == from, fromLoad: false);
         }
 
         return records;
@@ -148,6 +149,27 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         }
 
         return false;
+    }
+
+    // the room the row after `ending` is entered from, on its own route: the
+    // first row starting in this room of the same family, berry or plain,
+    // else the first of the other. A map-spawn row follows nothing
+    private string SuccessorEntryOf(SegmentRule ending, string scope, string room) {
+        string other = null;
+        foreach (SegmentRule rule in rules) {
+            if (rule.Scope != scope || rule.Setup == StartSetup.MapSpawn || Rooms.StartRoomOf(rule) != room
+                || Rooms.EntryRoomOf(rule) is not { } entry) {
+                continue;
+            }
+
+            if (rule.RequiresBerries == ending.RequiresBerries) {
+                return entry;
+            }
+
+            other ??= entry;
+        }
+
+        return other;
     }
 
     /// Control came back in this room: a start reached without it opens now.
@@ -250,10 +272,11 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         open.Add(new OpenSegment(rule, reading));
     }
 
-    // record false: the segments that end now are dropped, not recorded
+    // records null: every segment that ends now may be recorded; else only
+    // those it accepts, and the others are dropped
     private List<SegmentRecord> CloseWhere(Predicate<OpenSegment> ends, long reading, EndState end,
-        bool record = true) {
-        List<SegmentRecord> records = [];
+        Predicate<OpenSegment> records = null) {
+        List<SegmentRecord> result = [];
         for (int i = 0; i < open.Count;) {
             OpenSegment segment = open[i];
             if (!ends(segment)) {
@@ -262,13 +285,13 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
             }
 
             open.RemoveAt(i);
-            if (record && !segment.Disqualified && Met(segment, reading, end) is { } ticks) {
-                records.Add(new SegmentRecord(segment.Rule, ticks));
+            if ((records == null || records(segment)) && !segment.Disqualified && Met(segment, reading, end) is { } ticks) {
+                result.Add(new SegmentRecord(segment.Rule, ticks));
             }
         }
 
-        records.Sort((a, b) => a.Rule.Order.CompareTo(b.Rule.Order));
-        return records;
+        result.Sort((a, b) => a.Rule.Order.CompareTo(b.Rule.Order));
+        return result;
     }
 
     // the time, or null when the run did not meet the row's requirements or
@@ -288,9 +311,14 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         return ticks < Longest ? ticks : null;
     }
 
-    // a berry still following at the end counts
+    // a berry still following at the end counts. No berries resolved is not
+    // "none required": the row is not met
     private bool HasEveryBerry(OpenSegment segment, EndState end) {
-        foreach (string berry in Rooms.BerriesOf(segment.Rule)) {
+        if (Rooms.BerriesOf(segment.Rule) is not { Count: > 0 } berries) {
+            return false;
+        }
+
+        foreach (string berry in berries) {
             if (!segment.Berries.Contains(berry) && !Contains(end.FollowingBerries, berry)) {
                 return false;
             }

@@ -69,6 +69,9 @@ public class TierLineTests {
     // the name already carries its chapter, or is it
     [InlineData("6a", "6a Start", "6a Start")]
     [InlineData("Farewell", "Farewell", "Farewell")]
+    [InlineData("1a", "ARB Start", "1a ARB Start")]
+    [InlineData("5a", "ARB Depths", "5a ARB Depths")]
+    [InlineData("7a", "ARB IL", "7a ARB IL")]
     public void TheNameLeadsWithItsChapterOnce(string scope, string name, string shown) {
         Assert.Equal(shown, TierLine.NameOf(scope, name));
     }
