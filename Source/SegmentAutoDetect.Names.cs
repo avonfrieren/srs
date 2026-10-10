@@ -79,8 +79,8 @@ public static partial class SegmentAutoDetect {
         [("3a", "Presidential Suite")] = "02-d",
         [("4a", "Shrine")] = "a-09",
         [("4a", "Old Trail")] = "b-08",
-        // d-00 is also entered from c-10, the berry room beside c-08: only the
-        // berry routes, which are not imported, go that way
+        // d-00 is also entered from c-10, the berry room beside c-08: the
+        // berry row's own entry (RowTraits)
         [("4a", "Cliff Face")] = "c-08",
         [("1b", "Contraption")] = "03",
         [("1b", "Scrap Pit")] = "07",

@@ -22,31 +22,41 @@ internal static class SegmentRules {
         for (int i = 0; i < rows.Count; i++) {
             SheetRow row = rows[i];
             (string, string) anchor = (row.Scope, row.Anchor);
-            Collectibles marked = MarkersOf(row.Label);
+            RowTraits traits = RowTraits.Of(row.Chapter, row.Name);
+            bool berryTab = row.Tab == StandardsTab.Arb;
+            Collectibles marked = MarkersOf(row.Label) | traits.Requires
+                                  | (traits.EndsOnHeart ? Collectibles.Heart : Collectibles.None);
+            // the berry tab's second block names a row by its chapter cell
             bool chapterRun = row.Tab == StandardsTab.CSides
+                              || (berryTab && row.Label == row.SheetChapter)
                               || row.SheetChapter.EndsWith(" IL", StringComparison.Ordinal)
                               || row.Label.EndsWith(" IL", StringComparison.Ordinal)
                               || (row.Tab == StandardsTab.BSides && row.Label.EndsWith(" Clear", StringComparison.Ordinal));
-            EndKind end = EndOf(row.Label, marked);
+            EndKind end = traits.EndsOnHeart ? EndKind.Collect : EndOf(row.Label, marked);
             // an IL's "RTM" keeps its collect
             if (chapterRun && end == EndKind.NextStart) {
                 end = EndKind.ChapterEnd;
             }
 
+            // a berry row asks for its checkpoint's berries, a chapter row for
+            // the chapter's, unless its traits name another set
+            BerrySet berries = !berryTab ? null
+                : traits.Berries ?? (chapterRun ? BerrySet.WholeChapter : new BerrySet(row.Anchor));
+            StartSetup setup = traits.MapSpawn ? StartSetup.MapSpawn
+                : row.Anchor == "Start" || SegmentAutoDetect.CurrentRoomStarts.Contains(anchor) ? StartSetup.CurrentRoom
+                : StartSetup.NextRoom;
+
             rules.Add(new SegmentRule(
                 row.Scope, row.Chapter, row.Name, row.Anchor,
                 SegmentAutoDetect.AfterLaunchStarts.Contains(anchor) ? StartKind.AfterLaunch : StartKind.Room,
-                row.Anchor == "Start" || SegmentAutoDetect.CurrentRoomStarts.Contains(anchor)
-                    ? StartSetup.CurrentRoom
-                    : StartSetup.NextRoom,
+                setup,
                 end,
                 end == EndKind.Collect ? marked : Collectibles.None,
                 marked,
-                RequiresBerries: false,
                 DashesOf(row, labels),
                 SegmentAutoDetect.UntimedSegmentHead.GetValueOrDefault(anchor).Ticks,
                 SegmentAutoDetect.UntimedSegmentTail.GetValueOrDefault(anchor).Ticks,
-                i) { ChapterRun = chapterRun });
+                i) { ChapterRun = chapterRun, Berries = berries, EntryRoom = traits.EntryRoom });
         }
 
         return rules;

@@ -406,7 +406,7 @@ internal static class ExportMenu {
             string group = string.IsNullOrEmpty(update.Row.Chapter) ? update.Row.Tab : update.Row.Chapter;
             if (group != chapter) {
                 chapter = group;
-                newMenu.Add(new GroupRow(columns, group));
+                newMenu.Add(new GroupRow(columns, ExportTable.GroupLabel(update.Row)));
             }
 
             UpdateRow row = new(update, columns, odd, () => pressed[update.Row] = update.Selected);

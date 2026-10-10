@@ -90,8 +90,8 @@ deployment and no URL: deployments are never copied.
 
 **Which tabs.** It works only on the entry tabs your sheet's **Config** tab names, in cells C6,
 C7 and C9: on the template, `A Sides`, `B+C Sides`, `Farewell` and `ARB/Full Clear`, the tabs you
-fill in. srs itself only knows rows on the first three today. The script never writes a category
-tab: those read from the entry tabs, and writing into one would turn its cells manual and break
+fill in. srs itself knows the rows of the first three, and the all red berries rows of the
+fourth, today. The script never writes a category tab: those read from the entry tabs, and writing into one would turn its cells manual and break
 its auto-fill. The tab list is read from those three cells on every call: a tab they stop naming
 is no longer written, and if they name none, for example because a copy moved them, every call
 fails with an error.

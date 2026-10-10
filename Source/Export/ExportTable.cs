@@ -60,6 +60,16 @@ internal static class ExportTable {
     /// label is an emoji and a suffix, and ActiveFont drops the emoji. Else the
     /// sheet's own labels, never translated. Most checkpoint labels already
     /// carry their chapter ("1a Start"), so prefixing it again reads "1a 1a Start".
+    private const string BerryCell = "a \U0001F353";
+
+    /// The header over a group of rows: the chapter cell, the tab where the
+    /// sheet has none (Farewell). A berry chapter cell reads "1arb": its emoji
+    /// is not in the font, and its rows sit under their chapter's own
+    public static string GroupLabel(SheetRowRef row) =>
+        string.IsNullOrEmpty(row.Chapter) ? row.Tab
+        : row.Chapter.EndsWith(BerryCell, StringComparison.Ordinal) ? row.Chapter[..^BerryCell.Length] + "arb"
+        : row.Chapter;
+
     public static string RowLabel(string tab, string chapter, string cp) {
         SheetRowRef target = new(tab, chapter, cp);
         foreach (SheetRow row in SheetRows.All) {

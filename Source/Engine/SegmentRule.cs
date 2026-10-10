@@ -24,6 +24,9 @@ internal enum StartSetup {
     NextRoom,
     // valid from its start point: in a chain, or from a savestate at the start room's spawn
     CurrentRoom,
+    // valid only from the checkpoint's own spawn: the checkpoint loaded from
+    // the map, or a savestate there; never by walking in
+    MapSpawn,
 }
 
 internal enum EndKind {
@@ -43,7 +46,7 @@ internal enum EndKind {
 internal sealed record SegmentRule(
     string Scope, string Chapter, string Name, string Anchor,
     StartKind Start, StartSetup Setup, EndKind End,
-    Collectibles EndsOn, Collectibles Requires, bool RequiresBerries,
+    Collectibles EndsOn, Collectibles Requires,
     // 1 or 2 for Farewell's DTS twins, read at the end (a whole chapter: at
     // the first checkpoint crossed); null = no dash rule
     int? Dashes,
@@ -53,6 +56,15 @@ internal sealed record SegmentRule(
     /// An IL or C-side row: timed from the chapter's start across its
     /// checkpoints, to the chapter's end or to its collect ("RTM").
     public bool ChapterRun { get; init; }
+
+    /// The red berries the row requires; null when it requires none.
+    public BerrySet Berries { get; init; }
+
+    public bool RequiresBerries => Berries != null;
+
+    /// The room the row's first room is entered from, where it is not its
+    /// anchor's (SegmentAutoDetect.EntryRooms).
+    public string EntryRoom { get; init; }
 
     /// Whether this rule asks for everything the other asks for.
     public bool Contains(SegmentRule other) =>

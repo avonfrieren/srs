@@ -31,6 +31,8 @@
         <Compile Include="../Source/Export/ExportSource.cs" Link="Source/Export/ExportSource.cs" />
         <Compile Include="../Source/Export/ExportTable.cs" Link="Source/Export/ExportTable.cs" />
         <Compile Include="../Source/Engine/SegmentRule.cs" Link="Source/Engine/SegmentRule.cs" />
+        <Compile Include="../Source/Engine/BerrySet.cs" Link="Source/Engine/BerrySet.cs" />
+        <Compile Include="../Source/Engine/RowTraits.cs" Link="Source/Engine/RowTraits.cs" />
         <Compile Include="../Source/Engine/SegmentRules.cs" Link="Source/Engine/SegmentRules.cs" />
         <Compile Include="../Source/Engine/RunTracker.cs" Link="Source/Engine/RunTracker.cs" />
         <Compile Include="../Source/Engine/Stillness.cs" Link="Source/Engine/Stillness.cs" />

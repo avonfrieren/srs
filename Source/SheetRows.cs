@@ -20,13 +20,15 @@ internal static class SheetRows {
     private const StandardsTab B = StandardsTab.BSides;
     private const StandardsTab C = StandardsTab.CSides;
     private const StandardsTab F = StandardsTab.Farewell;
+    private const StandardsTab R = StandardsTab.Arb;
 
     // kept as escaped code points so this source stays ASCII
     private const string Heart = "\U0001F499";
     private const string Tape = "\U0001F4FC";
+    private const string Berry = "\U0001F353";
 
-    // in sheet order: A Sides, B Sides, C Sides, then Farewell. The emoji survive in
-    // Label only: ActiveFont skips a glyph its atlas lacks, so Name never has one
+    // in sheet order: A Sides, B Sides, C Sides, then Farewell, then the berry
+    // tab. The emoji survive in Label only: ActiveFont skips a glyph its atlas lacks, so Name never has one
     internal static readonly SheetRow[] All = [
         new(A, "Prologue", "Granny", "Prologue", "Prologue", "Granny", "Start"),
         new(A, "1a CP", "1a Start", "1a", "1a", "Start", "Start"),
@@ -193,6 +195,47 @@ internal static class SheetRows {
         // the entry tab drops the " IL"
         new(F, "Farewell", "DTS IL", "Farewell", "Farewell", "DTS IL", "Start", new(SheetLabels.TabFarewell, "", "DTS")),
         new(F, "Farewell", "No DTS IL", "Farewell", "Farewell", "No DTS IL", "Start", new(SheetLabels.TabFarewell, "", "No DTS")),
+        // the berry tab: a row is its A-side row plus red berries, named
+        // "ARB ..." under the A-side chapter. What a label does not say is in
+        // RowTraits. The rows whose route returns to the map are left out
+        new(R, "1a " + Berry, "Crossing to Heart", "1a", "1a", "ARB Crossing to Heart", "Crossing"),
+        new(R, "1a " + Berry, "Start to Heart", "1a", "1a", "ARB Start to Heart", "Start"),
+        new(R, "1a " + Berry, "Start", "1a", "1a", "ARB Start", "Start"),
+        new(R, "1a " + Berry, "Crossing", "1a", "1a", "ARB Crossing", "Crossing"),
+        new(R, "1a " + Berry, "Chasm", "1a", "1a", "ARB Chasm", "Chasm"),
+        new(R, "2a " + Berry, "2a Start", "2a", "2a", "ARB Start", "Start"),
+        new(R, "2a " + Berry, "Intervention", "2a", "2a", "ARB Intervention", "Intervention"),
+        new(R, "2a " + Berry, "Awake", "2a", "2a", "ARB Awake", "Awake"),
+        new(R, "3a " + Berry, "3a Start", "3a", "3a", "ARB Start", "Start"),
+        new(R, "3a " + Berry, "Huge Mess", "3a", "3a", "ARB Huge Mess", "Huge Mess"),
+        new(R, "3a " + Berry, "Elevator Shaft", "3a", "3a", "ARB Elevator Shaft", "Elevator Shaft"),
+        new(R, "3a " + Berry, "Presidential Suite", "3a", "3a", "ARB Presidential Suite", "Presidential Suite"),
+        new(R, "4a " + Berry, "4a Start", "4a", "4a", "ARB Start", "Start"),
+        new(R, "4a " + Berry, "Shrine", "4a", "4a", "ARB Shrine", "Shrine"),
+        new(R, "4a " + Berry, "Old Trail", "4a", "4a", "ARB Old Trail", "Old Trail"),
+        new(R, "4a " + Berry, "Cliff Face (from RTM)", "4a", "4a", "ARB Cliff Face (from RTM)", "Cliff Face"),
+        new(R, "4a " + Berry, "Cliff Face", "4a", "4a", "ARB Cliff Face", "Cliff Face"),
+        new(R, "5a " + Berry, "Depths", "5a", "5a/b", "ARB Depths", "Depths"),
+        new(R, "5a " + Berry, "Unravelling", "5a", "5a/b", "ARB Unravelling", "Unravelling"),
+        new(R, "5a " + Berry, "Search", "5a", "5a/b", "ARB Search", "Search"),
+        new(R, "5a " + Berry, "Rescue", "5a", "5a/b", "ARB Rescue", "Rescue"),
+        new(R, "7a " + Berry, "7a Start", "7a", "7a", "ARB Start", "Start"),
+        new(R, "7a " + Berry, "500m", "7a", "7a", "ARB 500m", "500 M"),
+        new(R, "7a " + Berry, "1000m", "7a", "7a", "ARB 1000m", "1000 M"),
+        new(R, "7a " + Berry, "1500m", "7a", "7a", "ARB 1500m", "1500 M"),
+        new(R, "7a " + Berry, "2000m", "7a", "7a", "ARB 2000m", "2000 M"),
+        new(R, "7a " + Berry, "2500m-full", "7a", "7a", "ARB 2500m-full", "2500 M"),
+        new(R, "7a " + Berry, "3000m", "7a", "7a", "ARB 3000m", "3000 M"),
+        new(R, "8a " + Berry, "Into the Core", "8a", "8a", "ARB Into the Core", "Into the Core"),
+        new(R, "8a " + Berry, "Hot and Cold", "8a", "8a", "ARB Hot and Cold", "Hot and Cold"),
+        new(R, "8a " + Berry, "HotM Vertical", "8a", "8a", "ARB HotM Vertical", "Heart of the Mountain"),
+        // the tab's second block has no Checkpoint column: a chapter's row is
+        // named by its chapter cell, and is the whole chapter with every berry
+        new(R, "2a " + Berry, "2a " + Berry, "2a", "2a", "ARB IL", "Start"),
+        new(R, "3a " + Berry, "3a " + Berry, "3a", "3a", "ARB IL", "Start"),
+        new(R, "4a " + Berry, "4a " + Berry, "4a", "4a", "ARB IL", "Start"),
+        new(R, "7a " + Berry, "7a " + Berry, "7a", "7a", "ARB IL", "Start"),
+        new(R, "8a " + Berry, "8a " + Berry, "8a", "8a", "ARB IL", "Start"),
     ];
 
     private static readonly Dictionary<(StandardsTab, string, string), SheetRow> byStandards = [];
@@ -215,8 +258,9 @@ internal static class SheetRows {
 
     public static SheetRowRef TargetOf(SheetRow row) => row.Target ?? DefaultTarget(row);
 
-    /// Same label on the matching entry tab, under the Standards chapter without
-    /// its " CP" suffix ("1a CP" -> "1a"); the Farewell tab has no chapter column.
+    /// Same label on the matching entry tab, under the Standards chapter cell
+    /// less a trailing " CP" ("1a CP" -> "1a") and otherwise as it stands (the
+    /// berry tab's cell is the entry tab's); the Farewell tab has no chapter column.
     internal static SheetRowRef DefaultTarget(SheetRow row) {
         string chapter = row.Tab == StandardsTab.Farewell ? ""
             : row.SheetChapter.EndsWith(" CP", System.StringComparison.Ordinal) ? row.SheetChapter[..^3]
