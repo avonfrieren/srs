@@ -10,6 +10,9 @@ internal static class SegmentRules {
     private const string Tape = "\U0001F4FC";
     private const string Gem = "\U0001F48E";
 
+    // 7A's, the only chapter with any (Session.SummitGems)
+    private const int ChapterGems = 6;
+
     public static readonly IReadOnlyList<SegmentRule> All = Build(SheetRows.All);
 
     internal static List<SegmentRule> Build(IReadOnlyList<SheetRow> rows) {
@@ -23,10 +26,10 @@ internal static class SegmentRules {
             SheetRow row = rows[i];
             (string, string) anchor = (row.Scope, row.Anchor);
             RowTraits traits = RowTraits.Of(row.Chapter, row.Name);
-            bool berryTab = row.Tab == StandardsTab.Arb;
+            bool berryTab = row.Tab is StandardsTab.Arb or StandardsTab.Fc;
             Collectibles marked = MarkersOf(row.Label) | traits.Requires
                                   | (traits.EndsOnHeart ? Collectibles.Heart : Collectibles.None);
-            // the berry tab's second block names a row by its chapter cell
+            // the berry tabs' second block names a row by its chapter cell
             bool chapterRun = row.Tab == StandardsTab.CSides
                               || (berryTab && row.Label == row.SheetChapter)
                               || row.SheetChapter.EndsWith(" IL", StringComparison.Ordinal)
@@ -40,7 +43,7 @@ internal static class SegmentRules {
 
             // a berry row asks for its checkpoint's berries, a chapter row for
             // the chapter's, unless its traits name another set
-            BerrySet berries = !berryTab ? null
+            BerrySet berries = !berryTab || traits.NoBerries ? null
                 : traits.Berries ?? (chapterRun ? BerrySet.WholeChapter : new BerrySet(row.Anchor));
             StartSetup setup = traits.MapSpawn ? StartSetup.MapSpawn
                 : row.Anchor == "Start" || SegmentAutoDetect.CurrentRoomStarts.Contains(anchor) ? StartSetup.CurrentRoom
@@ -53,10 +56,13 @@ internal static class SegmentRules {
                 end,
                 end == EndKind.Collect ? marked : Collectibles.None,
                 marked,
-                DashesOf(row, labels),
+                traits.Dashes ?? DashesOf(row, labels),
                 SegmentAutoDetect.UntimedSegmentHead.GetValueOrDefault(anchor).Ticks,
                 SegmentAutoDetect.UntimedSegmentTail.GetValueOrDefault(anchor).Ticks,
-                i) { ChapterRun = chapterRun, Berries = berries, EntryRoom = traits.EntryRoom });
+                i) {
+                ChapterRun = chapterRun, Berries = berries, EntryRoom = traits.EntryRoom,
+                Gems = (marked & Collectibles.Gem) == Collectibles.None ? 0 : chapterRun ? ChapterGems : 1,
+            });
         }
 
         return rules;

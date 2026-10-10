@@ -36,6 +36,9 @@ public class SegmentRulesTests {
         "6a/IL", "6a/IL Tape Clear", "6a/IL Tape RTM", "6a/IL Heart Tape RTM",
         "6b/Start", "6b/IL",
         "7b/Start", "7b/IL", "8b/Start", "8b/IL",
+        "7a/Start Gem",
+        "2a/FC Start", "4a/FC Start", "7a/FC Start",
+        "2a/FC IL", "3a/FC IL", "4a/FC IL", "7a/FC IL", "8a/FC IL", "Farewell/FC DTS IL", "Farewell/FC No DTS IL",
         "7a/Start",
         "7a/IL", "7a/IL Tape Clear", "7a/IL Tape RTM", "7a/IL Heart Tape RTM",
         "8a/Start",
@@ -67,6 +70,7 @@ public class SegmentRulesTests {
                 "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
                 "Farewell/DTS IL", "Farewell/No DTS IL",
                 "2a/ARB IL", "3a/ARB IL", "4a/ARB IL", "7a/ARB IL", "8a/ARB IL",
+                "2a/FC IL", "3a/FC IL", "4a/FC IL", "7a/FC IL", "8a/FC IL", "Farewell/FC DTS IL", "Farewell/FC No DTS IL",
             ],
             SegmentRules.All.Where(r => r.End == EndKind.ChapterEnd).Select(r => $"{r.Chapter}/{r.Name}"));
     }
@@ -76,7 +80,7 @@ public class SegmentRulesTests {
     public void AnIlStartsLikeItsChaptersStart() {
         foreach (SegmentRule il in SegmentRules.All.Where(r => r.Name.Contains("IL"))) {
             SegmentRule start = SegmentRules.All.Single(r =>
-                r.Scope == il.Scope && r.Name.EndsWith("Start") && !r.Name.StartsWith("ARB "));
+                r.Scope == il.Scope && r.Name == "Start");
 
             Assert.Equal((start.Anchor, start.Start, start.Setup, start.HeadTicks, start.TailTicks),
                 (il.Anchor, il.Start, il.Setup, il.HeadTicks, il.TailTicks));
@@ -123,16 +127,20 @@ public class SegmentRulesTests {
     [Fact]
     public void OnlyTheBerryTabsRowsRequireBerries() {
         Assert.All(SegmentRules.All, r => {
-            Assert.Equal(r.Name.StartsWith("ARB "), r.RequiresBerries);
+            // 6A has no berry, and 8A's row is typed on the A-side tab under an A-side name
+            bool berryTab = r.Name.StartsWith("ARB ") || (r.Name.StartsWith("FC ") && r.Scope != "6a");
+            Assert.Equal(berryTab, r.RequiresBerries);
         });
-        Assert.Equal(39, SegmentRules.All.Count(r => r.RequiresBerries));
-        Assert.Equal(5, SegmentRules.All.Count(r => r.RequiresBerries && r.ChapterRun));
+        Assert.Equal(39, SegmentRules.All.Count(r => r.Name.StartsWith("ARB ")));
+        Assert.Equal(20, SegmentRules.All.Count(r => r.Name.StartsWith("FC ") && r.RequiresBerries));
+        Assert.Equal(12, SegmentRules.All.Count(r => r.RequiresBerries && r.ChapterRun));
     }
 
     [Fact]
     public void TheMapSpawnRows() {
         Assert.Equal(
-            ["1a/ARB Crossing to Heart", "1a/ARB Crossing", "1a/ARB Chasm", "4a/ARB Cliff Face (from RTM)", "5a/ARB Depths"],
+            ["1a/ARB Crossing to Heart", "1a/ARB Crossing", "1a/ARB Chasm", "4a/ARB Cliff Face (from RTM)", "5a/ARB Depths",
+             "5a/FC Depths", "6a/FC Hollows (from RTM)"],
             SegmentRules.All.Where(r => r.Setup == StartSetup.MapSpawn).Select(r => $"{r.Chapter}/{r.Name}"));
     }
 
@@ -142,9 +150,9 @@ public class SegmentRulesTests {
         Assert.Equal(
             ["1a/ARB Crossing to Heart", "1a/ARB Start to Heart", "1a/ARB Crossing", "3a/ARB Huge Mess", "4a/ARB Shrine",
              "3a/ARB IL", "4a/ARB IL"],
-            SegmentRules.All.Where(r => r.RequiresBerries && r.Requires == Collectibles.Heart)
+            SegmentRules.All.Where(r => r.Name.StartsWith("ARB ") && r.Requires == Collectibles.Heart)
                 .Select(r => $"{r.Chapter}/{r.Name}"));
-        Assert.All(SegmentRules.All.Where(r => r.RequiresBerries),
+        Assert.All(SegmentRules.All.Where(r => r.Name.StartsWith("ARB ")),
             r => Assert.True(r.Requires is Collectibles.None or Collectibles.Heart));
     }
 
@@ -174,6 +182,104 @@ public class SegmentRulesTests {
             Assert.Single(berry.Berries.Rooms);
         });
         Assert.Equal(SegmentAutoDetect.EntryRooms[("7a", "3000 M")], SegmentAutoDetect.EntryRooms[("7a", "Downdraft")]);
+    }
+
+    // a Full Clear label says nothing of what the row collects: the whole table, as the owner gave it
+    [Theory]
+    [InlineData("2a", "FC Start", (int)(Collectibles.Cassette), 0)]
+    [InlineData("2a", "FC IL", (int)(Collectibles.Cassette), 0)]
+    [InlineData("3a", "FC Elevator Shaft", (int)(Collectibles.Cassette), 0)]
+    [InlineData("3a", "FC IL", (int)(Collectibles.Heart | Collectibles.Cassette), 0)]
+    [InlineData("4a", "FC Start", (int)(Collectibles.Cassette), 0)]
+    [InlineData("4a", "FC IL", (int)(Collectibles.Heart | Collectibles.Cassette), 0)]
+    [InlineData("5a", "FC Depths", (int)(Collectibles.Heart | Collectibles.Cassette), 0)]
+    [InlineData("6a", "FC Hollows (from RTM)", (int)(Collectibles.None), 0)]
+    [InlineData("7a", "FC Start", (int)(Collectibles.Gem), 1)]
+    [InlineData("7a", "FC 500m", (int)(Collectibles.Gem), 1)]
+    [InlineData("7a", "FC 1000m", (int)(Collectibles.Gem), 1)]
+    [InlineData("7a", "FC 1500m", (int)(Collectibles.Gem | Collectibles.Cassette), 1)]
+    [InlineData("7a", "FC 2000m", (int)(Collectibles.Gem), 1)]
+    [InlineData("7a", "FC 2500m", (int)(Collectibles.Gem), 1)]
+    [InlineData("7a", "FC 3000m", (int)(Collectibles.Heart), 0)]
+    [InlineData("7a", "FC Downdraft", (int)(Collectibles.Heart), 0)]
+    [InlineData("7a", "FC IL", (int)(Collectibles.Gem | Collectibles.Cassette | Collectibles.Heart), 6)]
+    [InlineData("8a", "HotM Horizontal Tape", (int)(Collectibles.Cassette), 0)]
+    [InlineData("8a", "FC IL", (int)(Collectibles.Cassette), 0)]
+    [InlineData("Farewell", "FC Moon Berry", (int)(Collectibles.None), 0)]
+    [InlineData("Farewell", "FC DTS IL", (int)(Collectibles.None), 0)]
+    [InlineData("Farewell", "FC No DTS IL", (int)(Collectibles.None), 0)]
+    public void WhatAFullClearRowCollects(string chapter, string name, int requires, int gems) {
+        SegmentRule rule = Rule(chapter, name);
+
+        Assert.Equal(((Collectibles)requires, gems, Collectibles.None), (rule.Requires, rule.Gems, rule.EndsOn));
+        Assert.Equal(name.EndsWith("IL") ? EndKind.ChapterEnd : EndKind.NextStart, rule.End);
+    }
+
+    [Fact]
+    public void TheFullClearRowsOffTheDefaultBerrySet() {
+        Assert.Null(Rule("6a", "FC Hollows (from RTM)").Berries);
+        Assert.Null(Rule("8a", "HotM Horizontal Tape").Berries);
+        Assert.Equal(["g-00b"], Rule("7a", "FC Downdraft").Berries.Rooms);
+        Assert.All(new[] { "FC Moon Berry", "FC DTS IL", "FC No DTS IL" },
+            name => Assert.Same(BerrySet.MoonBerry, Rule("Farewell", name).Berries));
+        Assert.Equal("Start", Rule("2a", "FC Start").Berries.Checkpoint);
+        Assert.Same(BerrySet.WholeChapter, Rule("7a", "FC IL").Berries);
+    }
+
+    // the Farewell tab's own ILs get their dash count from their label; these two cannot
+    [Fact]
+    public void TheFarewellFullClearRunsKeepTheDashRule() {
+        Assert.Equal((2, 1, (int?)null),
+            (Rule("Farewell", "FC DTS IL").Dashes.Value, Rule("Farewell", "FC No DTS IL").Dashes.Value,
+             Rule("Farewell", "FC Moon Berry").Dashes));
+    }
+
+    // Contains compares the berry flag only: a Full Clear row must ask for its berry twin's very
+    // set, or it would pass for more specific than a row whose berries it does not hold
+    [Fact]
+    public void AFullClearRowAsksForItsBerryTwinsBerries() {
+        foreach (SegmentRule fc in SegmentRules.All.Where(r => r.Name.StartsWith("FC ") && r.Scope != "Farewell")) {
+            string twin = "ARB " + fc.Name[3..].Replace("2500m", "2500m-full");
+            if (SegmentRules.All.SingleOrDefault(r => r.Scope == fc.Scope && r.Name == twin) is { } arb) {
+                Assert.Equal((arb.Berries, arb.Anchor, arb.Setup, arb.End == EndKind.Collect ? fc.End : arb.End),
+                    (fc.Berries, fc.Anchor, fc.Setup, fc.End));
+            } else {
+                Assert.Contains($"{fc.Scope}/{fc.Name}", new[] { "6a/FC Hollows (from RTM)" });
+            }
+        }
+    }
+
+    // what the timer row shows when a 7A checkpoint closes, by what the run collected
+    [Fact]
+    public void TheMostSpecificRowMetIsShown() {
+        SegmentRule plain = Rule("7a", "500m"), gem = Rule("7a", "500m Gem"), arb = Rule("7a", "ARB 500m"),
+            fc = Rule("7a", "FC 500m");
+
+        Assert.Same(fc, Shown(plain, gem, arb, fc));
+        Assert.Same(gem, Shown(plain, gem));
+        Assert.Same(arb, Shown(plain, arb));
+        Assert.Same(Rule("7a", "FC IL"),
+            ShownOf(true, [Rule("7a", "IL"), Rule("7a", "IL Tape Clear"), Rule("7a", "ARB IL"), Rule("7a", "FC IL")]));
+
+        static SegmentRule Shown(params SegmentRule[] met) => ShownOf(false, met);
+    }
+
+    private static SegmentRule ShownOf(bool chapterRun, SegmentRule[] met) =>
+        met[Specificity.MostSpecific(met, chapterRun)];
+
+    // a gem row is its plain row plus the gem its label marks
+    [Fact]
+    public void AGemRowAsksForItsCheckpointsGem() {
+        Assert.All(new[] { "Start", "500m", "1000m", "2000m", "2500m" }, name => {
+            SegmentRule plain = Rule("7a", name);
+            SegmentRule gem = Rule("7a", name + " Gem");
+            Assert.Equal((plain.Anchor, plain.Start, plain.Setup, plain.End, plain.HeadTicks),
+                (gem.Anchor, gem.Start, gem.Setup, gem.End, gem.HeadTicks));
+            Assert.Equal((Collectibles.Gem, 1), (gem.Requires, gem.Gems));
+        });
+        Assert.Equal((Collectibles.Gem | Collectibles.Cassette, 1, EndKind.NextStart),
+            (Rule("7a", "1500m Gem Tape").Requires, Rule("7a", "1500m Gem Tape").Gems, Rule("7a", "1500m Gem Tape").End));
+        Assert.All(SegmentRules.All, r => Assert.Equal(r.Gems > 0, (r.Requires & Collectibles.Gem) != 0));
     }
 
     // what the rows above the timer and the export screen print

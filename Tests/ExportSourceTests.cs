@@ -108,4 +108,22 @@ public class ExportSourceTests {
         Assert.Equal(new SheetRowRef("ARB/Full Clear", cell, cell), updates[1].Row);
         Assert.All(updates, u => Assert.False(u.Duplicate));
     }
+
+    // Full Clear rows follow the berry rows of their side under the sheet's own
+    // chapter cell; 8A's, typed on the A-side tab, stays with the A-side rows
+    [Fact]
+    public void ListsFullClearRowsUnderTheirChapterCell() {
+        RemoteBests.Reset();
+        List<PendingUpdate> updates = ExportSource.Collect([
+            Run("7a", "7a", "FC IL", 700), Run("7a", "7a", "FC Start", 60), Run("7a", "7a", "ARB Start", 50),
+            Run("7a", "7a", "Start Gem", 40), Run("8a", "8a", "HotM Horizontal Tape", 65),
+            Run("8a", "8a", "ARB IL", 300), Run("Farewell", "Farewell", "FC Moon Berry", 170),
+            Run("Farewell", "Farewell", "Farewell", 160),
+        ]);
+
+        Assert.Equal(["Start Gem", "Start", "Start", "IL", "HotM Horizontal Tape", "IL", "Farewell", "Moon Berry"],
+            updates.Select(u => u.Label));
+        Assert.Equal(["7a", "7arb", "7afc", "7afc", "8a", "8arb", "Farewell", "Fw FC"],
+            updates.Select(u => ExportTable.GroupLabel(u.Row)));
+    }
 }

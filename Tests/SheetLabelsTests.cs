@@ -149,4 +149,19 @@ public class SheetLabelsTests {
         Assert.True(SheetLabels.TryMap(srsChapter, srsName, out SheetRowRef row));
         Assert.Equal(new SheetRowRef(tab, chapter, cp), row);
     }
+
+    // Full Clear: the chapter cell as it stands, a chapter row on that cell
+    // twice; 8A's row is typed on the A-side tab, and Farewell's two chapter
+    // rows share one cell
+    [Fact]
+    public void AFullClearRowIsWrittenWhereTheEntryTabHasIt() {
+        AssertRow("2a", "FC Start", "ARB/Full Clear", "2afc", "2a Start");
+        AssertRow("7a", "FC Downdraft", "ARB/Full Clear", "7afc", "Downdraft");
+        AssertRow("7a", "FC IL", "ARB/Full Clear", "7afc", "7afc");
+        AssertRow("Farewell", "FC Moon Berry", "ARB/Full Clear", "Fw FC", "Moon Berry");
+        AssertRow("Farewell", "FC DTS IL", "ARB/Full Clear", "Fw FC", "DTS");
+        AssertRow("Farewell", "FC No DTS IL", "ARB/Full Clear", "Fw FC", "No DTS");
+        AssertRow("8a", "HotM Horizontal Tape", "A Sides", "8a", "HotM Horizontal \U0001F4FC");
+        AssertRow("7a", "1500m Gem Tape", "A Sides", "7a", "1500m \U0001F48E+\U0001F4FC");
+    }
 }

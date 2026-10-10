@@ -25,9 +25,9 @@ public class RunTrackerTests {
     private SegmentRule Add(string name, string start, string end, Collectibles requires = Collectibles.None,
         EndKind endKind = EndKind.NextStart, Collectibles endsOn = Collectibles.None, int? dashes = null,
         StartKind startKind = StartKind.Room, StartSetup setup = StartSetup.NextRoom, long head = 0, long tail = 0,
-        bool berries = false, string scope = "1a", string entry = null) {
+        bool berries = false, string scope = "1a", string entry = null, int gems = 0) {
         SegmentRule rule = new(scope, scope, name, name, startKind, setup, endKind, endsOn, requires, dashes,
-            head, tail, rules.Count) { Berries = berries ? BerrySet.WholeChapter : null };
+            head, tail, rules.Count) { Berries = berries ? BerrySet.WholeChapter : null, Gems = gems };
         rules.Add(rule);
         rooms.ByName[name] = (start, end);
         if (entry != null) {
@@ -949,5 +949,32 @@ public class RunTrackerTests {
         // the second piece's berry is missed: its plain row only
         Assert.Equal([("Updraft", 150L)], Of(t.RoomEntered("1a", "g-01", "g-02", 250, true, false, One)));
         Assert.Equal([("3000m", 400L), ("Nodraft", 150L)], Of(t.ChapterTimeStopped(400, One)));
+    }
+
+    // a chapter run asks for the chapter's six gems, a checkpoint row for its own:
+    // the six are counted, since 7A's heart gate also opens on gems the file holds
+    [Fact]
+    public void GemsAreCounted() {
+        Add("FC IL", "a-00", null, Collectibles.Gem, EndKind.ChapterEnd, setup: StartSetup.CurrentRoom, gems: 6);
+        Add("Start Gem", "a-00", "b-00", Collectibles.Gem, setup: StartSetup.CurrentRoom, gems: 1);
+        Add("500m", "b-00", "c-00", entry: "a-06");
+        RunTracker t = Tracker();
+
+        t.Restart("1a", "a-00", 0, true, false, _ => true);
+        t.Collected(Collectibles.Gem, 50, One);
+        Assert.Equal([("Start Gem", 100L)], Of(t.RoomEntered("1a", "a-06", "b-00", 100, true, false, One)));
+        for (int gem = 1; gem < 5; gem++) {
+            t.Collected(Collectibles.Gem, 100 + gem, One);
+        }
+
+        // five of six
+        Assert.Empty(t.ChapterTimeStopped(600, One));
+
+        t.Restart("1a", "a-00", 0, true, false, _ => true);
+        for (int gem = 0; gem < 6; gem++) {
+            t.Collected(Collectibles.Gem, 10 + gem, One);
+        }
+
+        Assert.Equal([("FC IL", 600L)], Of(t.ChapterTimeStopped(600, One)));
     }
 }

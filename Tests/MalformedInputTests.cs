@@ -115,9 +115,9 @@ public class MalformedInputTests {
 
     [Fact]
     public void SkipsRowsThatAreNotOnTheImportList() {
-        // the gem variants sit right next to the imported rows
+        // rows the sheet has and srs does not import sit right next to the imported ones
         SheetData data = Fixtures.Parse(
-            Header + "7a CP,7a Start,0:00.000,13.906,14.5\n,7a Start 💎,0:00.000,0:00.000,\n,1500m 💎+📼,0:00.000,52.445,55.5", null);
+            Header + "7a CP,7a Start,0:00.000,13.906,14.5\n,7a Start (old),0:00.000,0:00.000,\n,1500m 💎,0:00.000,52.445,55.5", null);
 
         SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
         Assert.Equal("Start", segment.Name);

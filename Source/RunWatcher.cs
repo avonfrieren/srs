@@ -122,6 +122,7 @@ public static class RunWatcher {
         On.Celeste.Level.Reload += LevelOnReload;
         On.Celeste.Session.Restart += SessionOnRestart;
         On.Celeste.SaveData.RegisterCassette += OnRegisterCassette;
+        On.Celeste.SaveData.RegisterSummitGem += OnRegisterSummitGem;
         On.Celeste.HeartGem.RegisterAsCollected += OnRegisterHeart;
         // Hook: a berry banked, for the rows that require it
         On.Celeste.Strawberry.OnCollect += OnBerryCollect;
@@ -150,6 +151,7 @@ public static class RunWatcher {
         On.Celeste.Level.Reload -= LevelOnReload;
         On.Celeste.Session.Restart -= SessionOnRestart;
         On.Celeste.SaveData.RegisterCassette -= OnRegisterCassette;
+        On.Celeste.SaveData.RegisterSummitGem -= OnRegisterSummitGem;
         On.Celeste.HeartGem.RegisterAsCollected -= OnRegisterHeart;
         On.Celeste.Strawberry.OnCollect -= OnBerryCollect;
 
@@ -476,6 +478,12 @@ public static class RunWatcher {
     private static void OnRegisterCassette(On.Celeste.SaveData.orig_RegisterCassette orig, SaveData self, AreaKey area) {
         orig(self, area);
         OnCollect(Collectibles.Cassette);
+    }
+
+    // called on every smash, a gem the file already holds included
+    private static void OnRegisterSummitGem(On.Celeste.SaveData.orig_RegisterSummitGem orig, SaveData self, int id) {
+        orig(self, id);
+        OnCollect(Collectibles.Gem);
     }
 
     // a banked berry stays banked through a death; one lost while following

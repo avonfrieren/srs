@@ -3,19 +3,22 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// A red berry of the map: its room, its entity id, and the checkpoint the
-/// map files it under (0 = before the first checkpoint).
-internal readonly record struct MapBerry(string Room, int Id, int Checkpoint) {
+/// A red or moon berry of the map: its room, its entity id, and the
+/// checkpoint the map files it under (0 = before the first checkpoint).
+internal readonly record struct MapBerry(string Room, int Id, int Checkpoint, bool Moon = false) {
     /// The game's EntityID key.
     public string Key => $"{Room}:{Id}";
 }
 
-/// Which red berries a row requires, in map terms: every berry of the
+/// Which berries a row requires, in map terms: every red berry of the
 /// chapter, or those of the named game checkpoint ("Start" = before the
-/// first) plus those of Rooms, less those of Except.
+/// first) plus those of Rooms, less those of Except; or the chapter's moon
+/// berry, which no red set holds.
 internal sealed record BerrySet(
-    string Checkpoint = null, string[] Rooms = null, string[] Except = null, bool Chapter = false) {
+    string Checkpoint = null, string[] Rooms = null, string[] Except = null, bool Chapter = false,
+    bool Moon = false) {
     public static readonly BerrySet WholeChapter = new(Chapter: true);
+    public static readonly BerrySet MoonBerry = new(Moon: true);
 }
 
 internal static class BerrySets {
@@ -37,12 +40,16 @@ internal static class BerrySets {
         HashSet<string> removed = [];
         List<string> keys = [];
         foreach (MapBerry berry in berries) {
+            if (berry.Moon != set.Moon) {
+                continue;
+            }
+
             bool named = Has(set.Rooms, berry.Room);
             if (named) {
                 added.Add(berry.Room);
             }
 
-            if (!set.Chapter && !named && berry.Checkpoint != checkpoint) {
+            if (!set.Chapter && !set.Moon && !named && berry.Checkpoint != checkpoint) {
                 continue;
             }
 
