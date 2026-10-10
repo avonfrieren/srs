@@ -165,7 +165,7 @@ public static class SheetImporter {
         if (data.MissingRows.Count > 0) {
             Logger.Log(LogLevel.Warn, LogTag,
                 $"{data.MissingRows.Count} imported row(s) not in {where}: "
-                + string.Join(", ", data.MissingRows.Select(row => $"{row.Chapter} / {row.Name}")));
+                + string.Join(", ", data.MissingRows.Select(row => $"{row.SheetChapter} / {row.Label}")));
         }
     }
 
@@ -188,7 +188,7 @@ public static class SheetImporter {
 
         // a private sheet answers 200 with a Google sign-in page instead of CSV
         if (csv.TrimStart().StartsWith("<", StringComparison.Ordinal)) {
-            Logger.Log(LogLevel.Warn, LogTag, $"Got HTML instead of CSV for the {label} tab — is the sheet shared publicly (anyone with the link)?");
+            Logger.Log(LogLevel.Warn, LogTag, $"Got HTML instead of CSV for the {label} tab: is the sheet shared publicly (anyone with the link)?");
             return null;
         }
 
@@ -229,5 +229,4 @@ public static class SheetImporter {
 
         return latest;
     }
-
 }

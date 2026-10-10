@@ -25,7 +25,7 @@ internal static class TierLine {
         return new TierRows(shownText, tier, pb, gap);
     }
 
-    /// "1a Crossing", "6a Lake": the chapter, unless the name is it ("1c",
+    /// "1a Crossing", "6a Lake": the scope, unless the name is it ("1c",
     /// Farewell's "Farewell").
     public static string NameOf(string scope, string name) =>
         name == scope ? name : $"{scope} {name}";

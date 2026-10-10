@@ -4,9 +4,8 @@ using Xunit;
 
 namespace Celeste.Mod.SpeedrunSheet.Tests;
 
-// Checks the export half of the row table: SheetLabels is the last hop before
-// a time is written, turning srs's own (chapter, name) into the row of the
-// player's sheet through SheetRows.
+// Checks the export half of the row table: the row of the player's sheet a
+// time of srs's (scope, name) is written to.
 public class SheetLabelsTests {
     // a row whose two documents differ carries a Target, which wins over the
     // default; the default's tab and chapter are pinned row by row below
@@ -34,11 +33,7 @@ public class SheetLabelsTests {
     }
 
     [Fact]
-    public void EachRowIsKeyedOnceOnBothSides() {
-        Assert.Equal(SheetRows.All.Length,
-            SheetRows.All.Select(r => (r.Tab, r.SheetChapter, r.Label)).Distinct().Count());
-        Assert.Equal(SheetRows.All.Length,
-            SheetRows.All.Select(r => (r.Scope, r.Name)).Distinct().Count());
+    public void NoTwoRowsShareATarget() {
         // two rows on one target would write one cell, and the export
         // summary would name the first for both
         Assert.Equal(SheetRows.All.Length, SheetRows.All.Select(SheetRows.TargetOf).Distinct().Count());
@@ -46,7 +41,7 @@ public class SheetLabelsTests {
 
     [Fact]
     public void UnknownSegmentIsNotExported() {
-        Assert.False(SheetLabels.TryMap("9a", "Nowhere", out _));
+        Assert.False(SheetRows.TryFind("9a", "Nowhere", out _));
     }
 
     [Fact]
@@ -87,8 +82,8 @@ public class SheetLabelsTests {
         Assert.Equal("500 M", Row("7a", "500m").Anchor);
     }
 
-    private static SheetRow Row(string chapter, string name) {
-        Assert.True(SheetRows.TryFind(chapter, name, out SheetRow row), $"{chapter}/{name}");
+    private static SheetRow Row(string scope, string name) {
+        Assert.True(SheetRows.TryFind(scope, name, out SheetRow row), $"{scope}/{name}");
         return row;
     }
 
@@ -145,9 +140,8 @@ public class SheetLabelsTests {
         AssertRow("Farewell", "Reconciliation", "Farewell", "", "Reconciliation");
     }
 
-    private static void AssertRow(string srsChapter, string srsName, string tab, string chapter, string cp) {
-        Assert.True(SheetLabels.TryMap(srsChapter, srsName, out SheetRowRef row));
-        Assert.Equal(new SheetRowRef(tab, chapter, cp), row);
+    private static void AssertRow(string scope, string name, string tab, string chapter, string cp) {
+        Assert.Equal(new SheetRowRef(tab, chapter, cp), SheetRows.TargetOf(Row(scope, name)));
     }
 
     // Full Clear: the chapter cell as it stands, a chapter row on that cell

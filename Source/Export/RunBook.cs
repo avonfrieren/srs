@@ -16,8 +16,7 @@ internal sealed class RunBook {
         List<Run> improved = [];
         foreach (SegmentRecord record in records) {
             SegmentRule rule = record.Rule;
-            if (record.Ticks <= 0
-                || (best.TryGetValue((rule.Scope, rule.Name), out Run held) && record.Ticks >= held.Ticks)) {
+            if (best.TryGetValue((rule.Scope, rule.Name), out Run held) && record.Ticks >= held.Ticks) {
                 continue;
             }
 

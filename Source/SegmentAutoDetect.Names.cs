@@ -3,15 +3,14 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// The checkpoint name tables, split from the rest of SegmentAutoDetect (which
-// needs Celeste types) so the tests can check them against the row table.
+// The checkpoint name tables. Game-free half: the tests compile it.
 public static partial class SegmentAutoDetect {
     // (scope, checkpoint) -> the virtual checkpoint the sheet inserts after
     // it: the game's "Heart of the Mountain" is two segments on the sheet, and
-    // 7A's 3000m is also timed as three, beside the whole. A virtual one
-    // exists only here, in SheetRows and in StartRoomOverrides. The last of a
-    // chain must close its chapter: nothing resolves the end room of one
-    // followed by a real checkpoint
+    // 7A's 3000m is also timed as three, beside the whole. A virtual one is
+    // no checkpoint of the map: every table here that keys it must be filled
+    // by hand. The last of a chain must close its chapter: nothing resolves
+    // the end room of one followed by a real checkpoint
     internal static readonly Dictionary<(string Scope, string GameName), string> SplitCheckpoints = new() {
         [("7a", "Downdraft")] = "Updraft",
         [("7a", "Updraft")] = "Nodraft",
@@ -63,14 +62,6 @@ public static partial class SegmentAutoDetect {
     internal static readonly HashSet<(string Scope, string GameName)> AfterLaunchStarts = [
         ("7a", "Start"),
         ("7b", "Start"),
-    ];
-
-    // (scope, game checkpoint) of the segments valid from their start point,
-    // beyond every chapter's "Start": the segments after a wake-up
-    internal static readonly HashSet<(string Scope, string GameName)> CurrentRoomStarts = [
-        ("2a", "Awake"),
-        ("5a", "Unravelling"),
-        ("5b", "Through the Mirror"),
     ];
 
     // (scope, game checkpoint) -> the room a segment's first room must be
@@ -151,9 +142,10 @@ public static partial class SegmentAutoDetect {
     };
 
     // (scope, game checkpoint) -> the spawn a wake-up puts the player on, in
-    // world coordinates: the only one such a start opens from. Not the default
-    // spawn: in 5A's and 5B's c-00 that is the bottom one, and the wake-up uses
-    // the top one. A row missing here never opens on a restart
+    // world coordinates. A segment keyed here is valid from its start point,
+    // as a chapter's "Start" is, and opens on a restart from this spawn only.
+    // Not the default spawn: in 5A's and 5B's c-00 that is the bottom one, and
+    // the wake-up uses the top one
     internal static readonly Dictionary<(string Scope, string GameName), (int X, int Y)> WakeUpSpawns = new() {
         [("2a", "Awake")] = (144, 1880),
         [("5a", "Unravelling")] = (-832, 1688),

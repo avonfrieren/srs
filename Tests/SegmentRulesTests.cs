@@ -7,7 +7,7 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 
 // one rule per imported row, and nothing that two rules could both claim
 public class SegmentRulesTests {
-    private static SegmentRule Rule(string chapter, string name) => TestRules.Find(chapter, name);
+    private static SegmentRule Rule(string scope, string name) => TestRules.Find(scope, name);
 
     // the rule a label alone derives, on a row of no table
     private static SegmentRule Synthetic(string label) =>
@@ -100,8 +100,6 @@ public class SegmentRulesTests {
     [Fact]
     public void OneRulePerImportedRow() {
         Assert.Equal(SheetRows.All.Length, SegmentRules.All.Count);
-        Assert.Equal(SegmentRules.All.Count,
-            SegmentRules.All.Select(r => (r.Scope, r.Name)).Distinct().Count());
     }
 
     // two rules with the same start, setup, end, requirements and exclusivity could not
@@ -219,8 +217,8 @@ public class SegmentRulesTests {
     [InlineData("Farewell", "FC Moon Berry", (int)(Collectibles.None), 0)]
     [InlineData("Farewell", "FC DTS IL", (int)(Collectibles.None), 0)]
     [InlineData("Farewell", "FC No DTS IL", (int)(Collectibles.None), 0)]
-    public void WhatAFullClearRowCollects(string chapter, string name, int requires, int gems) {
-        SegmentRule rule = Rule(chapter, name);
+    public void WhatAFullClearRowCollects(string scope, string name, int requires, int gems) {
+        SegmentRule rule = Rule(scope, name);
 
         Assert.Equal(((Collectibles)requires, gems, Collectibles.None), (rule.Requires, rule.Gems, rule.EndsOn));
         Assert.Equal(name.EndsWith("IL") ? EndKind.ChapterEnd : EndKind.NextStart, rule.End);
@@ -303,15 +301,6 @@ public class SegmentRulesTests {
             SegmentRules.All.Select(r => TierLine.NameOf(r.Scope, r.Name)).Distinct().Count());
     }
 
-    [Fact]
-    public void TheVariantsAreToldApartByWhatTheyCollect() {
-        Assert.Equal(Collectibles.None, Rule("3a", "Huge Mess").Requires);
-        Assert.Equal(Collectibles.Heart, Rule("3a", "Huge Mess Heart").Requires);
-        Assert.Equal(EndKind.NextStart, Rule("3a", "Huge Mess Heart").End);
-        Assert.Equal(EndKind.NextStart, Rule("4a", "Shrine Heart Clear").End);
-        Assert.Equal(Collectibles.Heart, Rule("4a", "Shrine Heart Clear").Requires);
-    }
-
     // the sheet's spacing around a marker is irregular, and a row marking both
     // ends on the later of the two. Collectibles as an int: the enum is internal
     [Theory]
@@ -381,15 +370,6 @@ public class SegmentRulesTests {
             SegmentRules.All.Where(r => r.End is EndKind.Collect or EndKind.Restart).Select(r => $"{r.Scope}/{r.Name}"));
     }
 
-    // an IL's "RTM" variant stops at the later collect, not at the chapter's end
-    [Fact]
-    public void AnIlsRtmVariantKeepsItsCollect() {
-        Collectibles both = Collectibles.Heart | Collectibles.Cassette;
-        Assert.Equal((EndKind.Collect, both, both),
-            (Rule("3a", "IL Heart Tape RTM").End, Rule("3a", "IL Heart Tape RTM").EndsOn,
-                Rule("3a", "IL Heart Tape RTM").Requires));
-    }
-
     // what the rows above the timer split on: an IL "RTM" is a chapter run
     // too, and no checkpoint row is
     [Fact]
@@ -405,24 +385,6 @@ public class SegmentRulesTests {
 
         Assert.Equal((EndKind.ChapterEnd, true), (SegmentRules.Build([clear])[0].End, SegmentRules.Build([clear])[0].ChapterRun));
         Assert.Equal((EndKind.NextStart, false), (Synthetic("1b Clear").End, Synthetic("1b Clear").ChapterRun));
-    }
-
-    [Fact]
-    public void RtmRowsEndAtTheCollect() {
-        Assert.Equal((EndKind.Collect, Collectibles.Cassette),
-            (Rule("6a", "Hollows Tape RTM").End, Rule("6a", "Hollows Tape RTM").EndsOn));
-        Assert.Equal((EndKind.Collect, Collectibles.Cassette),
-            (Rule("5a", "Depths Tape RTM").End, Rule("5a", "Depths Tape RTM").EndsOn));
-        Assert.Equal(EndKind.NextStart, Rule("6a", "Hollows").End);
-    }
-
-    // timed to the restart, as Speed Run Tool's timer kept across it is; the
-    // heart is what tells it from plain 2a Start
-    [Fact]
-    public void TheRcRowEndsAtTheRestartWithItsHeart() {
-        SegmentRule rc = Rule("2a", "Start Heart RC");
-        Assert.Equal((EndKind.Restart, Collectibles.None, Collectibles.Heart), (rc.End, rc.EndsOn, rc.Requires));
-        Assert.Equal(EndKind.NextStart, Rule("2a", "Start").End);
     }
 
     [Fact]

@@ -52,7 +52,7 @@ public sealed class RemoteRow {
 internal sealed class RowsResponse {
     [JsonPropertyName("rows")] public List<RemoteRow> Rows { get; set; }
     // how long the script itself took, so the wait can be split between its
-    // work and Google's dispatch. Absent from an older script
+    // work and Google's dispatch
     [JsonPropertyName("ms")] public int? Ms { get; set; }
     [JsonPropertyName("cached")] public bool Cached { get; set; }
     [JsonPropertyName("error")] public string Error { get; set; }
@@ -76,7 +76,7 @@ public static class ExportProtocol {
     public static Func<string, string> Localize = key => key;
 
     private static readonly JsonSerializerOptions Options = new() {
-        // Keep non-ASCII (accents, etc.) as literal characters instead of \uXXXX escapes.
+        // emoji stay literal, as the script sends them
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
@@ -138,9 +138,6 @@ public static class ExportProtocol {
         error = null;
         return true;
     }
-
-    public static bool TryParseRows(string body, out List<RemoteRow> rows, out string error) =>
-        TryParseRows(body, out rows, out string _, out error, out RowsFailure _);
 
     public static bool TryParseRows(string body, out List<RemoteRow> rows, out string scriptTiming,
         out string error, out RowsFailure failure) {

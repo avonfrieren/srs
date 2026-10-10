@@ -90,7 +90,8 @@ public static class RunWatcher {
 
     /// The segments closed with a time since the attempt started, oldest
     /// first, the most specific segment of each frame then the most specific
-    /// chapter run, each with its serial; empty after a load. The HUD's tier rows show the last and step back from it.
+    /// chapter run, each with its serial; empty after a load. The HUD's tier
+    /// rows show the last and step back from it.
     internal static IReadOnlyList<(SegmentRecord Record, int Serial)> Attempt => attempt;
     private static readonly List<(SegmentRecord Record, int Serial)> attempt = [];
 
@@ -131,8 +132,6 @@ public static class RunWatcher {
         saveLoadAction = SaveLoadImports.RegisterStaticTypes?.Invoke(typeof(Saved),
             [nameof(Saved.Stamp), nameof(Saved.From), nameof(Saved.SpawnAt), nameof(Saved.Moved)]);
         if (saveLoadAction == null) {
-            // loads would go unseen, and chapter time keeps running across a
-            // load, so a segment open across one would be mistimed: nothing is fed
             Logger.Log(LogLevel.Warn, "srs", "Speed Run Tool's SaveLoad did not bind: savestate loads cannot be seen, so srs records nothing");
         }
 
@@ -170,7 +169,7 @@ public static class RunWatcher {
 
     // every room load passes here; the kinds are RoomLoad's. A cutscene's room
     // change (2A's dream, the mirrors, 6A's fall, Farewell's intro) is a
-    // walk-in. Four of them run in OnEndOfFrame, after the update hook: the
+    // walk-in. Some of them run in OnEndOfFrame, after the update hook: the
     // next fed frame reads the kind
     private static void LevelOnLoadLevel(On.Celeste.Level.orig_LoadLevel orig, Level self,
         Player.IntroTypes playerIntro, bool isFromLoader) {
@@ -226,10 +225,8 @@ public static class RunWatcher {
             return;
         }
 
-        // before orig: the reading a room entry is timed from (the chapter's
-        // end takes the one after, as chapter time does; Speed Run Tool's
-        // display stops a frame short there), and the level and the Saved
-        // values as a load left them, before this frame can move the player
+        // before orig: the reading a room entry is timed from, and the level
+        // and Saved as a load left them, before this frame can move the player
         bool loaded = Saved.Stamp != stamp;
         if (loaded) {
             // a room loaded before the load belongs to the timeline it left
@@ -353,7 +350,9 @@ public static class RunWatcher {
             }
 
             // closes before opens: the stop edge, then the room entry (which
-            // closes before it opens), then the starts waiting
+            // closes before it opens), then the starts waiting. The chapter's
+            // end takes the reading after orig, as chapter time does; Speed
+            // Run Tool's display stops a frame short there
             if (stopped && !lastStopped) {
                 Emit(session, tracker.ChapterTimeStopped(after, end));
             }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
@@ -54,13 +55,8 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
     /// Swapped by RunWatcher when the area changes.
     public IRoomMap Rooms { get; set; } = rooms;
 
-    public IEnumerable<SegmentRule> Open {
-        get {
-            foreach (OpenSegment segment in open) {
-                yield return segment.Rule;
-            }
-        }
-    }
+    /// For the tests.
+    public IEnumerable<SegmentRule> Open => open.Select(segment => segment.Rule);
 
     /// The timeline changed under the open segments: nothing open is recorded.
     public void Drop() {
@@ -318,21 +314,11 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         }
 
         foreach (string berry in berries) {
-            if (!segment.Berries.Contains(berry) && !Contains(end.FollowingBerries, berry)) {
+            if (!segment.Berries.Contains(berry) && !end.FollowingBerries.Contains(berry)) {
                 return false;
             }
         }
 
         return true;
-    }
-
-    private static bool Contains(IReadOnlyCollection<string> berries, string berry) {
-        foreach (string candidate in berries) {
-            if (candidate == berry) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

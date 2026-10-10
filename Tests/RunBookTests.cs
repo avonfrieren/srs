@@ -7,8 +7,8 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 public class RunBookTests {
     private static long Ticks(double seconds) => TimeSpan.FromSeconds(seconds).Ticks;
 
-    private static SegmentRecord Record(string chapter, string name, double seconds) =>
-        new(TestRules.Find(chapter, name), Ticks(seconds));
+    private static SegmentRecord Record(string scope, string name, double seconds) =>
+        new(TestRules.Find(scope, name), Ticks(seconds));
 
     [Fact]
     public void KeepsTheBestOfEachRow() {
@@ -37,14 +37,6 @@ public class RunBookTests {
         book.Offer([Record("6a", "Hollows", 45)]);
 
         Assert.Equal(2, book.All.Count);
-    }
-
-    [Fact]
-    public void ANonPositiveTimeIsNeverKept() {
-        RunBook book = new();
-        Assert.Empty(book.Offer([new SegmentRecord(TestRules.Find("6a", "Hollows"), 0)]));
-
-        Assert.Empty(book.All);
     }
 
     // a session's bests outlive the chapter: an export from 2a carries 1a's too

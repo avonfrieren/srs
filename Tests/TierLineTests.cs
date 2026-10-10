@@ -66,13 +66,13 @@ public class TierLineTests {
 
     [Theory]
     [InlineData("1a", "Crossing", "1a Crossing")]
-    // the name is its chapter
+    // the name is its scope
     [InlineData("1c", "1c", "1c")]
     [InlineData("Farewell", "Farewell", "Farewell")]
     [InlineData("1a", "ARB Start", "1a ARB Start")]
     [InlineData("5a", "ARB Depths", "5a ARB Depths")]
     [InlineData("7a", "ARB IL", "7a ARB IL")]
-    public void TheNameLeadsWithItsChapterOnce(string scope, string name, string shown) {
+    public void TheNameLeadsWithItsScopeOnce(string scope, string name, string shown) {
         Assert.Equal(shown, TierLine.NameOf(scope, name));
     }
 }

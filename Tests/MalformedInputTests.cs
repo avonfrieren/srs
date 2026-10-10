@@ -28,7 +28,7 @@ public class MalformedInputTests {
     public void SurvivesRowsCutShortOfTheHeader() {
         SheetData data = Fixtures.Parse(Header + "1a CP,1a Start,0:00.000", null);
 
-        SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
+        SheetSegment segment = Assert.Single(data.Block.Segments);
         // one time per declared tier column, the missing cells reading as null
         Assert.Equal(3, segment.Times.Count);
         Assert.Equal(TimeSpan.Zero, segment.Times[0]);
@@ -42,7 +42,7 @@ public class MalformedInputTests {
         SheetData data = Fixtures.Parse(Header + "1a CP,1a Start,0:00.000,10,20", null,
             "Checkpoint,Hidden,WR\nSingular,0:00.000,30");
 
-        SheetSegment singular = data.CheckpointBlock.Find("Farewell", "Singular");
+        SheetSegment singular = data.Block.Find("Farewell", "Singular");
         Assert.Equal(3, singular.Times.Count);
         Assert.Null(singular.Times[2]);
     }
@@ -51,7 +51,7 @@ public class MalformedInputTests {
     public void TurnsBrokenFormulaCellsIntoNullThresholds() {
         SheetData data = Fixtures.Parse(Header + "1a CP,1a Start,0:00.000,#REF!,#REF!", null);
 
-        SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
+        SheetSegment segment = Assert.Single(data.Block.Segments);
         Assert.Null(segment.Times[1]);
         Assert.Null(segment.Times[2]);
     }
@@ -62,17 +62,17 @@ public class MalformedInputTests {
     public void ParsesTheASidesTabOnItsOwn() {
         SheetData data = Fixtures.Parse(Fixtures.ASides, null);
 
-        Assert.NotEmpty(data.CheckpointBlock.Segments);
-        Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Chapter == "5b");
+        Assert.NotEmpty(data.Block.Segments);
+        Assert.DoesNotContain(data.Block.Segments, s => s.Chapter == "5b");
     }
 
     [Fact]
     public void ParsesTheBSidesTabOnItsOwn() {
         SheetData data = Fixtures.Parse(null, Fixtures.BSides);
 
-        Assert.NotEmpty(data.CheckpointBlock.Segments);
-        Assert.Contains(data.CheckpointBlock.Segments, s => s.Chapter == "5b");
-        Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Name == "Granny");
+        Assert.NotEmpty(data.Block.Segments);
+        Assert.Contains(data.Block.Segments, s => s.Chapter == "5b");
+        Assert.DoesNotContain(data.Block.Segments, s => s.Name == "Granny");
     }
 
     // the Farewell tab has no Chapter column of its own, so it is the one that
@@ -82,8 +82,8 @@ public class MalformedInputTests {
     public void ParsesTheFarewellTabOnItsOwn() {
         SheetData data = Fixtures.Parse(null, null, Fixtures.Farewell);
 
-        Assert.All(data.CheckpointBlock.Segments, s => Assert.Equal("Farewell", s.Chapter));
-        Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "Stubbornness");
+        Assert.All(data.Block.Segments, s => Assert.Equal("Farewell", s.Chapter));
+        Assert.Contains(data.Block.Segments, s => s.Name == "Stubbornness");
     }
 
     // an old cache pairs with a freshly downloaded tab all the time — the two
@@ -92,15 +92,15 @@ public class MalformedInputTests {
     public void KeepsTheOtherTabsWhenFarewellIsMissing() {
         SheetData data = Fixtures.Parse(Fixtures.ASides, Fixtures.BSides);
 
-        Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "HotM Horizontal");
-        Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Chapter == "Farewell");
+        Assert.Contains(data.Block.Segments, s => s.Name == "HotM Horizontal");
+        Assert.DoesNotContain(data.Block.Segments, s => s.Chapter == "Farewell");
     }
 
     [Fact]
-    public void HasNoCheckpointBlockWhenThereIsNothingToParse() {
+    public void HasNoBlockWhenThereIsNothingToParse() {
         SheetData data = Fixtures.Parse(null, null);
 
-        Assert.Null(data.CheckpointBlock);
+        Assert.Null(data.Block);
     }
 
     // the cache is read with File.ReadAllText (which strips the BOM) but the
@@ -119,7 +119,7 @@ public class MalformedInputTests {
         SheetData data = Fixtures.Parse(
             Header + "7a CP,7a Start,0:00.000,13.906,14.5\n,7a Start (old),0:00.000,0:00.000,\n,1500m 💎,0:00.000,52.445,55.5", null);
 
-        SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
+        SheetSegment segment = Assert.Single(data.Block.Segments);
         Assert.Equal("Start", segment.Name);
     }
 }

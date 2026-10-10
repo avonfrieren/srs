@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System;
 using Xunit;
 
@@ -10,10 +9,13 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 public class PendingUpdateTests {
     private static long Ticks(double seconds) => TimeSpan.FromSeconds(seconds).Ticks;
 
+    // the row and its label never matter here
+    private static PendingUpdate Make(double seconds, string cell) =>
+        PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(seconds), cell);
+
     [Fact]
     public void AFasterLocalTimeIsAnImprovementAndIsPreselected() {
-        var update = PendingUpdate.Create(new SheetRowRef("B+C Sides", "6b", "Falling"), "6b Falling",
-            Ticks(67.915), "69.412");
+        var update = Make(67.915, "69.412");
 
         Assert.True(update.Selected);
         Assert.Equal(TimeFormat.Delta(Ticks(67.915) - Ticks(69.412)), update.DeltaText);
@@ -21,8 +23,7 @@ public class PendingUpdateTests {
 
     [Fact]
     public void ASlowerLocalTimeIsShownUnselected() {
-        var update = PendingUpdate.Create(new SheetRowRef("B+C Sides", "6b", "Rock Bottom"), "6b Rock Bottom",
-            Ticks(52.479), "51.980");
+        var update = Make(52.479, "51.980");
 
         Assert.False(update.Selected);
         Assert.Equal(TimeFormat.Delta(Ticks(52.479) - Ticks(51.980)), update.DeltaText);
@@ -30,8 +31,7 @@ public class PendingUpdateTests {
 
     [Fact]
     public void AnEmptyCellCountsAsAnImprovement() {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "7a", "3000m"), "7a 3000m",
-            Ticks(41.5), "");
+        var update = Make(41.5, "");
 
         Assert.True(update.Selected);
         Assert.Equal("", update.RemoteText);
@@ -40,8 +40,7 @@ public class PendingUpdateTests {
 
     [Fact]
     public void AnAbsentCellCountsAsAnImprovement() {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "7a", "3000m"), "7a 3000m",
-            Ticks(41.5), null);
+        var update = Make(41.5, null);
 
         Assert.True(update.Selected);
         Assert.Equal("", update.DeltaText);
@@ -52,11 +51,10 @@ public class PendingUpdateTests {
     // placeholder for "no record yet", not a PB to beat
     [Fact]
     public void AZeroCellCountsAsAnImprovement() {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "7a", "3000m"), "7a 3000m",
-            Ticks(41.5), "0:00.000");
+        var update = Make(41.5, "0:00.000");
 
         Assert.True(update.Selected);
-        Assert.Null(update.RemoteTicks);
+        Assert.Null(PendingUpdate.TicksOf("0:00.000"));
         Assert.Equal("", update.RemoteText);
         Assert.Equal("", update.DeltaText);
         // the raw cell is still what the write compares against
@@ -65,8 +63,7 @@ public class PendingUpdateTests {
 
     [Fact]
     public void AnIdenticalTimeIsNotAnImprovement() {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "1a Crossing",
-            Ticks(21.948), "21.948");
+        var update = Make(21.948, "21.948");
 
         Assert.False(update.Selected);
         Assert.Equal(TimeFormat.Delta(0), update.DeltaText);
@@ -80,11 +77,10 @@ public class PendingUpdateTests {
     [InlineData("n/a")]
     [InlineData("see below")]
     public void AnUnreadableCellIsNeverAnImprovement(string cell) {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "5a", "Depths"), "5a Depths",
-            Ticks(30.0), cell);
+        var update = Make(30.0, cell);
 
         Assert.False(update.Selected);
-        Assert.Null(update.RemoteTicks);
+        Assert.Null(PendingUpdate.TicksOf(cell));
         // shown as it stands: only the player can tell a locale from a typo
         Assert.Equal(cell, update.RemoteText);
         Assert.Equal("?", update.DeltaText);
@@ -92,8 +88,7 @@ public class PendingUpdateTests {
 
     [Fact]
     public void AWhitespaceOnlyCellIsEmptyRatherThanUnreadable() {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "5a", "Search"), "5a Search",
-            Ticks(30.0), "   ");
+        var update = Make(30.0, "   ");
 
         Assert.True(update.Selected);
         Assert.Equal("", update.DeltaText);
@@ -104,10 +99,9 @@ public class PendingUpdateTests {
     [InlineData("1:05:03.250")]
     [InlineData("65:03.250")]
     public void ACellOfAnHourOrMoreIsCompared(string cell) {
-        var update = PendingUpdate.Create(new SheetRowRef("Farewell", "", "DTS IL"), "DTS IL",
-            Ticks(3900.0), cell);
+        var update = Make(3900.0, cell);
 
-        Assert.Equal(Ticks(3903.25), update.RemoteTicks);
+        Assert.Equal(Ticks(3903.25), PendingUpdate.TicksOf(cell));
         Assert.True(update.Selected);
         Assert.Equal("1:05:00.000", update.LocalText);
     }
@@ -116,8 +110,7 @@ public class PendingUpdateTests {
     // stand-in's here: assert the route, never the string
     [Fact]
     public void LocalTextGoesThroughTheTimeFormat() {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "2a", "Awake"), "2a Awake",
-            Ticks(14.722), null);
+        var update = Make(14.722, null);
 
         Assert.Equal(TimeFormat.FromTicks(Ticks(14.722)), update.LocalText);
     }
@@ -127,8 +120,7 @@ public class PendingUpdateTests {
     // "1:36.9" reformatted is "1:36.900", which would refuse the row
     [Fact]
     public void KeepsTheSheetCellAsItWasRead() {
-        var update = PendingUpdate.Create(new SheetRowRef("A Sides", "2a", "Intervention"),
-            "2a Intervention", Ticks(90.0), "1:36.9");
+        var update = Make(90.0, "1:36.9");
 
         Assert.Equal("1:36.9", update.RemoteCell);
     }
@@ -147,10 +139,10 @@ public class PendingUpdateTests {
 
     [Fact]
     public void AheadSaysWhichWayTheDeltaGoes() {
-        Assert.True(PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(21.0), "21.948").Ahead);
-        Assert.False(PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(22.0), "21.948").Ahead);
-        Assert.Null(PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(22.0), "").Ahead);
-        Assert.Null(PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", Ticks(22.0), "8,704").Ahead);
+        Assert.True(Make(21.0, "21.948").Ahead);
+        Assert.False(Make(22.0, "21.948").Ahead);
+        Assert.Null(Make(22.0, "").Ahead);
+        Assert.Null(Make(22.0, "8,704").Ahead);
     }
 
     [Fact]

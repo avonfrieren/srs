@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using Monocle;
 using SDL2;
 
 namespace Celeste.Mod.SpeedrunSheet;
@@ -10,9 +8,6 @@ namespace Celeste.Mod.SpeedrunSheet;
 // (ExportTarget): read from the clipboard, never rendered back.
 public static class ExportUrlMenu {
     private const string LogTag = "srs";
-
-    // condition behind the Visible of the entries returned by CreateMenuEntries
-    internal static bool HasUrl => ExportTarget.IsSet;
 
     // written from the ping's continuation (a thread-pool thread) and read on
     // the game thread in setButton.OnUpdate, which is the only place either is
@@ -24,7 +19,8 @@ public static class ExportUrlMenu {
     // still out would otherwise let the older answer overwrite the newer
     private static volatile int generation;
 
-    public static List<TextMenu.Item> CreateMenuEntries(TextMenu menu) {
+    /// Returns the Forget button, which stays hidden while no URL is set.
+    public static TextMenu.Item CreateMenuEntries(TextMenu menu) {
         SrsSettings settings = SrsModule.Settings;
 
         // a check's answer belongs to the visit it was asked in: the menu is
@@ -34,14 +30,12 @@ public static class ExportUrlMenu {
             message = null;
         }
 
-        // declared up front (unset) so each Pressed() closure below can
-        // reference the others' Label/Visible/Title after a change
-        TextMenu.Button setButton = new(StatusLabel(settings));
+        TextMenu.Button setButton = new(StatusLabel());
         TextMenu.SubHeader status = new(DetailLine(settings), topPadding: false) {
-            Visible = HasUrl,
+            Visible = ExportTarget.IsSet,
         };
         TextMenu.Button forgetButton = new(Dialog.Clean("SRS_EXPORT_URL_FORGET")) {
-            Visible = HasUrl,
+            Visible = ExportTarget.IsSet,
         };
 
         // the only place `message` and `checking` are read. ⚠️ TextMenu calls
@@ -55,19 +49,19 @@ public static class ExportUrlMenu {
 
             string shown = checking ? Dialog.Clean("SRS_EXPORT_URL_CHECKING") : message;
             status.Title = shown ?? DetailLine(settings);
-            status.Visible = shown != null || HasUrl;
+            status.Visible = shown != null || ExportTarget.IsSet;
         };
 
         bool replaceArmed = false;
         setButton.OnLeave = () => {
             replaceArmed = false;
-            setButton.Label = StatusLabel(settings);
+            setButton.Label = StatusLabel();
         };
         setButton.Pressed(() => {
             // one press spends the arming, whatever it then does
             bool armed = replaceArmed;
             replaceArmed = false;
-            setButton.Label = StatusLabel(settings);
+            setButton.Label = StatusLabel();
 
             string pasted = ReadClipboard();
             if (string.IsNullOrWhiteSpace(pasted)) {
@@ -91,7 +85,7 @@ public static class ExportUrlMenu {
             // press, so what is replaced is what is there then
             if (ExportTarget.IsSet && !sameSheet && !armed) {
                 replaceArmed = true;
-                setButton.Label = $"{StatusLabel(settings)}?";
+                setButton.Label = $"{StatusLabel()}?";
                 // an earlier press's complaint about the clipboard no longer holds
                 message = null;
                 return;
@@ -113,7 +107,7 @@ public static class ExportUrlMenu {
             settings.ExportUrlSetOn = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
             SrsModule.TrySaveSettings("the date the sheet URL was set");
 
-            setButton.Label = StatusLabel(settings);
+            setButton.Label = StatusLabel();
             forgetButton.Visible = true;
 
             // the check is a read like any other: it warms the script's cache
@@ -154,14 +148,14 @@ public static class ExportUrlMenu {
             checking = false;
             forgetButton.Label = Dialog.Clean("SRS_EXPORT_URL_FORGET");
             forgetButton.Visible = false;
-            setButton.Label = StatusLabel(settings);
+            setButton.Label = StatusLabel();
         });
 
         menu.Add(setButton);
         menu.Add(status);
         menu.Add(forgetButton);
 
-        return new List<TextMenu.Item> { forgetButton };
+        return forgetButton;
     }
 
     /// Reads the sheet through the one reader and says what came back. A wrong
@@ -213,7 +207,7 @@ public static class ExportUrlMenu {
 
     // the label is the action, not the state: the state is the line below it,
     // which only appears once there is one
-    private static string StatusLabel(SrsSettings settings) =>
+    private static string StatusLabel() =>
         Dialog.Clean(!ExportTarget.IsSet
             ? "SRS_EXPORT_URL_FROM_CLIPBOARD"
             : "SRS_EXPORT_URL_REPLACE_FROM_CLIPBOARD");

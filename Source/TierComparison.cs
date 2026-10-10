@@ -102,7 +102,7 @@ public static class TierComparison {
             sheetTimesFrom = from;
         }
 
-        SheetBlock block = SheetImporter.Data?.CheckpointBlock;
+        SheetBlock block = SheetImporter.Data?.Block;
         if (attempt.Count == 0 || block == null) {
             return;
         }
@@ -132,8 +132,8 @@ public static class TierComparison {
     // the time the player's own sheet holds for the row, as the export screen
     // reads it; null without an export URL or before the sheet answered
     private static long? SheetTimeOf(SheetSegment segment) =>
-        SheetLabels.TryMap(segment.Chapter, segment.Name, out SheetRowRef row)
-        && RemoteBests.TryGet(row, out RemoteRow remote)
+        SheetRows.TryFind(segment.Chapter, segment.Name, out SheetRow row)
+        && RemoteBests.TryGet(SheetRows.TargetOf(row), out RemoteRow remote)
             ? PendingUpdate.TicksOf(remote.Time)
             : null;
 

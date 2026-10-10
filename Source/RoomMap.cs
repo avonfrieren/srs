@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Celeste.Mod;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
