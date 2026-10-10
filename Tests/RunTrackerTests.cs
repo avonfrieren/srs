@@ -26,7 +26,7 @@ public class RunTrackerTests {
         EndKind endKind = EndKind.NextStart, Collectibles endsOn = Collectibles.None, int? dashes = null,
         StartKind startKind = StartKind.Room, StartSetup setup = StartSetup.NextRoom, long head = 0, long tail = 0,
         bool berries = false, string scope = "1a", string entry = null, int gems = 0) {
-        SegmentRule rule = new(scope, scope, name, name, startKind, setup, endKind, endsOn, requires, dashes,
+        SegmentRule rule = new(scope, name, name, startKind, setup, endKind, endsOn, requires, dashes,
             head, tail, rules.Count) { Berries = berries ? BerrySet.WholeChapter : null, Gems = gems };
         rules.Add(rule);
         rooms.ByName[name] = (start, end);
@@ -388,7 +388,7 @@ public class RunTrackerTests {
 
     [Fact]
     public void OnlyTheScopesRulesOpen() {
-        SegmentRule other = new("6b", "6b", "Elsewhere", "Start", StartKind.Room, StartSetup.CurrentRoom, EndKind.NextStart,
+        SegmentRule other = new("6b", "Elsewhere", "Start", StartKind.Room, StartSetup.CurrentRoom, EndKind.NextStart,
             Collectibles.None, Collectibles.None, null, 0, 0, 0);
         rules.Add(other);
         rooms.ByName["Elsewhere"] = ("1", "6");

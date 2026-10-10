@@ -38,7 +38,7 @@ public class SheetLabelsTests {
         Assert.Equal(SheetRows.All.Length,
             SheetRows.All.Select(r => (r.Tab, r.SheetChapter, r.Label)).Distinct().Count());
         Assert.Equal(SheetRows.All.Length,
-            SheetRows.All.Select(r => (r.Chapter, r.Name)).Distinct().Count());
+            SheetRows.All.Select(r => (r.Scope, r.Name)).Distinct().Count());
         // two rows on one target would write one cell, and the export
         // summary would name the first for both
         Assert.Equal(SheetRows.All.Length, SheetRows.All.Select(SheetRows.TargetOf).Distinct().Count());

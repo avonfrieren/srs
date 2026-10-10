@@ -81,7 +81,7 @@ public class SheetData {
                 foreach (SheetSegment segment in raw.Segments) {
                     if (SheetRows.TryRead(tab.Tab, segment.Chapter, segment.Name, out SheetRow row)) {
                         imported.Add((tab.Tab, segment.Chapter, segment.Name));
-                        merged.Segments.Add(new SheetSegment(row.Chapter, row.Name,
+                        merged.Segments.Add(new SheetSegment(row.Scope, row.Name,
                             Realigned(segment.Times, merged.Columns.Count)));
                     }
                 }
