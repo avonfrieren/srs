@@ -320,12 +320,11 @@ public class SheetConsistencyTests {
         Assert.NotEqual(rows[0].Times[wr], rows[1].Times[wr]);
     }
 
-    // the rows whose route returns to the map and the drafts stay out
+    // the rows whose route returns to the map stay out
     [Theory]
     [InlineData("to RTM")]
     [InlineData("-2")]
     [InlineData("2500m-1")]
-    [InlineData("raft")]
     public void LeavesTheBerryRowsNotYetSupportedOut(string marker) {
         Assert.DoesNotContain(Fixtures.Imported, segment => segment.Name.Contains(marker));
     }

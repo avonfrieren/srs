@@ -125,7 +125,7 @@ public class SegmentRulesTests {
         Assert.All(SegmentRules.All, r => {
             Assert.Equal(r.Name.StartsWith("ARB "), r.RequiresBerries);
         });
-        Assert.Equal(36, SegmentRules.All.Count(r => r.RequiresBerries));
+        Assert.Equal(39, SegmentRules.All.Count(r => r.RequiresBerries));
         Assert.Equal(5, SegmentRules.All.Count(r => r.RequiresBerries && r.ChapterRun));
     }
 
@@ -157,6 +157,23 @@ public class SegmentRulesTests {
         Assert.Equal("2500 M", Rule("7a", "ARB 2500m-full").Anchor);
         Assert.Equal((Rule("7a", "Start").Start, Rule("7a", "Start").HeadTicks),
             (Rule("7a", "ARB Start").Start, Rule("7a", "ARB Start").HeadTicks));
+    }
+
+    // 3000m's three pieces chain as checkpoints do, the first from where
+    // 3000m starts, and a berry piece asks for its own rooms' berries only
+    [Fact]
+    public void TheDraftRowsCutThe3000mCheckpoint() {
+        Assert.All(new[] { "Downdraft", "Updraft", "Nodraft" }, name => {
+            SegmentRule plain = Rule("7a", name);
+            SegmentRule berry = Rule("7a", "ARB " + name);
+            Assert.Equal((name, StartSetup.NextRoom, EndKind.NextStart, false), (plain.Anchor, plain.Setup, plain.End, plain.ChapterRun));
+            Assert.Equal((plain.Anchor, plain.Setup, plain.End, Collectibles.None), (berry.Anchor, berry.Setup, berry.End, berry.Requires));
+            Assert.Null(plain.Berries);
+            // a virtual anchor is no checkpoint of the map: the set names rooms
+            Assert.Null(berry.Berries.Checkpoint);
+            Assert.Single(berry.Berries.Rooms);
+        });
+        Assert.Equal(SegmentAutoDetect.EntryRooms[("7a", "3000 M")], SegmentAutoDetect.EntryRooms[("7a", "Downdraft")]);
     }
 
     // what the rows above the timer and the export screen print

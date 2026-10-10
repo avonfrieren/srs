@@ -6,18 +6,21 @@ namespace Celeste.Mod.SpeedrunSheet;
 // The checkpoint name tables, split from the rest of SegmentAutoDetect (which
 // needs Celeste types) so the tests can check them against the row table.
 public static partial class SegmentAutoDetect {
-    // (scope, game checkpoint) -> the virtual checkpoint the sheet inserts
-    // after it: the game's "Heart of the Mountain" is two segments on the
-    // sheet. The second half exists only here, in SheetRows and in
-    // StartRoomOverrides. Only one closing its chapter is supported: nothing
-    // resolves the end room of one followed by a real checkpoint
+    // (scope, checkpoint) -> the virtual checkpoint the sheet inserts after
+    // it: the game's "Heart of the Mountain" is two segments on the sheet, and
+    // 7A's 3000m is also timed as three, beside the whole. A virtual one
+    // exists only here, in SheetRows and in StartRoomOverrides. The last of a
+    // chain must close its chapter: nothing resolves the end room of one
+    // followed by a real checkpoint
     internal static readonly Dictionary<(string Scope, string GameName), string> SplitCheckpoints = new() {
+        [("7a", "Downdraft")] = "Updraft",
+        [("7a", "Updraft")] = "Nodraft",
         [("8a", "Heart of the Mountain")] = "HotM Horizontal",
     };
 
     // (scope, game checkpoint) -> the room a segment really starts in, where
-    // the sheet does not time it from the checkpoint's own room. Keyed by game
-    // name, so the segment before ends there too: the two never overlap
+    // the sheet does not time it from the checkpoint's own room. The segment
+    // before ends there too: the two never overlap
     internal static readonly Dictionary<(string Scope, string GameName), string> StartRoomOverrides = new() {
         // the sheet times Awake from the wake-up in end_0, three rooms before
         // the checkpoint's end_3: Intervention ends on entering end_0
@@ -25,6 +28,11 @@ public static partial class SegmentAutoDetect {
         // neither a-00-intro nor the landing in a-00 is timed: the sheet adds
         // them (UntimedSegmentHead)
         [("7a", "Start")] = "a-00",
+        // 3000m's three pieces: Downdraft starts where 3000m does, the two
+        // others in rooms with no checkpoint
+        [("7a", "Downdraft")] = "g-00",
+        [("7a", "Updraft")] = "g-01",
+        [("7a", "Nodraft")] = "g-02",
         // 7B starts like 7A
         [("7b", "Start")] = "a-00",
         // HotM Horizontal has no checkpoint of its own: d-08 is where the chase
@@ -116,6 +124,9 @@ public static partial class SegmentAutoDetect {
         [("7a", "2000 M")] = "d-11",
         [("7a", "2500 M")] = "e-13",
         [("7a", "3000 M")] = "f-11",
+        [("7a", "Downdraft")] = "f-11",
+        [("7a", "Updraft")] = "g-00b",
+        [("7a", "Nodraft")] = "g-01",
         [("7b", "500 M")] = "a-03",
         [("7b", "1000 M")] = "b-03",
         [("7b", "1500 M")] = "c-03",

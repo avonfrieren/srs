@@ -87,9 +87,9 @@ internal sealed class RoomMap : IRoomMap {
             return null;
         }
 
-        // a checkpoint the sheet cuts in two ends where its second half starts
-        if (SegmentAutoDetect.SplitCheckpoints.TryGetValue((scope, rule.Anchor), out string secondHalf)) {
-            return StartRoomOf(secondHalf);
+        // a checkpoint the sheet cuts ends where its next piece starts
+        if (SegmentAutoDetect.SplitCheckpoints.TryGetValue((scope, rule.Anchor), out string nextPiece)) {
+            return StartRoomOf(nextPiece);
         }
 
         // CheckpointData only lists the non-start checkpoints
@@ -141,7 +141,7 @@ internal sealed class RoomMap : IRoomMap {
     }
 
     // the override when the sheet does not start the segment at the
-    // checkpoint's own room (2A Awake, 7A Start, 8A HotM Horizontal), the map's
+    // checkpoint's own room (2A Awake, 7A Start, a virtual checkpoint), the map's
     // first room for "Start", the checkpoint's room otherwise
     private string StartRoomOf(string gameName) {
         if (SegmentAutoDetect.StartRoomOverrides.TryGetValue((scope, gameName), out string overridden)) {
