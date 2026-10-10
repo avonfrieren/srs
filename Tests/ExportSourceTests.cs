@@ -43,16 +43,6 @@ public class ExportSourceTests {
     }
 
     [Fact]
-    public void ShortensEachLabelByItsOwnSide() {
-        RemoteBests.Reset();
-        List<PendingUpdate> updates = ExportSource.Collect([
-            Run("6b", "6a/b", "6b Rock Bottom", 50), Run("6a", "6a/b", "6a Start", 20),
-        ]);
-
-        Assert.Equal(["Start", "Rock Bottom"], updates.Select(u => u.Label));
-    }
-
-    [Fact]
     public void ComparesAgainstTheSheetAndCarriesItsBand() {
         RemoteBests.Reset();
         RemoteBests.AcceptFresh([

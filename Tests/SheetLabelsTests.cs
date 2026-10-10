@@ -47,7 +47,6 @@ public class SheetLabelsTests {
     [Fact]
     public void UnknownSegmentIsNotExported() {
         Assert.False(SheetLabels.TryMap("9a", "Nowhere", out _));
-        Assert.False(SheetLabels.TryMap("5a", "Depths", out _)); // srs folds 5a/5b
     }
 
     [Fact]
@@ -70,7 +69,7 @@ public class SheetLabelsTests {
         AssertRow("1a", "ARB Start to Heart", "ARB/Full Clear", $"1a {berry}", "Start to Heart");
         AssertRow("2a", "ARB Start", "ARB/Full Clear", $"2a {berry}", "2a Start");
         AssertRow("4a", "ARB Cliff Face (from RTM)", "ARB/Full Clear", $"4a {berry}", "Cliff Face (from RTM)");
-        AssertRow("5a/b", "ARB Depths", "ARB/Full Clear", $"5a {berry}", "Depths");
+        AssertRow("5a", "ARB Depths", "ARB/Full Clear", $"5a {berry}", "Depths");
         AssertRow("7a", "ARB 2500m-full", "ARB/Full Clear", $"7a {berry}", "2500m-full");
         AssertRow("8a", "ARB HotM Vertical", "ARB/Full Clear", $"8a {berry}", "HotM Vertical");
         AssertRow("2a", "ARB IL", "ARB/Full Clear", $"2a {berry}", $"2a {berry}");
@@ -80,13 +79,12 @@ public class SheetLabelsTests {
     [Fact]
     public void EveryRowNamesItsGameAnchor() {
         Assert.All(SheetRows.All, row => Assert.False(string.IsNullOrEmpty(row.Anchor)));
-        Assert.Equal("Hollows", Row("6a/b", "Hollows Tape RTM").Anchor);
+        Assert.Equal("Hollows", Row("6a", "Hollows Tape RTM").Anchor);
         Assert.Equal("Start", Row("Farewell", "Start DTS").Anchor);
-        Assert.Equal("Reflection", Row("6a/b", "Falling").Anchor);
+        Assert.Equal("Reflection", Row("6b", "Falling").Anchor);
         Assert.Equal("Heart of the Mountain", Row("8a", "HotM Vertical").Anchor);
         Assert.Equal("HotM Horizontal", Row("8a", "HotM Horizontal").Anchor);
         Assert.Equal("500 M", Row("7a", "500m").Anchor);
-        Assert.Equal("5b", Row("5a/b", "Mix Master").Scope);
     }
 
     private static SheetRow Row(string chapter, string name) {
@@ -109,8 +107,8 @@ public class SheetLabelsTests {
     public void EmojiRowsUseTheSheetSpelling() {
         AssertRow("3a", "Huge Mess Heart", "A Sides", "3a", "Huge Mess \U0001F499");
         AssertRow("4a", "Shrine Heart Clear", "A Sides", "4a", "Shrine \U0001F499 Clear");
-        AssertRow("5a/b", "Depths Tape RTM", "A Sides", "5a", "Depths \U0001F4FC RTM");
-        AssertRow("6a/b", "Hollows Tape RTM", "A Sides", "6a", "Hollows \U0001F4FC RTM");
+        AssertRow("5a", "Depths Tape RTM", "A Sides", "5a", "Depths \U0001F4FC RTM");
+        AssertRow("6a", "Hollows Tape RTM", "A Sides", "6a", "Hollows \U0001F4FC RTM");
     }
 
     // three rows the sheet has spelled differently before. srs's name and the
@@ -118,19 +116,18 @@ public class SheetLabelsTests {
     // would export nowhere
     [Fact]
     public void RenamedRowsKeepTheSheetsSpelling() {
-        AssertRow("5a/b", "Unravelling", "A Sides", "5a", "Unravelling");
-        AssertRow("5a/b", "Through the Mirror", "B+C Sides", "5b", "Through the Mirror");
+        AssertRow("5a", "Unravelling", "A Sides", "5a", "Unravelling");
+        AssertRow("5b", "Through the Mirror", "B+C Sides", "5b", "Through the Mirror");
         AssertRow("Farewell", "Stubbornness", "Farewell", "", "Stubbornness");
     }
 
-    // the folded chapters split across the two side tabs
     [Fact]
-    public void FoldedChaptersSplitBySide() {
-        AssertRow("5a/b", "5a Start", "A Sides", "5a", "5a Start");
-        AssertRow("5a/b", "Mix Master", "B+C Sides", "5b", "Mix Master");
-        AssertRow("6a/b", "6a Rock Bottom", "A Sides", "6a", "Rock Bottom");
-        AssertRow("6a/b", "6b Rock Bottom", "B+C Sides", "6b", "Rock Bottom");
-        AssertRow("5a/b", "5b IL", "B+C Sides", "5b", "5b Clear");
+    public void EachSideGoesToItsOwnTab() {
+        AssertRow("5a", "Start", "A Sides", "5a", "5a Start");
+        AssertRow("5b", "Mix Master", "B+C Sides", "5b", "Mix Master");
+        AssertRow("6a", "Rock Bottom", "A Sides", "6a", "Rock Bottom");
+        AssertRow("6b", "Rock Bottom", "B+C Sides", "6b", "Rock Bottom");
+        AssertRow("5b", "IL", "B+C Sides", "5b", "5b Clear");
         AssertRow("1b", "IL", "B+C Sides", "1b", "1b Clear");
     }
 

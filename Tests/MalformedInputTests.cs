@@ -63,7 +63,7 @@ public class MalformedInputTests {
         SheetData data = Fixtures.Parse(Fixtures.ASides, null);
 
         Assert.NotEmpty(data.CheckpointBlock.Segments);
-        Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Name == "5b Start");
+        Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Chapter == "5b");
     }
 
     [Fact]
@@ -71,7 +71,7 @@ public class MalformedInputTests {
         SheetData data = Fixtures.Parse(null, Fixtures.BSides);
 
         Assert.NotEmpty(data.CheckpointBlock.Segments);
-        Assert.Contains(data.CheckpointBlock.Segments, s => s.Name == "5b Start");
+        Assert.Contains(data.CheckpointBlock.Segments, s => s.Chapter == "5b");
         Assert.DoesNotContain(data.CheckpointBlock.Segments, s => s.Name == "Granny");
     }
 
@@ -120,6 +120,6 @@ public class MalformedInputTests {
             Header + "7a CP,7a Start,0:00.000,13.906,14.5\n,7a Start 💎,0:00.000,0:00.000,\n,1500m 💎+📼,0:00.000,52.445,55.5", null);
 
         SheetSegment segment = Assert.Single(data.CheckpointBlock.Segments);
-        Assert.Equal("7a Start", segment.Name);
+        Assert.Equal("Start", segment.Name);
     }
 }

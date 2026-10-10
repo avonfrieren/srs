@@ -28,17 +28,10 @@ internal static class ExportSource {
         return found.ConvertAll(entry => entry.Update);
     }
 
-    /// srs folds 6A and 6B into "6a/b" and re-prefixes the names both sides
-    /// share ("6a Rock Bottom"), and names a berry row "ARB Start". On screen
-    /// the group header says both, and dropping them collides with nothing
-    /// within a group.
-    private static string DisplayName(RunBook.Run run) {
-        foreach (string prefix in (string[])[run.Scope + " ", "ARB "]) {
-            if (run.Name.StartsWith(prefix, StringComparison.Ordinal)) {
-                return run.Name[prefix.Length..];
-            }
-        }
+    /// srs names a berry row "ARB Start". On screen the group header says it,
+    /// and dropping it collides with nothing within a group.
+    private static string DisplayName(RunBook.Run run) =>
+        run.Name.StartsWith(BerryPrefix, StringComparison.Ordinal) ? run.Name[BerryPrefix.Length..] : run.Name;
 
-        return run.Name;
-    }
+    private const string BerryPrefix = "ARB ";
 }

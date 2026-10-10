@@ -12,7 +12,7 @@ public class ParseTabsTests {
             [StandardsTab.BSides] = Fixtures.BSides,
         });
 
-        Assert.NotNull(data.CheckpointBlock.Find("5a/b", "Central Chamber"));
+        Assert.NotNull(data.CheckpointBlock.Find("5b", "Central Chamber"));
         Assert.Null(data.CheckpointBlock.Find("1a", "Start"));
     }
 

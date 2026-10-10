@@ -180,8 +180,8 @@ public class SheetConsistencyTests {
     public void ImportsTheExpectedCheckpointsInRouteOrder() {
         Assert.Equal(SheetRows.All.Length, Fixtures.Parsed.SegmentCount);
         Assert.Equal(
-            ["Prologue", "1a", "2a", "3a", "4a", "5a/b", "6a/b", "7a", "8a",
-             "1b", "2b", "3b", "4b", "7b", "8b",
+            ["Prologue", "1a", "2a", "3a", "4a", "5a", "6a", "7a", "8a",
+             "1b", "2b", "3b", "4b", "5b", "6b", "7b", "8b",
              "1c", "2c", "3c", "4c", "5c", "6c", "7c", "8c", "Farewell"],
             Fixtures.Parsed.CheckpointBlock.Segments.Select(segment => segment.Chapter).Distinct());
     }
@@ -330,12 +330,22 @@ public class SheetConsistencyTests {
         Assert.DoesNotContain(Fixtures.Imported, segment => segment.Name.Contains(marker));
     }
 
+    // the name above the timer is the chapter then the name: a name that
+    // carried its chapter would read "8a 8a Start"
+    [Fact]
+    public void NoNameRepeatsItsChapter() {
+        Assert.All(SheetRows.All, row => {
+            Assert.Equal(row.Scope, row.Chapter);
+            Assert.False(row.Name.StartsWith(row.Scope + " ", StringComparison.Ordinal), row.Name);
+        });
+    }
+
     // the chapter rows of 1A and 5A stay out; 8A has no berry before Into the Core
     [Fact]
     public void LeavesTheBerryRowsWithNoBerriesOut() {
         Assert.False(SheetRows.TryFind("1a", "ARB IL", out _));
-        Assert.False(SheetRows.TryFind("5a/b", "ARB IL", out _));
-        Assert.False(SheetRows.TryFind("5a/b", "ARB Start", out _));
+        Assert.False(SheetRows.TryFind("5a", "ARB IL", out _));
+        Assert.False(SheetRows.TryFind("5a", "ARB Start", out _));
         Assert.False(SheetRows.TryFind("8a", "ARB Start", out _));
     }
 

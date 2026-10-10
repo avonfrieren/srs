@@ -393,7 +393,7 @@ public class RunTrackerTests {
 
     [Fact]
     public void OnlyTheScopesRulesOpen() {
-        SegmentRule other = new("6b", "6a/b", "Elsewhere", "Start", StartKind.Room, StartSetup.CurrentRoom, EndKind.NextStart,
+        SegmentRule other = new("6b", "6b", "Elsewhere", "Start", StartKind.Room, StartSetup.CurrentRoom, EndKind.NextStart,
             Collectibles.None, Collectibles.None, null, 0, 0, 0);
         rules.Add(other);
         rooms.ByName["Elsewhere"] = ("1", "6");

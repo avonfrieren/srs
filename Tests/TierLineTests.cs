@@ -66,8 +66,8 @@ public class TierLineTests {
 
     [Theory]
     [InlineData("1a", "Crossing", "1a Crossing")]
-    // the name already carries its chapter, or is it
-    [InlineData("6a", "6a Start", "6a Start")]
+    // the name is its chapter
+    [InlineData("1c", "1c", "1c")]
     [InlineData("Farewell", "Farewell", "Farewell")]
     [InlineData("1a", "ARB Start", "1a ARB Start")]
     [InlineData("5a", "ARB Depths", "5a ARB Depths")]

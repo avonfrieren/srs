@@ -87,8 +87,7 @@ internal sealed class GroupRow(ExportColumns columns, string label) : TextMenu.I
         ExportColumns.Rule(position, Container.Width, -Height() / 2f, alpha);
         ExportColumns.Rule(position, Container.Width, Height() / 2f, alpha);
 
-        // the chapter the rows below belong to: the row labels have dropped it
-        // on the folded chapters, and never carried it on Farewell
+        // the chapter the rows below belong to: the row labels do not carry it
         ExportColumns.Text(label, position, columns.LabelX, color, alpha, left: true);
         ExportColumns.Text(Dialog.Clean("SRS_EXPORT_COL_SHEET"), position, columns.RemoteX, color, alpha);
         ExportColumns.Text(Dialog.Clean("SRS_EXPORT_COL_LOCAL"), position, columns.LocalX, color, alpha);

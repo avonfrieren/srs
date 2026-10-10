@@ -25,10 +25,10 @@ internal static class TierLine {
         return new TierRows(shownText, tier, pb, gap);
     }
 
-    /// "1a Crossing", "6a Lake": the chapter, unless the name already starts
-    /// with it ("6a Start") or is it (Farewell's "Farewell").
+    /// "1a Crossing", "6a Lake": the chapter, unless the name is it ("1c",
+    /// Farewell's "Farewell").
     public static string NameOf(string scope, string name) =>
-        name == scope || name.StartsWith(scope + " ", StringComparison.Ordinal) ? name : $"{scope} {name}";
+        name == scope ? name : $"{scope} {name}";
 
     // Speed Run Tool's format with a sign, so a gap of a minute reads 1:02.345
     private static string Signed(long ticks) =>

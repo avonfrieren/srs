@@ -13,9 +13,9 @@ public class RunBookTests {
     [Fact]
     public void KeepsTheBestOfEachRow() {
         RunBook book = new();
-        Assert.Single(book.Offer([Record("6a/b", "Hollows", 45)]));
-        Assert.Empty(book.Offer([Record("6a/b", "Hollows", 47)]));
-        Assert.Single(book.Offer([Record("6a/b", "Hollows", 44)]));
+        Assert.Single(book.Offer([Record("6a", "Hollows", 45)]));
+        Assert.Empty(book.Offer([Record("6a", "Hollows", 47)]));
+        Assert.Single(book.Offer([Record("6a", "Hollows", 44)]));
 
         Assert.Equal(Ticks(44), Assert.Single(book.All).Ticks);
     }
@@ -24,8 +24,8 @@ public class RunBookTests {
     [Fact]
     public void EveryRowKeepsItsOwnBest() {
         RunBook book = new();
-        book.Offer([Record("6a/b", "Hollows Tape RTM", 20)]);
-        book.Offer([Record("6a/b", "Hollows", 45)]);
+        book.Offer([Record("6a", "Hollows Tape RTM", 20)]);
+        book.Offer([Record("6a", "Hollows", 45)]);
 
         Assert.Equal(2, book.All.Count);
     }
@@ -33,7 +33,7 @@ public class RunBookTests {
     [Fact]
     public void ANonPositiveTimeIsNeverKept() {
         RunBook book = new();
-        Assert.Empty(book.Offer([new SegmentRecord(TestRules.Find("6a/b", "Hollows"), 0)]));
+        Assert.Empty(book.Offer([new SegmentRecord(TestRules.Find("6a", "Hollows"), 0)]));
 
         Assert.Empty(book.All);
     }
