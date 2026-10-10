@@ -28,6 +28,18 @@ public class SpecificityTests {
         Assert.Equal(-1, Specificity.MostSpecific([il], chapterRun: false));
     }
 
+    // 7A's 1500m with the tape and the berries but no gem: the plain row asks
+    // for less than either, so it is not the one shown
+    [Fact]
+    public void WhenNoRowContainsTheOthersARowNothingOutdoesWins() {
+        SegmentRule plain = Rule(Collectibles.None, order: 0);
+        SegmentRule tape = Rule(Collectibles.Cassette, order: 1);
+        SegmentRule arb = Rule(Collectibles.None, berries: true, order: 2);
+
+        Assert.Equal(1, MostSpecific(plain, tape, arb));
+        Assert.Equal(1, MostSpecific(arb, tape, plain));
+    }
+
     [Fact]
     public void TheRowWhoseRequirementsContainTheOthersWins() {
         SegmentRule plain = Rule(Collectibles.None, order: 0);

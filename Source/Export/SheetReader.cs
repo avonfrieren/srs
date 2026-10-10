@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-internal enum ReadKind { Accepted, Unreachable, NotTheScript, OutOfDate, NoRows, Cancelled }
+internal enum ReadKind { Accepted, Unreachable, NotTheScript, Refused, OutOfDate, NoRows, Cancelled }
 
 /// What a read came to. Error is what to show the player when it failed.
 internal readonly record struct ReadOutcome(ReadKind Kind, string Error = null);
@@ -228,8 +228,13 @@ internal static class SheetReader {
             return new ReadOutcome(ReadKind.Unreachable, error);
         }
 
-        if (!ExportProtocol.TryParseRows(body, out rows, out timing, out string parseError, out bool outOfDate)) {
-            return new ReadOutcome(outOfDate ? ReadKind.OutOfDate : ReadKind.NotTheScript, parseError);
+        if (!ExportProtocol.TryParseRows(body, out rows, out timing, out string parseError, out RowsFailure failure)) {
+            ReadKind kind = failure switch {
+                RowsFailure.OutOfDate => ReadKind.OutOfDate,
+                RowsFailure.Refused => ReadKind.Refused,
+                _ => ReadKind.NotTheScript,
+            };
+            return new ReadOutcome(kind, parseError);
         }
 
         if (!RemoteBests.HoldsAnyOf(rows, SheetRows.All.Select(SheetRows.TargetOf))) {
@@ -248,19 +253,21 @@ internal static class SheetReader {
         }
     }
 
-    /// On every outcome of the POST; response is null when it did not answer or
-    /// could not be read. Applied with the mod off too: the sheet was written
-    /// either way.
-    public static void EndWrite(WriteToken token, IReadOnlyList<ExportUpdate> sent, ExportResponse response) {
+    /// On every outcome of an export; answered pairs with the first updates
+    /// sent and stops where a request did not answer or could not be read.
+    /// Applied with the mod off too: the sheet was written either way.
+    public static void EndWrite(WriteToken token, IReadOnlyList<ExportUpdate> sent, IReadOnlyList<ExportResult> answered) {
         lock (gate) {
             writes++;
             posting--;
             if (token.Url == host.Url()) {
-                List<(SheetRowRef Row, string Time)> written =
-                    response == null ? [] : Written(sent, response.Results);
-                if (response == null || response.Results.Count != sent.Count) {
+                if (answered.Count != sent.Count) {
                     unansweredWrite = true;
-                } else if (written.Count > 0) {
+                }
+
+                List<(SheetRowRef Row, string Time)> written =
+                    Written(sent.Take(answered.Count).ToList(), answered);
+                if (written.Count > 0) {
                     RemoteBests.ApplyWritten(written);
                     SaveCopyLocked(token.Url);
                 }

@@ -46,6 +46,7 @@ SRS_EXPORT_URL_CLIPBOARD_INVALID=      Ce n'est pas une URL de web app. Elle doi
 SRS_EXPORT_URL_CHECKING=      Interrogation de la sheet...
 SRS_EXPORT_URL_CHECK_OK=      La sheet a répondu.
 SRS_EXPORT_URL_CHECK_FAILED=      La sheet n'a pas répondu :
+SRS_EXPORT_URL_CHECK_REFUSED=      Le script d'export a répondu par une erreur :
 SRS_EXPORT_URL_CHECK_NOT_SHEET=      Quelque chose a répondu, mais pas le script d'export. Vérifier le déploiement.
 SRS_EXPORT_URL_SAVE_FAILED=      Impossible d'enregistrer l'URL. La raison est dans log.txt.
 SRS_EXPORT_URL_FORGET_FAILED=      Impossible d'oublier l'URL. La raison est dans log.txt.

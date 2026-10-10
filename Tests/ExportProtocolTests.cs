@@ -142,8 +142,8 @@ public class ExportProtocolTests {
             {"rows":[{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.947"}]}
             """;
 
-        Assert.False(ExportProtocol.TryParseRows(json, out _, out _, out string error, out bool outOfDate));
-        Assert.True(outOfDate);
+        Assert.False(ExportProtocol.TryParseRows(json, out _, out _, out string error, out RowsFailure failure));
+        Assert.Equal(RowsFailure.OutOfDate, failure);
         Assert.Equal("SRS_EXPORT_ERR_OUT_OF_DATE", error);
     }
 
@@ -162,8 +162,8 @@ public class ExportProtocolTests {
     [Fact]
     public void AnErrorAnswerIsAnErrorWhateverItsVersion() {
         Assert.False(ExportProtocol.TryParseRows("""{"error":"boom","ms":3,"version":2}""",
-            out _, out _, out string error, out bool outOfDate));
-        Assert.False(outOfDate);
+            out _, out _, out string error, out RowsFailure failure));
+        Assert.Equal(RowsFailure.Refused, failure);
         Assert.Equal("boom", error);
     }
 

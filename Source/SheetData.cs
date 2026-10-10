@@ -55,7 +55,7 @@ public class SheetData {
     }
 
     private static bool Ranks(string column, TimeSpan? threshold) =>
-        column != "WR" && threshold > TimeSpan.Zero;
+        column != "WR" && column != Unranked && threshold > TimeSpan.Zero;
 
     // never throws on malformed content: an unparseable cell is a null time; a
     // row outside any block or off the SheetRows allowlist is skipped, and so

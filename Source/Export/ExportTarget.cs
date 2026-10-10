@@ -21,6 +21,7 @@ internal static class ExportTarget {
 
     /// Before anything reads Url: ExportMenu.Load asks the sheet at launch.
     public static void Load() {
+        DeleteTemp();
         try {
             url = File.Exists(FilePath) ? File.ReadAllText(FilePath).Trim() : "";
         } catch (Exception e) {
@@ -60,7 +61,18 @@ internal static class ExportTarget {
             return false;
         }
 
+        DeleteTemp();
         url = "";
         return true;
+    }
+
+    // a write cut short leaves the URL beside the file
+    private static void DeleteTemp() {
+        try {
+            File.Delete(AtomicFile.TempOf(FilePath));
+        } catch (Exception e) {
+            Logger.Log(LogLevel.Warn, LogTag,
+                $"could not delete the temporary export URL file: {e.GetType().Name}");
+        }
     }
 }

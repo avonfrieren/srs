@@ -77,31 +77,26 @@ internal sealed record SegmentRule(
 
 internal static class Specificity {
     /// The index of the most specific rule among the chapter runs, or among
-    /// the segments: the one whose requirements contain every other's; on a
-    /// tie, or when none contains them all, the first in sheet order. -1 when
-    /// there is none of that kind.
+    /// the segments: the first in sheet order that no other asks more than.
+    /// -1 when there is none of that kind.
     public static int MostSpecific(IReadOnlyList<SegmentRule> rules, bool chapterRun) {
         int best = -1;
-        int first = -1;
         for (int i = 0; i < rules.Count; i++) {
             if (rules[i].ChapterRun != chapterRun) {
                 continue;
             }
 
-            if (first < 0 || rules[i].Order < rules[first].Order) {
-                first = i;
+            bool outdone = false;
+            for (int j = 0; j < rules.Count && !outdone; j++) {
+                outdone = rules[j].ChapterRun == chapterRun
+                          && rules[j].Contains(rules[i]) && !rules[i].Contains(rules[j]);
             }
 
-            bool containsAll = true;
-            for (int j = 0; j < rules.Count && containsAll; j++) {
-                containsAll = rules[j].ChapterRun != chapterRun || rules[i].Contains(rules[j]);
-            }
-
-            if (containsAll && (best < 0 || rules[i].Order < rules[best].Order)) {
+            if (!outdone && (best < 0 || rules[i].Order < rules[best].Order)) {
                 best = i;
             }
         }
 
-        return best >= 0 ? best : first;
+        return best;
     }
 }

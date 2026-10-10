@@ -145,12 +145,11 @@ public static class SheetImporter {
                 return false;
             }
 
-            for (int i = 0; i < tabs.Length; i++) {
-                WriteCache(CachePathOf(tabs[i]), csvs[i]);
-            }
-
+            // before the caches: a file that cannot be written must not cost
+            // the session what was just downloaded
             Data = data;
             CacheTime = DateTime.Now;
+            WriteCaches(tabs.Select(CachePathOf).ToArray(), csvs);
             Logger.Log(LogLevel.Info, LogTag, $"Sheet updated: {data.SegmentCount} segments");
             LogMissingRows(data, "the sheet");
             return true;
@@ -196,11 +195,21 @@ public static class SheetImporter {
         return csv;
     }
 
-    private static void WriteCache(string path, string csv) {
-        Directory.CreateDirectory(Path.GetDirectoryName(path));
-        string tmp = path + ".tmp";
-        File.WriteAllText(tmp, csv);
-        File.Move(tmp, path, overwrite: true);
+    // every file is written beside its cache before any is moved over it, so
+    // a write that fails leaves the caches of one download
+    private static void WriteCaches(string[] paths, string[] csvs) {
+        try {
+            for (int i = 0; i < paths.Length; i++) {
+                Directory.CreateDirectory(Path.GetDirectoryName(paths[i]));
+                File.WriteAllText(paths[i] + ".tmp", csvs[i]);
+            }
+
+            foreach (string path in paths) {
+                File.Move(path + ".tmp", path, overwrite: true);
+            }
+        } catch (Exception e) {
+            Logger.Log(LogLevel.Warn, LogTag, $"Could not cache the sheet: {e.GetType().Name}: {e.Message}");
+        }
     }
 
     private static string CachePaths => string.Join(", ", CacheFiles);

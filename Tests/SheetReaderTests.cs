@@ -88,10 +88,8 @@ public sealed class SheetReaderTests : IDisposable {
         new() { Tab = "A Sides", Band = "checkpoint", Chapter = "1a", Cp = "Crossing", Time = time, Expect = "25.000" },
     ];
 
-    private static ExportResponse WrittenAnswer() => new() {
-        Results = [new ExportResult { Tab = "A Sides", Band = "checkpoint", Chapter = "1a", Cp = "Crossing", Status = "written" }],
-        Version = 2,
-    };
+    private static List<ExportResult> WrittenAnswer() =>
+        [new ExportResult { Tab = "A Sides", Band = "checkpoint", Chapter = "1a", Cp = "Crossing", Status = "written" }];
 
     [Fact]
     public async Task JoinsAReadAskedForTheSameSheetSinceTheLastWrite() {
@@ -224,6 +222,7 @@ public sealed class SheetReaderTests : IDisposable {
     // the kind as a name: ReadKind is internal, and a public test method cannot take it
     [InlineData("""{"rows":[{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.948"}]}""", "OutOfDate")]
     [InlineData("<!DOCTYPE html>", "NotTheScript")]
+    [InlineData("""{"error":"Config names no entry tab","version":2}""", "Refused")]
     [InlineData("""{"rows":[],"version":2}""", "NoRows")]
     [InlineData("""{"rows":[{"tab":"A Sides","chapter":"9z","cp":"Nowhere","time":"1.000"}],"version":2}""", "NoRows")]
     public async Task AnAnswerSrsCannotUseIsNeitherAcceptedNorSaved(string body, string kind) {
@@ -305,7 +304,7 @@ public sealed class SheetReaderTests : IDisposable {
     public async Task AnUnansweredPostKeepsExportOffUntilAReadAfterItIsTakenIn() {
         await HoldAnswer("25.000");
         WriteToken token = SheetReader.BeginWrite();
-        SheetReader.EndWrite(token, Sent("21.948"), null);
+        SheetReader.EndWrite(token, Sent("21.948"), []);
         Assert.True(SheetReader.UnansweredWrite);
         Assert.Equal("25.000", HeldTime());
 
@@ -322,6 +321,18 @@ public sealed class SheetReaderTests : IDisposable {
     }
 
     [Fact]
+    public async Task AnExportCutShortAppliesWhatWasAnsweredAndKeepsExportOff() {
+        await HoldAnswer("25.000");
+        WriteToken token = SheetReader.BeginWrite();
+        List<ExportUpdate> sent = [.. Sent("21.948"),
+            new() { Tab = "A Sides", Band = "checkpoint", Chapter = "1a", Cp = "Chasm", Time = "30.000" }];
+        SheetReader.EndWrite(token, sent, WrittenAnswer());
+
+        Assert.Equal("21.948", HeldTime());
+        Assert.True(SheetReader.UnansweredWrite);
+    }
+
+    [Fact]
     public async Task IsWritingFromBeginWriteToEndWrite() {
         await HoldAnswer("25.000");
         Assert.False(SheetReader.IsWriting);
@@ -333,7 +344,7 @@ public sealed class SheetReaderTests : IDisposable {
 
         WriteToken unanswered = SheetReader.BeginWrite();
         Assert.True(SheetReader.IsWriting);
-        SheetReader.EndWrite(unanswered, Sent("21.948"), null);
+        SheetReader.EndWrite(unanswered, Sent("21.948"), []);
         Assert.False(SheetReader.IsWriting);
     }
 
