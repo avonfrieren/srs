@@ -27,6 +27,21 @@ public class ExportSourceTests {
         Assert.All(updates, u => Assert.True(u.Selected));
     }
 
+    [Fact]
+    public void ListsTheSideBeingPlayedFirst() {
+        RemoteBests.Reset();
+        RunBook.Run[] runs = [
+            Run("1a", "1a", "Start", 20), Run("2a", "2a", "ARB Start", 70), Run("2a", "2a", "Awake", 40),
+            Run("2b", "2b", "Start", 30), Run("3a", "3a", "Start", 50),
+        ];
+
+        Assert.Equal(["2a", "2arb", "1a", "3a", "2b"],
+            ExportSource.Collect(runs, "2a").Select(u => ExportTable.GroupLabel(u.Row)));
+        // a side with no run this session moves nothing
+        Assert.Equal(["1a", "2a", "2arb", "3a", "2b"],
+            ExportSource.Collect(runs, "7a").Select(u => ExportTable.GroupLabel(u.Row)));
+    }
+
     // a side's berry rows follow that side's own, before the next chapter,
     // under a header of their own
     [Fact]

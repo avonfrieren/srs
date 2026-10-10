@@ -320,7 +320,7 @@ internal static class ExportMenu {
 
         // read before the data it describes, so an answer landing meanwhile still triggers a rebuild
         int accepts = RemoteBests.Accepts;
-        List<PendingUpdate> updates = ExportSource.Collect(SessionBests.All);
+        List<PendingUpdate> updates = ExportSource.Collect(SessionBests.All, SegmentAutoDetect.ScopeOf(level.Session));
         Logger.Log(LogLevel.Info, LogTag,
             $"export: {updates.Count} rows of {SessionBests.All.Count} run, sheet times {RemoteBests.Source}");
         // nothing run this session, or runs that map to no row
@@ -382,7 +382,7 @@ internal static class ExportMenu {
     private static void BuildTable(Level level) {
         // read before the data it describes, so an answer landing meanwhile still triggers a rebuild
         int accepts = RemoteBests.Accepts;
-        BuildTable(level, ExportSource.Collect(SessionBests.All), accepts);
+        BuildTable(level, ExportSource.Collect(SessionBests.All, SegmentAutoDetect.ScopeOf(level.Session)), accepts);
     }
 
     private static void BuildTable(Level level, List<PendingUpdate> updates, int accepts) {
