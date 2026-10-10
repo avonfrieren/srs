@@ -251,20 +251,15 @@ public class RunTrackerTests {
         Assert.Empty(t.RoomEntered("1a", "5", "6", 100, true, false, One));
     }
 
-    // Speed Run Tool's format has no hours: a time of an hour or more would be
-    // exported an hour short
     [Fact]
-    public void NeverRecordsAnHourOrMore() {
+    public void RecordsAnHourOrMore() {
         Add("Start", "1", "6", setup: StartSetup.CurrentRoom);
         Add("Crossing", "6", "9b", entry: "5");
         RunTracker t = Tracker();
         long hour = TimeSpan.FromHours(1).Ticks;
 
         t.Restart("1a", "1", 0, true, false, _ => true);
-        Assert.Empty(t.RoomEntered("1a", "5", "6", hour, true, false, One));
-
-        t.Restart("1a", "1", 0, true, false, _ => true);
-        Assert.Equal([("Start", hour - 1)], Of(t.RoomEntered("1a", "5", "6", hour - 1, true, false, One)));
+        Assert.Equal([("Start", hour)], Of(t.RoomEntered("1a", "5", "6", hour, true, false, One)));
     }
 
     [Fact]
@@ -393,7 +388,7 @@ public class RunTrackerTests {
 
     [Fact]
     public void OnlyTheScopesRulesOpen() {
-        SegmentRule other = new("6b", "6a/b", "Elsewhere", "Start", StartKind.Room, StartSetup.CurrentRoom, EndKind.NextStart,
+        SegmentRule other = new("6b", "6b", "Elsewhere", "Start", StartKind.Room, StartSetup.CurrentRoom, EndKind.NextStart,
             Collectibles.None, Collectibles.None, null, 0, 0, 0);
         rules.Add(other);
         rooms.ByName["Elsewhere"] = ("1", "6");

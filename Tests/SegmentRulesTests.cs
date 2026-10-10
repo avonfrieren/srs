@@ -25,19 +25,19 @@ public class SegmentRulesTests {
         "3a/IL", "3a/IL Heart Clear", "3a/IL Tape RTM", "3a/IL Heart Tape Clear", "3a/IL Heart Tape RTM",
         "4a/Start", "4a/Start Tape Clear", "4a/Start Tape RTM",
         "4a/IL", "4a/IL Heart Clear", "4a/IL Tape Clear", "4a/IL Heart Tape Clear", "4a/IL Heart Tape RTM",
-        "5a/b/5a Start",
-        "5a/b/Unravelling",
-        "5a/b/5a IL", "5a/b/5a IL Tape RTM", "5a/b/5a IL Heart Tape RTM",
+        "5a/Start",
+        "5a/Unravelling",
+        "5a/IL", "5a/IL Tape RTM", "5a/IL Heart Tape RTM",
         "1b/Start", "1b/IL", "2b/Start", "2b/IL", "3b/Start", "3b/IL", "4b/Start", "4b/IL",
-        "5a/b/5b Start",
-        "5a/b/Through the Mirror",
-        "5a/b/5b IL",
-        "6a/b/6a Start",
-        "6a/b/6a IL", "6a/b/6a IL Tape Clear", "6a/b/6a IL Tape RTM", "6a/b/6a IL Heart Tape RTM",
-        "6a/b/6b Start", "6a/b/6b IL",
+        "5b/Start",
+        "5b/Through the Mirror",
+        "5b/IL",
+        "6a/Start",
+        "6a/IL", "6a/IL Tape Clear", "6a/IL Tape RTM", "6a/IL Heart Tape RTM",
+        "6b/Start", "6b/IL",
         "7b/Start", "7b/IL", "8b/Start", "8b/IL",
-        "7a/7a Start",
-        "7a/7a IL", "7a/7a IL Tape Clear", "7a/7a IL Tape RTM", "7a/7a IL Heart Tape RTM",
+        "7a/Start",
+        "7a/IL", "7a/IL Tape Clear", "7a/IL Tape RTM", "7a/IL Heart Tape RTM",
         "8a/Start",
         "8a/IL", "8a/IL Tape Clear",
         "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
@@ -49,7 +49,7 @@ public class SegmentRulesTests {
         "2a/ARB Start", "2a/ARB Awake", "2a/ARB IL",
         "3a/ARB Start", "3a/ARB IL",
         "4a/ARB Start", "4a/ARB IL",
-        "5a/b/ARB Unravelling",
+        "5a/ARB Unravelling",
         "7a/ARB Start", "7a/ARB IL",
         "8a/ARB IL",
     ];
@@ -61,9 +61,9 @@ public class SegmentRulesTests {
                 "1a/IL", "1a/IL Tape Clear", "2a/IL", "2a/IL Tape Clear",
                 "3a/IL", "3a/IL Heart Clear", "3a/IL Heart Tape Clear",
                 "4a/IL", "4a/IL Heart Clear", "4a/IL Tape Clear", "4a/IL Heart Tape Clear",
-                "5a/b/5a IL", "6a/b/6a IL", "6a/b/6a IL Tape Clear", "7a/7a IL", "7a/7a IL Tape Clear",
+                "5a/IL", "6a/IL", "6a/IL Tape Clear", "7a/IL", "7a/IL Tape Clear",
                 "8a/IL", "8a/IL Tape Clear",
-                "1b/IL", "2b/IL", "3b/IL", "4b/IL", "5a/b/5b IL", "6a/b/6b IL", "7b/IL", "8b/IL",
+                "1b/IL", "2b/IL", "3b/IL", "4b/IL", "5b/IL", "6b/IL", "7b/IL", "8b/IL",
                 "1c/1c", "2c/2c", "3c/3c", "4c/4c", "5c/5c", "6c/6c", "7c/7c", "8c/8c",
                 "Farewell/DTS IL", "Farewell/No DTS IL",
                 "2a/ARB IL", "3a/ARB IL", "4a/ARB IL", "7a/ARB IL", "8a/ARB IL",
@@ -132,7 +132,7 @@ public class SegmentRulesTests {
     [Fact]
     public void TheMapSpawnRows() {
         Assert.Equal(
-            ["1a/ARB Crossing to Heart", "1a/ARB Crossing", "1a/ARB Chasm", "4a/ARB Cliff Face (from RTM)", "5a/b/ARB Depths"],
+            ["1a/ARB Crossing to Heart", "1a/ARB Crossing", "1a/ARB Chasm", "4a/ARB Cliff Face (from RTM)", "5a/ARB Depths"],
             SegmentRules.All.Where(r => r.Setup == StartSetup.MapSpawn).Select(r => $"{r.Chapter}/{r.Name}"));
     }
 
@@ -155,7 +155,7 @@ public class SegmentRulesTests {
         Assert.Equal("Heart of the Mountain", Rule("8a", "ARB HotM Vertical").Anchor);
         Assert.Equal("Awake", Rule("2a", "ARB Awake").Anchor);
         Assert.Equal("2500 M", Rule("7a", "ARB 2500m-full").Anchor);
-        Assert.Equal((Rule("7a", "7a Start").Start, Rule("7a", "7a Start").HeadTicks),
+        Assert.Equal((Rule("7a", "Start").Start, Rule("7a", "Start").HeadTicks),
             (Rule("7a", "ARB Start").Start, Rule("7a", "ARB Start").HeadTicks));
     }
 
@@ -273,10 +273,10 @@ public class SegmentRulesTests {
     [Fact]
     public void RtmRowsEndAtTheCollect() {
         Assert.Equal((EndKind.Collect, Collectibles.Cassette),
-            (Rule("6a/b", "Hollows Tape RTM").End, Rule("6a/b", "Hollows Tape RTM").EndsOn));
+            (Rule("6a", "Hollows Tape RTM").End, Rule("6a", "Hollows Tape RTM").EndsOn));
         Assert.Equal((EndKind.Collect, Collectibles.Cassette),
-            (Rule("5a/b", "Depths Tape RTM").End, Rule("5a/b", "Depths Tape RTM").EndsOn));
-        Assert.Equal(EndKind.NextStart, Rule("6a/b", "Hollows").End);
+            (Rule("5a", "Depths Tape RTM").End, Rule("5a", "Depths Tape RTM").EndsOn));
+        Assert.Equal(EndKind.NextStart, Rule("6a", "Hollows").End);
     }
 
     // timed to the restart, as Speed Run Tool's timer kept across it is; the
@@ -303,11 +303,11 @@ public class SegmentRulesTests {
 
     [Fact]
     public void HeadsAndTheTailAreTheSheetsConstants() {
-        Assert.Equal(TimeSpan.FromMilliseconds(5508).Ticks, Rule("7a", "7a Start").HeadTicks);
-        Assert.Equal(StartKind.AfterLaunch, Rule("7a", "7a Start").Start);
+        Assert.Equal(TimeSpan.FromMilliseconds(5508).Ticks, Rule("7a", "Start").HeadTicks);
+        Assert.Equal(StartKind.AfterLaunch, Rule("7a", "Start").Start);
         Assert.Equal(TimeSpan.FromMilliseconds(1037).Ticks, Rule("Prologue", "Granny").HeadTicks);
         Assert.Equal(TimeSpan.FromMilliseconds(544).Ticks, Rule("Prologue", "Granny").TailTicks);
-        Assert.Equal(Rule("7a", "7a Start").HeadTicks, Rule("7b", "Start").HeadTicks);
+        Assert.Equal(Rule("7a", "Start").HeadTicks, Rule("7b", "Start").HeadTicks);
         Assert.Equal(StartKind.AfterLaunch, Rule("7b", "Start").Start);
         Assert.Equal(0, Rule("7a", "500m").HeadTicks);
         Assert.Equal(StartKind.Room, Rule("7a", "500m").Start);

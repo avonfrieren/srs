@@ -32,10 +32,6 @@ internal readonly record struct SegmentRecord(SegmentRule Rule, long Ticks);
 /// events with chapter-time readings (`Session.Time` ticks: only a difference
 /// of two is a time); each event returns what it closed.
 internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap rooms) {
-    // Speed Run Tool's format prints minutes and seconds, never hours: a time
-    // this long would be shown and exported an hour short
-    private const long Longest = TimeSpan.TicksPerHour;
-
     private sealed class OpenSegment(SegmentRule rule, long start) {
         public readonly SegmentRule Rule = rule;
         public readonly long Start = start;
@@ -294,8 +290,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         return result;
     }
 
-    // the time, or null when the run did not meet the row's requirements or
-    // took an hour or more
+    // the time, or null when the run did not meet the row's requirements
     private long? Met(OpenSegment segment, long reading, EndState end) {
         SegmentRule rule = segment.Rule;
         long elapsed = reading - segment.Start;
@@ -307,8 +302,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
             return null;
         }
 
-        long ticks = elapsed + rule.HeadTicks + rule.TailTicks;
-        return ticks < Longest ? ticks : null;
+        return elapsed + rule.HeadTicks + rule.TailTicks;
     }
 
     // a berry still following at the end counts. No berries resolved is not

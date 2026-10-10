@@ -17,7 +17,6 @@ Options under **Mod Options → Speedrun Sheet**. What changed in each version i
 - Five all red berries rows start only on their checkpoint's own spawn, by picking the checkpoint on the map or from a savestate made there before you moved: walking in does not start them.
 - A savestate load or a room teleport starts a new attempt: the segment you were in is not recorded.
 - The `Heart`, `Tape`, `ARB` and `DTS` rows are told apart by what you collected, and in Farewell by the dashes you have left (for its two ILs, the dashes you carry into Singular). An `ARB` row needs every red berry it asks for; one still following you at the end counts. 2A's `Start Heart RC` runs until Restart Chapter.
-- A segment of an hour or more is not recorded.
 
 **Hotkeys.** Three, all unbound by default: Toggle Tier Display, Previous Segment and Open Sheet Export. After several checkpoints run in a row, Previous Segment steps the rows above the timer back through the segments of that attempt, and `2/3` before the name says which one is shown. Bind them from **Keybinds**, at the bottom of srs's section. A hotkey can be a combo: all of its keys must be held together.
 

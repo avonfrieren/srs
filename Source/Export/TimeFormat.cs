@@ -11,19 +11,26 @@ public static class TimeFormat {
     /// reason ExportProtocol.Localize is one.
     public static Func<long, string> Format;
 
+    /// From an hour up the format is ours: Speed Run Tool's prints minutes and
+    /// seconds only, and would show the time an hour short.
     public static string FromTicks(long ticks) =>
-        Format is { } format
+        ticks >= TimeSpan.TicksPerHour ? WithHours(ticks)
+        : Format is { } format
             ? format(ticks)
             // SrsModule fails at load rather than reach here, so this is the
             // test project having forgotten to install its stand-in
             : throw new InvalidOperationException(
                 "TimeFormat.Format was never set; SpeedrunTool's formatter is the only one srs has");
 
-    /// A signed difference, always in seconds: "+1.250", "-73.000". Ours,
-    /// SpeedrunTool has no such format.
-    public static string Delta(long ticks) {
-        double seconds = TimeSpan.FromTicks(ticks).TotalSeconds;
-        return (seconds < 0 ? "-" : "+")
-             + Math.Abs(seconds).ToString("0.000", CultureInfo.InvariantCulture);
+    // 1:05:03.250, the milliseconds cut and not rounded, as under an hour
+    private static string WithHours(long ticks) {
+        TimeSpan span = TimeSpan.FromTicks(ticks);
+        return ((long) span.TotalHours).ToString(CultureInfo.InvariantCulture)
+             + span.ToString("\\:mm\\:ss\\.fff", CultureInfo.InvariantCulture);
     }
+
+    /// A signed difference, written as a time: "+1.250", "-1:13.500",
+    /// "-1:04:47.491".
+    public static string Delta(long ticks) =>
+        (ticks < 0 ? "-" : "+") + FromTicks(Math.Abs(ticks));
 }

@@ -27,6 +27,21 @@ public class ExportSourceTests {
         Assert.All(updates, u => Assert.True(u.Selected));
     }
 
+    [Fact]
+    public void ListsTheSideBeingPlayedFirst() {
+        RemoteBests.Reset();
+        RunBook.Run[] runs = [
+            Run("1a", "1a", "Start", 20), Run("2a", "2a", "ARB Start", 70), Run("2a", "2a", "Awake", 40),
+            Run("2b", "2b", "Start", 30), Run("3a", "3a", "Start", 50),
+        ];
+
+        Assert.Equal(["2a", "2arb", "1a", "3a", "2b"],
+            ExportSource.Collect(runs, "2a").Select(u => ExportTable.GroupLabel(u.Row)));
+        // a side with no run this session moves nothing
+        Assert.Equal(["1a", "2a", "2arb", "3a", "2b"],
+            ExportSource.Collect(runs, "7a").Select(u => ExportTable.GroupLabel(u.Row)));
+    }
+
     // a side's berry rows follow that side's own, before the next chapter,
     // under a header of their own
     [Fact]
@@ -40,16 +55,6 @@ public class ExportSourceTests {
         Assert.Equal(["IL", "Start", "Awake", "Start", "IL"], updates.Select(u => u.Label));
         Assert.Equal(["1a", "1arb", "2a", "2arb", "2arb"], updates.Select(u => ExportTable.GroupLabel(u.Row)));
         Assert.Equal(new SheetRowRef("ARB/Full Clear", "2a \U0001F353", "2a \U0001F353"), updates[4].Row);
-    }
-
-    [Fact]
-    public void ShortensEachLabelByItsOwnSide() {
-        RemoteBests.Reset();
-        List<PendingUpdate> updates = ExportSource.Collect([
-            Run("6b", "6a/b", "6b Rock Bottom", 50), Run("6a", "6a/b", "6a Start", 20),
-        ]);
-
-        Assert.Equal(["Start", "Rock Bottom"], updates.Select(u => u.Label));
     }
 
     [Fact]

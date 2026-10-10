@@ -24,7 +24,7 @@ internal readonly record struct RowTraits(
         // d-00 is entered from c-08 on the A-side, and from the berry room here
         [("4a", "ARB Cliff Face")] = new(EntryRoom: "c-10"),
         [("4a", "ARB IL")] = new(Requires: Collectibles.Heart),
-        [("5a/b", "ARB Depths")] = new(MapSpawn: true),
+        [("5a", "ARB Depths")] = new(MapSpawn: true),
     };
 
     public static RowTraits Of(string chapter, string name) => All.GetValueOrDefault((chapter, name));
