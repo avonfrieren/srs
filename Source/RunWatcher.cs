@@ -242,7 +242,7 @@ public static class RunWatcher {
         string roomBefore = self.Session.Level;
         int stateBefore = playerBefore?.StateMachine.State ?? -1;
         Vector2? exactBefore = playerBefore?.ExactPosition;
-        bool controlBefore = !self.InCutscene && !NoControlStates.Contains(stateBefore);
+        bool controlBefore = playerBefore != null && !self.InCutscene && !NoControlStates.Contains(stateBefore);
         bool stoppedBefore = self.TimerStopped || self.Completed;
         // a player load's own wipe
         bool loadWiping = self.Wipe != null && self.Wipe != restoredWipe;
@@ -262,7 +262,7 @@ public static class RunWatcher {
         string room = session.Level;
         Player player = self.Tracker.GetEntity<Player>();
         int state = player?.StateMachine.State ?? -1;
-        bool control = !self.InCutscene && !NoControlStates.Contains(state);
+        bool control = player != null && !self.InCutscene && !NoControlStates.Contains(state);
         bool launching = state == Player.StIntroJump;
         bool stopped = self.TimerStopped || self.Completed;
         tracker.Rooms = RoomMap.For(session);

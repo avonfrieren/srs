@@ -61,6 +61,10 @@ internal sealed class RowsResponse {
 
 /// Wire format between the mod and the player's Apps Script Web App.
 /// Never throws: every failure path returns false with a human-readable message.
+/// Why an answer holds no rows: it is not the script's, the script refused
+/// with a reason of its own, or it speaks another protocol version.
+public enum RowsFailure { None, NotTheScript, Refused, OutOfDate }
+
 public static class ExportProtocol {
     /// The only version of the script srs speaks. Absent means a version 1
     /// script, which the player replaces by copying the script again.
@@ -136,13 +140,13 @@ public static class ExportProtocol {
     }
 
     public static bool TryParseRows(string body, out List<RemoteRow> rows, out string error) =>
-        TryParseRows(body, out rows, out string _, out error, out bool _);
+        TryParseRows(body, out rows, out string _, out error, out RowsFailure _);
 
     public static bool TryParseRows(string body, out List<RemoteRow> rows, out string scriptTiming,
-        out string error, out bool outOfDate) {
+        out string error, out RowsFailure failure) {
         scriptTiming = null;
         rows = null;
-        outOfDate = false;
+        failure = RowsFailure.NotTheScript;
         if (!Guard(body, out error)) {
             return false;
         }
@@ -158,11 +162,12 @@ public static class ExportProtocol {
             return false;
         }
         if (!string.IsNullOrEmpty(wrapper.Error)) {
+            failure = RowsFailure.Refused;
             error = wrapper.Error;
             return false;
         }
         if (wrapper.Version != WireVersion) {
-            outOfDate = true;
+            failure = RowsFailure.OutOfDate;
             error = Localize("SRS_EXPORT_ERR_OUT_OF_DATE");
             return false;
         }
@@ -178,6 +183,7 @@ public static class ExportProtocol {
         scriptTiming = wrapper.Ms is { } ms
             ? $"{ms} ms in the script{(wrapper.Cached ? ", cached" : "")}"
             : "script timing unknown";
+        failure = RowsFailure.None;
         error = null;
         return true;
     }

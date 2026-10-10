@@ -224,6 +224,7 @@ public sealed class SheetReaderTests : IDisposable {
     // the kind as a name: ReadKind is internal, and a public test method cannot take it
     [InlineData("""{"rows":[{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.948"}]}""", "OutOfDate")]
     [InlineData("<!DOCTYPE html>", "NotTheScript")]
+    [InlineData("""{"error":"Config names no entry tab","version":2}""", "Refused")]
     [InlineData("""{"rows":[],"version":2}""", "NoRows")]
     [InlineData("""{"rows":[{"tab":"A Sides","chapter":"9z","cp":"Nowhere","time":"1.000"}],"version":2}""", "NoRows")]
     public async Task AnAnswerSrsCannotUseIsNeitherAcceptedNorSaved(string body, string kind) {

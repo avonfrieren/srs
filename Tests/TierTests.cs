@@ -52,6 +52,17 @@ public class TierTests {
         Assert.Equal((next, S(seconds)), SheetData.NextTier(Columns, thresholds, tier));
     }
 
+    // the sheet fills its Unranked column on some rows: it is where a time
+    // lands, never a time to aim at
+    [Fact]
+    public void TheUnrankedColumnIsNoThreshold() {
+        List<string> columns = ["Hidden", "WR", "Gold", "Pink", "Unranked"];
+        List<TimeSpan?> thresholds = [S(0), S(40), S(45), S(50), S(60)];
+
+        Assert.Equal("Unranked", SheetData.TierOf(columns, thresholds, S(55)));
+        Assert.Equal(("Pink", S(50)), SheetData.NextTier(columns, thresholds, "Unranked"));
+    }
+
     [Fact]
     public void NothingIsFasterThanGold() {
         List<TimeSpan?> thresholds = [S(0), S(40), S(45), S(50)];

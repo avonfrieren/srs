@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-internal enum ReadKind { Accepted, Unreachable, NotTheScript, OutOfDate, NoRows, Cancelled }
+internal enum ReadKind { Accepted, Unreachable, NotTheScript, Refused, OutOfDate, NoRows, Cancelled }
 
 /// What a read came to. Error is what to show the player when it failed.
 internal readonly record struct ReadOutcome(ReadKind Kind, string Error = null);
@@ -228,8 +228,13 @@ internal static class SheetReader {
             return new ReadOutcome(ReadKind.Unreachable, error);
         }
 
-        if (!ExportProtocol.TryParseRows(body, out rows, out timing, out string parseError, out bool outOfDate)) {
-            return new ReadOutcome(outOfDate ? ReadKind.OutOfDate : ReadKind.NotTheScript, parseError);
+        if (!ExportProtocol.TryParseRows(body, out rows, out timing, out string parseError, out RowsFailure failure)) {
+            ReadKind kind = failure switch {
+                RowsFailure.OutOfDate => ReadKind.OutOfDate,
+                RowsFailure.Refused => ReadKind.Refused,
+                _ => ReadKind.NotTheScript,
+            };
+            return new ReadOutcome(kind, parseError);
         }
 
         if (!RemoteBests.HoldsAnyOf(rows, SheetRows.All.Select(SheetRows.TargetOf))) {
