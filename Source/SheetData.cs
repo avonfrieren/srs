@@ -4,20 +4,18 @@ using System.Globalization;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-// parsed practice sheet: one block of checkpoint segments merged from the
-// Standards tabs (StandardsTabs), with a header of tier columns ("Hidden",
-// "WR", "Gold", "Pink", "Purple 1", ... "Unranked")
+// parsed practice sheet: one block of segments merged from the Standards tabs
 public class SheetData {
-    /// The one block Parse builds, checkpoint segments of every tab
-    /// merged under one header; null when nothing parsed.
-    public SheetBlock CheckpointBlock { get; private set; }
+    /// The one block Parse builds, the segments of every tab merged under
+    /// one header; null when nothing parsed.
+    public SheetBlock Block { get; private set; }
 
     /// The SheetRows keys none of the parsed tabs had: how a row the sheet
     /// renamed gets noticed. Covers only what was given: the rows of a tab left
     /// out of the parse are all here.
-    public readonly List<(string Chapter, string Name)> MissingRows = [];
+    public readonly List<(string SheetChapter, string Label)> MissingRows = [];
 
-    public int SegmentCount => CheckpointBlock?.Segments.Count ?? 0;
+    public int SegmentCount => Block?.Segments.Count ?? 0;
 
     /// The tier a time reaches: the first column, in sheet order, whose
     /// threshold the time is strictly under, and "Unranked" past every one.
@@ -75,7 +73,7 @@ public class SheetData {
                 if (merged == null) {
                     merged = new SheetBlock(raw.TierStart, hasCheckpoints: true);
                     merged.Columns.AddRange(raw.Columns);
-                    data.CheckpointBlock = merged;
+                    data.Block = merged;
                 }
 
                 foreach (SheetSegment segment in raw.Segments) {
@@ -111,7 +109,7 @@ public class SheetData {
     // the raw pass: the CSV's blocks of segments, one per header row, under the
     // sheet's own names (internal for the allowlist tests). implicitChapter is
     // for the Farewell tab, which has no Chapter column
-    internal static List<SheetBlock> ParseBlocks(string csvText, string implicitChapter = null) {
+    internal static List<SheetBlock> ParseBlocks(string csvText, string implicitChapter) {
         List<SheetBlock> blocks = [];
         SheetBlock currentBlock = null;
         string currentChapter = null;
@@ -255,7 +253,7 @@ public class SheetBlock(int tierStart, bool hasCheckpoints) {
 }
 
 public class SheetSegment(string chapter, string name, List<TimeSpan?> times = null) {
-    // owning chapter; equals Name in chapter-only blocks
+    // the scope in the merged block, the sheet's chapter cell in a raw one
     public readonly string Chapter = chapter;
     public readonly string Name = name;
     // aligned with the owning block's Columns; null = empty or unparseable cell

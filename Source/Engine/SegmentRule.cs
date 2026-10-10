@@ -15,7 +15,8 @@ internal enum Collectibles {
 internal enum StartKind {
     // entering the start room, or a restart in it (RunTracker.Restart)
     Room,
-    // once the launch (the intro jump) into the start room is over (SegmentAutoDetect.AfterLaunchStarts)
+    // once the launch (the intro jump) into the start room is over
+    // (SegmentAutoDetect.AfterLaunchStarts)
     AfterLaunch,
 }
 

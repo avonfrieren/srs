@@ -28,5 +28,5 @@ Options under **Mod Options → Speedrun Sheet**. What changed in each version i
 
 **Known limits.**
 
-- Not every row of the sheet is imported: the all red berries and full clear rows whose route returns to the map, and their chapter rows where the route does, are left out.
+- Not every row of the sheet is imported: the all red berries and full clear rows whose route returns to the map, and their chapter rows where the route does, are left out, and so are the `Wake Up` rows.
 - srs trusts that your progress in the chapter (opened doors, used keys, broken blocks) is what a real run would have at that point.

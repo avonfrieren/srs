@@ -56,11 +56,8 @@ internal static class ExportTable {
         }
     }
 
-    /// The row's srs name when it is one srs writes: an IL variant's sheet
-    /// label is an emoji and a suffix, and ActiveFont drops the emoji. Else the
-    /// sheet's own labels, never translated. Most checkpoint labels already
-    /// carry their chapter ("1a Start"), so prefixing it again reads "1a 1a Start".
-    private const string BerryCell = "a \U0001F353";
+    // the berry tab's chapter cell ends with this
+    private const string BerryCell = "a " + SheetRows.Berry;
 
     /// The header over a group of rows: the chapter cell, the tab where the
     /// sheet has none (Farewell). A berry chapter cell reads "1arb": its emoji
@@ -70,6 +67,10 @@ internal static class ExportTable {
         : row.Chapter.EndsWith(BerryCell, StringComparison.Ordinal) ? row.Chapter[..^BerryCell.Length] + "arb"
         : row.Chapter;
 
+    /// The row's srs name when it is one srs writes: an IL variant's sheet
+    /// label is an emoji and a suffix, and ActiveFont drops the emoji. Else the
+    /// sheet's own labels, never translated. Most checkpoint labels already
+    /// carry their chapter ("1a Start"), so prefixing it again reads "1a 1a Start".
     public static string RowLabel(string tab, string chapter, string cp) {
         SheetRowRef target = new(tab, chapter, cp);
         foreach (SheetRow row in SheetRows.All) {
@@ -84,8 +85,6 @@ internal static class ExportTable {
 
     // an unknown status is shown as the script sent it rather than swallowed
     public static string StatusText(string status) => status switch {
-        "written" => L("SRS_EXPORT_STATUS_WRITTEN"),
-        "unchanged" => L("SRS_EXPORT_STATUS_UNCHANGED"),
         "notFound" => L("SRS_EXPORT_STATUS_NOTFOUND"),
         "ambiguous" => L("SRS_EXPORT_STATUS_AMBIGUOUS"),
         "refused" => L("SRS_EXPORT_STATUS_REFUSED"),

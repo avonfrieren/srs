@@ -6,10 +6,6 @@ namespace Celeste.Mod.SpeedrunSheet;
 /// The rule of every imported row, built once from SheetRows: static data, so
 /// a sheet re-import never touches it.
 internal static class SegmentRules {
-    private const string Heart = "\U0001F499";
-    private const string Tape = "\U0001F4FC";
-    private const string Gem = "\U0001F48E";
-
     // 7A's, the only chapter with any (Session.SummitGems)
     private const int ChapterGems = 6;
 
@@ -46,7 +42,7 @@ internal static class SegmentRules {
             BerrySet berries = !berryTab || traits.NoBerries ? null
                 : traits.Berries ?? (chapterRun ? BerrySet.WholeChapter : new BerrySet(row.Anchor));
             StartSetup setup = traits.MapSpawn ? StartSetup.MapSpawn
-                : row.Anchor == "Start" || SegmentAutoDetect.CurrentRoomStarts.Contains(anchor) ? StartSetup.CurrentRoom
+                : row.Anchor == "Start" || SegmentAutoDetect.WakeUpSpawns.ContainsKey(anchor) ? StartSetup.CurrentRoom
                 : StartSetup.NextRoom;
 
             rules.Add(new SegmentRule(
@@ -86,9 +82,9 @@ internal static class SegmentRules {
 
     // matched with Contains: the sheet's spacing around a marker is irregular
     private static Collectibles MarkersOf(string label) =>
-        (label.Contains(Heart) ? Collectibles.Heart : Collectibles.None)
-        | (label.Contains(Tape) ? Collectibles.Cassette : Collectibles.None)
-        | (label.Contains(Gem) ? Collectibles.Gem : Collectibles.None);
+        (label.Contains(SheetRows.Heart) ? Collectibles.Heart : Collectibles.None)
+        | (label.Contains(SheetRows.Tape) ? Collectibles.Cassette : Collectibles.None)
+        | (label.Contains(SheetRows.Gem) ? Collectibles.Gem : Collectibles.None);
 
     // Farewell's DTS twins: "X DTS" keeps both dashes (2), "X" beside it lost one (1).
     // The two ILs are twins too

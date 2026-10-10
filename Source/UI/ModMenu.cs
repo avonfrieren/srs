@@ -6,8 +6,7 @@ using Monocle;
 namespace Celeste.Mod.SpeedrunSheet;
 
 // the whole Mod Options section, built by hand: the master switch has to hide
-// every other entry. The key bindings are combos, bound from CelesteHotkeys'
-// screen
+// every other entry
 internal static class ModMenu {
     internal static void CreateMenu(TextMenu menu, bool inGame) {
         SrsSettings settings = SrsModule.Settings;
@@ -30,7 +29,7 @@ internal static class ModMenu {
         Action updateStandards = SheetImporter.CreateMenuEntries(menu);
 
         // ExportUrlMenu keeps the Forget button hidden until an export URL is set
-        List<TextMenu.Item> urlDependent = ExportUrlMenu.CreateMenuEntries(menu);
+        TextMenu.Item forgetUrl = ExportUrlMenu.CreateMenuEntries(menu);
 
         // in game only: the export screen needs a level, and it saves binding a
         // hotkey just to reach it
@@ -51,23 +50,19 @@ internal static class ModMenu {
             // nothing to open without a sheet: shown once a URL is set, which can
             // happen during this visit. OnUpdate runs for hidden items too, and
             // the master switch is read here so it is not undone the next frame
-            openExport.OnUpdate = () => openExport.Visible = settings.Enabled && ExportUrlMenu.HasUrl;
+            openExport.OnUpdate = () => openExport.Visible = settings.Enabled && ExportTarget.IsSet;
             menu.Add(openExport);
         }
 
-        // the only way to bind the [SettingIgnore] hotkeys: last, at the root of
-        // the section and inside the range the master switch hides. Never in a
-        // submenu, which keeps reading input under the screen it opens
+        // never in a submenu, which keeps reading input under the screen it opens
         menu.Add(HotkeyMenu.OpenButton(menu, Hotkeys.Set, Hotkeys.Text, () => SrsModule.TrySaveSettings("the hotkeys")));
 
-        // taken as a range rather than listed entry by entry: the entries added
-        // since `first` come from several builders, and a hand-written list
-        // would go out of step with them
+        // a range, not a list: several builders add entries
         List<TextMenu.Item> subOptions = menu.Items.GetRange(first, menu.Items.Count - first);
 
         enabled.Change(on => {
             settings.Enabled = on;
-            ShowSubOptions(subOptions, urlDependent, on);
+            ShowSubOptions(subOptions, forgetUrl, on);
             if (on) {
                 // the startup refresh is skipped while the mod is off, so this
                 // is the first chance to pick up a sheet retimed in the meantime.
@@ -77,20 +72,17 @@ internal static class ModMenu {
             }
         });
 
-        ShowSubOptions(subOptions, urlDependent, settings.Enabled);
+        ShowSubOptions(subOptions, forgetUrl, settings.Enabled);
     }
 
     // the master switch hides everything, but turning the mod back on must not
-    // reveal the entries ExportUrlMenu keeps hidden until a URL is set
-    private static void ShowSubOptions(List<TextMenu.Item> subOptions, List<TextMenu.Item> urlDependent, bool on) {
-        SetVisible(subOptions, on);
-        SetVisible(urlDependent, on && ExportUrlMenu.HasUrl);
-    }
-
-    private static void SetVisible(List<TextMenu.Item> items, bool visible) {
-        foreach (TextMenu.Item item in items) {
-            item.Visible = visible;
+    // reveal the Forget button, which stays hidden until a URL is set
+    private static void ShowSubOptions(List<TextMenu.Item> subOptions, TextMenu.Item forgetUrl, bool on) {
+        foreach (TextMenu.Item item in subOptions) {
+            item.Visible = on;
         }
+
+        forgetUrl.Visible = on && ExportTarget.IsSet;
     }
 
     private static void AddSwitch(TextMenu menu, string label, bool value, Action<bool> change) {

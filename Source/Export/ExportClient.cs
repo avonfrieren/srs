@@ -4,7 +4,6 @@ using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Monocle;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
@@ -31,9 +30,6 @@ internal static class ExportClient {
 
     private static Task<(string body, string error)> SendAsync(string url, string json) =>
         Task.Run(async () => {
-            if (string.IsNullOrWhiteSpace(url)) {
-                return (null, ExportProtocol.Localize("SRS_EXPORT_ERR_NO_URL"));
-            }
             // timed: an Apps Script cold start and an oversized payload look the
             // same from the game
             Stopwatch clock = Stopwatch.StartNew();

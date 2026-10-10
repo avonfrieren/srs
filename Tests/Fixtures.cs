@@ -24,7 +24,7 @@ internal static class Fixtures {
             [StandardsTab.Farewell] = farewell,
         });
 
-    public static List<SheetSegment> Imported => Parsed.CheckpointBlock.Segments;
+    public static List<SheetSegment> Imported => Parsed.Block.Segments;
 
     private static string Read(string name) =>
         System.IO.File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "Fixtures", name));

@@ -24,13 +24,14 @@ internal static class SheetRows {
     private const StandardsTab X = StandardsTab.Fc;
 
     // kept as escaped code points so this source stays ASCII
-    private const string Heart = "\U0001F499";
-    private const string Tape = "\U0001F4FC";
-    private const string Berry = "\U0001F353";
-    private const string Gem = "\U0001F48E";
+    internal const string Heart = "\U0001F499";
+    internal const string Tape = "\U0001F4FC";
+    internal const string Berry = "\U0001F353";
+    internal const string Gem = "\U0001F48E";
 
     // in sheet order: A Sides, B Sides, C Sides, then Farewell, the berry
-    // tab, then Full Clear. The emoji survive in Label only: ActiveFont skips a glyph its atlas lacks, so Name never has one
+    // tab, then Full Clear. The emoji survive in Label only: ActiveFont skips
+    // a glyph its atlas lacks, so Name never has one
     internal static readonly SheetRow[] All = [
         new(A, "Prologue", "Granny", "Prologue", "Granny", "Start"),
         new(A, "1a CP", "1a Start", "1a", "Start", "Start"),
@@ -39,19 +40,18 @@ internal static class SheetRows {
         new(A, "1a CP", "Chasm", "1a", "Chasm", "Chasm"),
         new(A, "1a CP", "Chasm " + Tape + " Clear", "1a", "Chasm Tape Clear", "Chasm"),
         new(A, "1a CP", "Chasm " + Tape + " RTM", "1a", "Chasm Tape RTM", "Chasm"),
-        // an IL's entry row sits under the bare chapter ("1a")
-        new(A, "1a IL", "Clear", "1a", "IL", "Start", new(SheetLabels.TabASides, "1a", "Clear")),
-        new(A, "1a IL", Tape + " RTM", "1a", "IL Tape RTM", "Start", new(SheetLabels.TabASides, "1a", Tape + " RTM")),
-        new(A, "1a IL", Tape + " Clear", "1a", "IL Tape Clear", "Start", new(SheetLabels.TabASides, "1a", Tape + " Clear")),
-        new(A, "1a IL", Heart + "+" + Tape + " RTM", "1a", "IL Heart Tape RTM", "Start", new(SheetLabels.TabASides, "1a", Heart + "+" + Tape + " RTM")),
+        new(A, "1a IL", "Clear", "1a", "IL", "Start"),
+        new(A, "1a IL", Tape + " RTM", "1a", "IL Tape RTM", "Start"),
+        new(A, "1a IL", Tape + " Clear", "1a", "IL Tape Clear", "Start"),
+        new(A, "1a IL", Heart + "+" + Tape + " RTM", "1a", "IL Heart Tape RTM", "Start"),
         new(A, "2a CP", "2a Start", "2a", "Start", "Start"),
         new(A, "2a CP", "2a Start " + Heart + " RC", "2a", "Start Heart RC", "Start"),
         new(A, "2a CP", "2a Start " + Tape + " Clear", "2a", "Start Tape Clear", "Start"),
         new(A, "2a CP", "2a Start " + Tape + " RTM", "2a", "Start Tape RTM", "Start"),
         new(A, "2a CP", "Intervention", "2a", "Intervention", "Intervention"),
         new(A, "2a CP", "Awake", "2a", "Awake", "Awake"),
-        new(A, "2a IL", "Clear", "2a", "IL", "Start", new(SheetLabels.TabASides, "2a", "Clear")),
-        new(A, "2a IL", Tape + " Clear", "2a", "IL Tape Clear", "Start", new(SheetLabels.TabASides, "2a", Tape + " Clear")),
+        new(A, "2a IL", "Clear", "2a", "IL", "Start"),
+        new(A, "2a IL", Tape + " Clear", "2a", "IL Tape Clear", "Start"),
         new(A, "3a CP", "3a Start", "3a", "Start", "Start"),
         new(A, "3a CP", "Huge Mess", "3a", "Huge Mess", "Huge Mess"),
         new(A, "3a CP", "Huge Mess " + Heart, "3a", "Huge Mess Heart", "Huge Mess"),
@@ -59,11 +59,11 @@ internal static class SheetRows {
         new(A, "3a CP", "Elevator Shaft " + Tape + " Clear", "3a", "Elevator Shaft Tape Clear", "Elevator Shaft"),
         new(A, "3a CP", "Elevator Shaft " + Tape + " RTM", "3a", "Elevator Shaft Tape RTM", "Elevator Shaft"),
         new(A, "3a CP", "Presidential Suite", "3a", "Presidential Suite", "Presidential Suite"),
-        new(A, "3a IL", "Clear", "3a", "IL", "Start", new(SheetLabels.TabASides, "3a", "Clear")),
-        new(A, "3a IL", Heart + " Clear", "3a", "IL Heart Clear", "Start", new(SheetLabels.TabASides, "3a", Heart + " Clear")),
-        new(A, "3a IL", Tape + " RTM", "3a", "IL Tape RTM", "Start", new(SheetLabels.TabASides, "3a", Tape + " RTM")),
-        new(A, "3a IL", Heart + "+" + Tape + " Clear", "3a", "IL Heart Tape Clear", "Start", new(SheetLabels.TabASides, "3a", Heart + "+" + Tape + " Clear")),
-        new(A, "3a IL", Heart + "+" + Tape + " RTM", "3a", "IL Heart Tape RTM", "Start", new(SheetLabels.TabASides, "3a", Heart + "+" + Tape + " RTM")),
+        new(A, "3a IL", "Clear", "3a", "IL", "Start"),
+        new(A, "3a IL", Heart + " Clear", "3a", "IL Heart Clear", "Start"),
+        new(A, "3a IL", Tape + " RTM", "3a", "IL Tape RTM", "Start"),
+        new(A, "3a IL", Heart + "+" + Tape + " Clear", "3a", "IL Heart Tape Clear", "Start"),
+        new(A, "3a IL", Heart + "+" + Tape + " RTM", "3a", "IL Heart Tape RTM", "Start"),
         new(A, "4a CP", "4a Start", "4a", "Start", "Start"),
         new(A, "4a CP", "4a Start " + Tape + " Clear", "4a", "Start Tape Clear", "Start"),
         new(A, "4a CP", "4a Start " + Tape + " RTM", "4a", "Start Tape RTM", "Start"),
@@ -72,11 +72,11 @@ internal static class SheetRows {
         new(A, "4a CP", "Shrine " + Heart + " RTM", "4a", "Shrine Heart RTM", "Shrine"),
         new(A, "4a CP", "Old Trail", "4a", "Old Trail", "Old Trail"),
         new(A, "4a CP", "Cliff Face", "4a", "Cliff Face", "Cliff Face"),
-        new(A, "4a IL", "Clear", "4a", "IL", "Start", new(SheetLabels.TabASides, "4a", "Clear")),
-        new(A, "4a IL", Heart + " Clear", "4a", "IL Heart Clear", "Start", new(SheetLabels.TabASides, "4a", Heart + " Clear")),
-        new(A, "4a IL", Tape + " Clear", "4a", "IL Tape Clear", "Start", new(SheetLabels.TabASides, "4a", Tape + " Clear")),
-        new(A, "4a IL", Heart + "+" + Tape + " Clear", "4a", "IL Heart Tape Clear", "Start", new(SheetLabels.TabASides, "4a", Heart + "+" + Tape + " Clear")),
-        new(A, "4a IL", Heart + "+" + Tape + " RTM", "4a", "IL Heart Tape RTM", "Start", new(SheetLabels.TabASides, "4a", Heart + "+" + Tape + " RTM")),
+        new(A, "4a IL", "Clear", "4a", "IL", "Start"),
+        new(A, "4a IL", Heart + " Clear", "4a", "IL Heart Clear", "Start"),
+        new(A, "4a IL", Tape + " Clear", "4a", "IL Tape Clear", "Start"),
+        new(A, "4a IL", Heart + "+" + Tape + " Clear", "4a", "IL Heart Tape Clear", "Start"),
+        new(A, "4a IL", Heart + "+" + Tape + " RTM", "4a", "IL Heart Tape RTM", "Start"),
         new(A, "5a CP", "5a Start", "5a", "Start", "Start"),
         new(A, "5a CP", "Depths", "5a", "Depths", "Depths"),
         new(A, "5a CP", "Depths " + Tape + " RTM", "5a", "Depths Tape RTM", "Depths"),
@@ -84,9 +84,9 @@ internal static class SheetRows {
         new(A, "5a CP", "Unravelling", "5a", "Unravelling", "Unravelling"),
         new(A, "5a CP", "Search", "5a", "Search", "Search"),
         new(A, "5a CP", "Rescue", "5a", "Rescue", "Rescue"),
-        new(A, "5a IL", "Clear", "5a", "IL", "Start", new(SheetLabels.TabASides, "5a", "Clear")),
-        new(A, "5a IL", Tape + " RTM", "5a", "IL Tape RTM", "Start", new(SheetLabels.TabASides, "5a", Tape + " RTM")),
-        new(A, "5a IL", Heart + "+" + Tape + " RTM", "5a", "IL Heart Tape RTM", "Start", new(SheetLabels.TabASides, "5a", Heart + "+" + Tape + " RTM")),
+        new(A, "5a IL", "Clear", "5a", "IL", "Start"),
+        new(A, "5a IL", Tape + " RTM", "5a", "IL Tape RTM", "Start"),
+        new(A, "5a IL", Heart + "+" + Tape + " RTM", "5a", "IL Heart Tape RTM", "Start"),
         new(A, "6a CP", "6a Start", "6a", "Start", "Start"),
         new(A, "6a CP", "Lake", "6a", "Lake", "Lake"),
         new(A, "6a CP", "Hollows", "6a", "Hollows", "Hollows"),
@@ -96,10 +96,10 @@ internal static class SheetRows {
         new(A, "6a CP", "Reflection", "6a", "Reflection", "Reflection"),
         new(A, "6a CP", "Rock Bottom", "6a", "Rock Bottom", "Rock Bottom"),
         new(A, "6a CP", "Resolution", "6a", "Resolution", "Resolution"),
-        new(A, "6a IL", "Clear", "6a", "IL", "Start", new(SheetLabels.TabASides, "6a", "Clear")),
-        new(A, "6a IL", Tape + " Clear", "6a", "IL Tape Clear", "Start", new(SheetLabels.TabASides, "6a", Tape + " Clear")),
-        new(A, "6a IL", Tape + " RTM", "6a", "IL Tape RTM", "Start", new(SheetLabels.TabASides, "6a", Tape + " RTM")),
-        new(A, "6a IL", Heart + "+" + Tape + " RTM", "6a", "IL Heart Tape RTM", "Start", new(SheetLabels.TabASides, "6a", Heart + "+" + Tape + " RTM")),
+        new(A, "6a IL", "Clear", "6a", "IL", "Start"),
+        new(A, "6a IL", Tape + " Clear", "6a", "IL Tape Clear", "Start"),
+        new(A, "6a IL", Tape + " RTM", "6a", "IL Tape RTM", "Start"),
+        new(A, "6a IL", Heart + "+" + Tape + " RTM", "6a", "IL Heart Tape RTM", "Start"),
         new(A, "7a CP", "7a Start", "7a", "Start", "Start"),
         new(A, "7a CP", "7a Start " + Gem, "7a", "Start Gem", "Start"),
         new(A, "7a CP", "500m", "7a", "500m", "500 M"),
@@ -120,10 +120,10 @@ internal static class SheetRows {
         new(A, "7a CP", "DownDraft", "7a", "Downdraft", "Downdraft", new(SheetLabels.TabASides, "7a", "Downdraft")),
         new(A, "7a CP", "UpDraft", "7a", "Updraft", "Updraft", new(SheetLabels.TabASides, "7a", "Updraft")),
         new(A, "7a CP", "NoDraft", "7a", "Nodraft", "Nodraft", new(SheetLabels.TabASides, "7a", "Nodraft")),
-        new(A, "7a IL", "Clear", "7a", "IL", "Start", new(SheetLabels.TabASides, "7a", "Clear")),
-        new(A, "7a IL", Tape + " Clear", "7a", "IL Tape Clear", "Start", new(SheetLabels.TabASides, "7a", Tape + " Clear")),
-        new(A, "7a IL", Tape + " RTM", "7a", "IL Tape RTM", "Start", new(SheetLabels.TabASides, "7a", Tape + " RTM")),
-        new(A, "7a IL", Heart + "+" + Tape + " RTM", "7a", "IL Heart Tape RTM", "Start", new(SheetLabels.TabASides, "7a", Heart + "+" + Tape + " RTM")),
+        new(A, "7a IL", "Clear", "7a", "IL", "Start"),
+        new(A, "7a IL", Tape + " Clear", "7a", "IL Tape Clear", "Start"),
+        new(A, "7a IL", Tape + " RTM", "7a", "IL Tape RTM", "Start"),
+        new(A, "7a IL", Heart + "+" + Tape + " RTM", "7a", "IL Heart Tape RTM", "Start"),
         new(A, "8a CP", "8a Start", "8a", "Start", "Start"),
         new(A, "8a CP", "Into the Core", "8a", "Into the Core", "Into the Core"),
         new(A, "8a CP", "Hot and Cold", "8a", "Hot and Cold", "Hot and Cold"),
@@ -133,8 +133,8 @@ internal static class SheetRows {
         new(A, "8a CP", "HotM Horizontal", "8a", "HotM Horizontal", "HotM Horizontal"),
         // graded by the Full Clear tab, typed on the A-side one: listed with its chapter's rows
         new(X, "8afc", "HotM Horizontal", "8a", "HotM Horizontal Tape", "HotM Horizontal", new(SheetLabels.TabASides, "8a", "HotM Horizontal " + Tape)),
-        new(A, "8a IL", "Clear", "8a", "IL", "Start", new(SheetLabels.TabASides, "8a", "Clear")),
-        new(A, "8a IL", Tape + " Clear", "8a", "IL Tape Clear", "Start", new(SheetLabels.TabASides, "8a", Tape + " Clear")),
+        new(A, "8a IL", "Clear", "8a", "IL", "Start"),
+        new(A, "8a IL", Tape + " Clear", "8a", "IL Tape Clear", "Start"),
         // a B-side's "Clear" is its whole chapter: the tab has no IL block
         new(B, "1b", "1b Start", "1b", "Start", "Start"),
         new(B, "1b", "Contraption", "1b", "Contraption", "Contraption"),
@@ -297,12 +297,15 @@ internal static class SheetRows {
     public static SheetRowRef TargetOf(SheetRow row) => row.Target ?? DefaultTarget(row);
 
     /// Same label on the matching entry tab, under the Standards chapter cell
-    /// less a trailing " CP" ("1a CP" -> "1a") and otherwise as it stands (the
-    /// berry tab's cell is the entry tab's); the Farewell tab has no chapter column.
+    /// less a trailing " CP" or " IL" ("1a CP" -> "1a") and otherwise as it
+    /// stands (the berry tab's cell is the entry tab's); the Farewell tab has
+    /// no chapter column.
     internal static SheetRowRef DefaultTarget(SheetRow row) {
+        string cell = row.SheetChapter;
         string chapter = row.Tab == StandardsTab.Farewell ? ""
-            : row.SheetChapter.EndsWith(" CP", System.StringComparison.Ordinal) ? row.SheetChapter[..^3]
-            : row.SheetChapter;
+            : cell.EndsWith(" CP", System.StringComparison.Ordinal)
+              || cell.EndsWith(" IL", System.StringComparison.Ordinal) ? cell[..^3]
+            : cell;
         return new SheetRowRef(StandardsTabs.Of(row.Tab).EntryTab, chapter, row.Label);
     }
 }

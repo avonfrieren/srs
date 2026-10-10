@@ -23,7 +23,7 @@ public class BerrySetsTests {
     private static List<string> Keys(BerrySet set) =>
         BerrySets.Resolve(set, ForsakenCity, CheckpointOf)?.Order().ToList();
 
-    private static BerrySet Row(string chapter, string name) => RowTraits.All[(chapter, name)].Berries;
+    private static BerrySet Row(string scope, string name) => RowTraits.All[(scope, name)].Berries;
 
     private static List<string> Sorted(params string[] keys) => keys.Order().ToList();
 

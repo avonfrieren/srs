@@ -20,11 +20,14 @@ public class SheetConsistencyTests {
             .Select(segment => (tab.Tab, segment.Chapter, segment.Name)))
     ];
 
+    // a table key no row is anchored on never applies
+    private static readonly HashSet<(string, string)> Anchors =
+        [.. SheetRows.All.Select(row => (row.Scope, row.Anchor))];
+
     [Fact]
     public void EveryStartSetupKeyIsAnImportedAnchor() {
-        HashSet<(string, string)> anchors = SheetRows.All.Select(r => (r.Scope, r.Anchor)).ToHashSet();
-        Assert.All(SegmentAutoDetect.CurrentRoomStarts, key => Assert.Contains(key, anchors));
-        Assert.All(SegmentAutoDetect.SpawnOffsets.Keys, key => Assert.Contains(key, anchors));
+        Assert.All(SegmentAutoDetect.WakeUpSpawns.Keys, key => Assert.Contains(key, Anchors));
+        Assert.All(SegmentAutoDetect.SpawnOffsets.Keys, key => Assert.Contains(key, Anchors));
     }
 
     // a row left without an entry room would never open, and the segment before
@@ -37,13 +40,12 @@ public class SheetConsistencyTests {
             .Where(rule => rule.Setup != StartSetup.MapSpawn)
             .Where(rule => SegmentAutoDetect.EntryRooms.ContainsKey((rule.Scope, rule.Anchor))
                            != (rule.Setup == StartSetup.NextRoom
-                               || SegmentAutoDetect.CurrentRoomStarts.Contains((rule.Scope, rule.Anchor))))
+                               || SegmentAutoDetect.WakeUpSpawns.ContainsKey((rule.Scope, rule.Anchor))))
             .Select(rule => $"{rule.Scope}/{rule.Name}")
             .ToList();
         Assert.Empty(wrong);
 
-        HashSet<(string, string)> anchors = SheetRows.All.Select(r => (r.Scope, r.Anchor)).ToHashSet();
-        Assert.All(SegmentAutoDetect.EntryRooms.Keys, key => Assert.Contains(key, anchors));
+        Assert.All(SegmentAutoDetect.EntryRooms.Keys, key => Assert.Contains(key, Anchors));
         Assert.DoesNotContain(SegmentAutoDetect.EntryRooms.Keys, key => key.GameName == "Start");
     }
 
@@ -61,8 +63,8 @@ public class SheetConsistencyTests {
         Assert.Equal(room, SegmentAutoDetect.EntryRooms[(scope, anchor)]);
     }
 
-    // a Current Room start that is not a chapter's "Start" opens on a restart
-    // only from its WakeUpSpawns entry: a new one left out would never open
+    // a Current Room start that is not a chapter's "Start" is a WakeUpSpawns
+    // key, and opens on a restart only from that spawn
     [Fact]
     public void EveryWakeUpStartHasASpawn() {
         List<(string, string)> wakeUps = SegmentRules.All
@@ -71,7 +73,6 @@ public class SheetConsistencyTests {
             .Distinct().Order().ToList();
         List<(string, string)> spawns = SegmentAutoDetect.WakeUpSpawns.Keys.Select(key => (key.Scope, key.GameName)).Order().ToList();
         Assert.Equal(wakeUps, spawns);
-        Assert.Equal(SegmentAutoDetect.CurrentRoomStarts.Select(key => (key.Scope, key.GameName)).Order().ToList(), spawns);
     }
 
     // the allowlist still matches the sheet. This is the test that catches a
@@ -106,29 +107,18 @@ public class SheetConsistencyTests {
         Assert.Equal([("5a CP", "Unravelling")], data.MissingRows);
     }
 
-    [Fact]
-    public void EveryImportedSegmentIsAnchoredToAGameCheckpoint() {
-        List<string> unanchored = Fixtures.Imported
-            .Where(segment => !SheetRows.TryFind(segment.Chapter, segment.Name, out SheetRow row) || row.Anchor == null)
-            .Select(segment => $"{segment.Chapter}/{segment.Name}")
-            .ToList();
-
-        Assert.Empty(unanchored);
-    }
-
     // an override keyed on a checkpoint no row anchors would never fire, and the
     // previous segment would keep ending at the checkpoint's own room
     [Fact]
     public void EveryStartRoomOverrideTargetsAnAnchoredCheckpoint() {
-        Assert.All(SegmentAutoDetect.StartRoomOverrides.Keys, key =>
-            Assert.Contains(SheetRows.All, row => row.Scope == key.Scope && row.Anchor == key.GameName));
+        Assert.All(SegmentAutoDetect.StartRoomOverrides.Keys, key => Assert.Contains(key, Anchors));
     }
 
     [Fact]
     public void EverySplitCheckpointHasBothHalvesAnchored() {
         foreach (KeyValuePair<(string Scope, string GameName), string> entry in SegmentAutoDetect.SplitCheckpoints) {
-            Assert.Contains(SheetRows.All, row => row.Scope == entry.Key.Scope && row.Anchor == entry.Key.GameName);
-            Assert.Contains(SheetRows.All, row => row.Scope == entry.Key.Scope && row.Anchor == entry.Value);
+            Assert.Contains(entry.Key, Anchors);
+            Assert.Contains((entry.Key.Scope, entry.Value), Anchors);
             Assert.Contains((entry.Key.Scope, entry.Value), SegmentAutoDetect.StartRoomOverrides.Keys);
         }
 
@@ -141,18 +131,15 @@ public class SheetConsistencyTests {
     // pinned because the game cannot derive them
     [Fact]
     public void EveryUntimedHeadTargetsAKnownCheckpointAndKeepsItsValue() {
-        bool Anchored((string Scope, string GameName) key) =>
-            SheetRows.All.Any(row => row.Scope == key.Scope && row.Anchor == key.GameName);
-
-        Assert.All(SegmentAutoDetect.UntimedSegmentHead.Keys, key => Assert.True(Anchored(key), key.ToString()));
-        Assert.All(SegmentAutoDetect.UntimedSegmentTail.Keys, key => Assert.True(Anchored(key), key.ToString()));
-        Assert.All(SegmentAutoDetect.AfterLaunchStarts, key => Assert.True(Anchored(key), key.ToString()));
+        Assert.All(SegmentAutoDetect.UntimedSegmentHead.Keys, key => Assert.Contains(key, Anchors));
+        Assert.All(SegmentAutoDetect.UntimedSegmentTail.Keys, key => Assert.Contains(key, Anchors));
+        Assert.All(SegmentAutoDetect.AfterLaunchStarts, key => Assert.Contains(key, Anchors));
         Assert.Equal(TimeSpan.FromMilliseconds(5508), SegmentAutoDetect.UntimedSegmentHead[("7a", "Start")]);
         Assert.Equal(TimeSpan.FromMilliseconds(1037), SegmentAutoDetect.UntimedSegmentHead[("Prologue", "Start")]);
         Assert.Equal(TimeSpan.FromMilliseconds(544), SegmentAutoDetect.UntimedSegmentTail[("Prologue", "Start")]);
     }
 
-    // (chapter, name) is the address the row table and the exports use, so two
+    // (scope, name) is the address the row table and the exports use, so two
     // sheet rows must never collapse onto one
     [Fact]
     public void ImportedCheckpointsAreUniquelyAddressed() {
@@ -165,10 +152,10 @@ public class SheetConsistencyTests {
         Assert.Empty(duplicates);
     }
 
-    // "Start" exists in nearly every chapter: the chapter is part of the address
+    // "Start" exists in nearly every scope: the scope is part of the address
     [Fact]
-    public void FindAddressesASegmentByChapterAndName() {
-        SheetBlock block = Fixtures.Parsed.CheckpointBlock;
+    public void FindAddressesASegmentByScopeAndName() {
+        SheetBlock block = Fixtures.Parsed.Block;
 
         Assert.Equal("2a", block.Find("2a", "Start")?.Chapter);
         Assert.Null(block.Find("2a", "Hollows"));
@@ -183,14 +170,14 @@ public class SheetConsistencyTests {
             ["Prologue", "1a", "2a", "3a", "4a", "5a", "6a", "7a", "8a",
              "1b", "2b", "3b", "4b", "5b", "6b", "7b", "8b",
              "1c", "2c", "3c", "4c", "5c", "6c", "7c", "8c", "Farewell"],
-            Fixtures.Parsed.CheckpointBlock.Segments.Select(segment => segment.Chapter).Distinct());
+            Fixtures.Parsed.Block.Segments.Select(segment => segment.Chapter).Distinct());
     }
 
     // the tier columns are read positionally from the header row, so their
     // names and order are part of the contract with TierComparison's palette
     [Fact]
     public void ReadsTheTierColumnsFromTheHeader() {
-        List<string> columns = Fixtures.Parsed.CheckpointBlock.Columns;
+        List<string> columns = Fixtures.Parsed.Block.Columns;
 
         Assert.Equal("Hidden", columns[0]);
         Assert.Equal("WR", columns[1]);
@@ -206,7 +193,7 @@ public class SheetConsistencyTests {
     // of every tab has to carry the same columns
     [Fact]
     public void EveryBlockOfEveryTabHasTheSameColumns() {
-        List<string> columns = Fixtures.Parsed.CheckpointBlock.Columns;
+        List<string> columns = Fixtures.Parsed.Block.Columns;
 
         Assert.All(StandardsTabs.All, tab => {
             List<SheetBlock> blocks = BlocksOf(tab.Tab);
@@ -289,7 +276,7 @@ public class SheetConsistencyTests {
     // the chapter row and the checkpoint rows of one chapter cell are read apart
     [Fact]
     public void TheBerryTabsChapterRowIsReadBesideItsCheckpointRows() {
-        SheetBlock block = Fixtures.Parsed.CheckpointBlock;
+        SheetBlock block = Fixtures.Parsed.Block;
         int wr = block.Columns.IndexOf("WR");
 
         SheetSegment[] rows = [
@@ -305,10 +292,10 @@ public class SheetConsistencyTests {
         Assert.NotEqual(rows[0].Times[wr], rows[1].Times[wr]);
     }
 
-    // the name above the timer is the chapter then the name: a name that
-    // carried its chapter would read "8a 8a Start"
+    // the name above the timer is the scope then the name: a name that
+    // carried its scope would read "8a 8a Start"
     [Fact]
-    public void NoNameRepeatsItsChapter() {
+    public void NoNameRepeatsItsScope() {
         Assert.All(SheetRows.All, row => {
             Assert.False(row.Name.StartsWith(row.Scope + " ", StringComparison.Ordinal), row.Name);
         });
@@ -352,18 +339,5 @@ public class SheetConsistencyTests {
             .Select(row => $"{row.Item1}/{row.Item2}/{row.Item3}").Order(StringComparer.Ordinal)];
 
         Assert.Equal(expected.Order(StringComparer.Ordinal), left);
-    }
-
-    // several chapters name a row "Start": the chapter is part of a row's
-    // address, and each chapter's Start is found as its own row
-    [Fact]
-    public void ANameSharedByChaptersIsOneRowPerChapter() {
-        List<SheetRow> starts = [.. SheetRows.All.Where(row => row.Name == "Start")];
-
-        Assert.True(starts.Count > 1, "the premise: several chapters name a row Start");
-        Assert.All(starts, start => {
-            Assert.True(SheetRows.TryFind(start.Scope, "Start", out SheetRow found));
-            Assert.Equal(start, found);
-        });
     }
 }

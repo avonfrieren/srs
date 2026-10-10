@@ -1,4 +1,4 @@
-# srs — Speedrun Sheet
+# srs: Speedrun Sheet
 
 # Mod Options
 MODOPTIONS_SRS_TITLE=     Speedrun Sheet
@@ -10,6 +10,7 @@ MODOPTIONS_SRS_SHOWCHECKPOINTNAME= Afficher le nom du checkpoint
 MODOPTIONS_SRS_SHOWTIME= Afficher le temps
 MODOPTIONS_SRS_SHOWPBIMPROVEMENT= Afficher le gain sur le PB
 MODOPTIONS_SRS_SHOWDELTA= Afficher le delta au palier suivant
+MODOPTIONS_SRS_OPENEXPORTMENU= Ouvrir l'export vers la sheet
 SRS_UPDATE_STANDARDS=     Mettre à jour les standards
 SRS_UPDATING=             Mise à jour...
 SRS_UPDATE_OK=            Standards mis à jour
@@ -26,7 +27,6 @@ SRS_KEYBIND_COMBO_HINT=   Maintenir toute la combinaison, puis relâcher pour la
 SRS_KEYBIND_PAGE_COMBO_HINT= Un raccourci peut combiner jusqu'à {0} touches, tenues ensemble
 
 # Export vers la sheet
-MODOPTIONS_SRS_OPENEXPORTMENU= Ouvrir l'export vers la sheet
 SRS_EXPORT_TITLE=           Export vers la practice sheet
 SRS_EXPORT_NOTHING=         Rien à exporter : aucun segment couru cette session
 SRS_EXPORT_NONE_TICKED=         Aucune ligne cochée
@@ -53,7 +53,6 @@ SRS_EXPORT_URL_FORGET_FAILED=      Impossible d'oublier l'URL. La raison est dan
 SRS_EXPORT_URL_DETAIL=      se termine par .../exec, définie le
 
 # Erreurs. Pas de placeholders {0} : ce qui porte une valeur est composé en code.
-SRS_EXPORT_ERR_NO_URL=      Aucune URL de sheet configurée. Voir les options du mod.
 SRS_EXPORT_ERR_STATUS=      La sheet a répondu par l'erreur
 SRS_EXPORT_ERR_TIMEOUT=     Pas de réponse à temps. La sheet a peut-être quand même été écrite : la vérifier avant de réessayer.
 SRS_EXPORT_ERR_READ_TIMEOUT= Pas de réponse de la sheet à temps.
@@ -70,13 +69,11 @@ SRS_EXPORT_COL_SHEET=       SHEET
 SRS_EXPORT_COL_LOCAL=       SESSION
 SRS_EXPORT_COL_DELTA=       DELTA
 
-SRS_EXPORT_STATUS_WRITTEN=  écrit
 SRS_EXPORT_STATUS_NOTFOUND= ligne introuvable
 SRS_EXPORT_STATUS_AMBIGUOUS= plusieurs lignes correspondent
 SRS_EXPORT_STATUS_REFUSED=  refusé
 SRS_EXPORT_STATUS_CHANGED=  sheet modifiée, non écrit
 SRS_EXPORT_DUPLICATE=       à deux endroits de la sheet
-SRS_EXPORT_STATUS_UNCHANGED= déjà sur la sheet
 SRS_EXPORT_SUMMARY_WRITTEN= Écrit :
 SRS_EXPORT_SUMMARY_UNCHANGED= Déjà sur la sheet :
 SRS_EXPORT_SAVED_COPY=      Copie enregistrée

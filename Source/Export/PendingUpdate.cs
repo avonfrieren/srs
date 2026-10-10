@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace Celeste.Mod.SpeedrunSheet;
 
 /// One reviewable line of the export screen.
@@ -8,7 +5,6 @@ public sealed class PendingUpdate {
     public SheetRowRef Row { get; private init; }
     public string Label { get; private init; }
     public long LocalTicks { get; private init; }
-    public long? RemoteTicks { get; private init; }
     public string LocalText { get; private init; }
     public string RemoteText { get; private init; }
     /// the cell exactly as the script read it, kept alongside the parsed value:
@@ -72,7 +68,6 @@ public sealed class PendingUpdate {
             Label = label,
             Band = band ?? "",
             LocalTicks = localTicks,
-            RemoteTicks = remoteTicks,
             LocalText = localText,
             // show the cell as it stands rather than nothing: the player is the
             // only one who can tell a locale from a typo from a note

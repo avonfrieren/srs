@@ -86,8 +86,7 @@ public class SrsModule : EverestModule {
     public override void LoadSettings() {
         base.LoadSettings();
 
-        // a stored URL beats a new default (SheetUrls): without this, a player
-        // who ever saved stays on the frozen workbook
+        // see SheetUrls
         MigrateSheetUrls();
     }
 
@@ -110,8 +109,6 @@ public class SrsModule : EverestModule {
         }
 
         Logger.Log(LogLevel.Info, "srs", "Repointed the stored sheet urls at the current reference workbook");
-        // a save that fails leaves the migration in memory, and it runs again
-        // next launch
         TrySaveSettings("the migrated sheet urls");
     }
 

@@ -7,8 +7,8 @@ public class SrsSettings : EverestModuleSettings {
     public bool Enabled { get; set; } = true;
 
     // the Standards tabs srs reads (StandardsTabs), as full edit URLs, editable
-    // only in the settings file. The property names stay: a stored value beats
-    // a default, which is why SrsModule migrates them (see SheetUrls)
+    // only in the settings file. The property names stay: they are the stored
+    // keys
     [SettingIgnore]
     public string ASidesUrl { get; set; } = StandardsTabs.DefaultUrl(StandardsTab.ASides);
 
@@ -76,14 +76,12 @@ public class SrsSettings : EverestModuleSettings {
     [SettingIgnore]
     public string ExportUrlSetOn { get; set; } = "";
 
-    // opens the export review screen; unbound by default. [SettingIgnore] and
-    // read as a combo, like ToggleShowTier
+    // opens the export screen; unbound by default
     [SettingIgnore]
     public ButtonBinding OpenExportMenu { get; set; } = new();
 
     // steps the rows above the timer back through the attempt's segments;
-    // unbound by default, a combo like the other two
+    // unbound by default
     [SettingIgnore]
     public ButtonBinding PreviousSegment { get; set; } = new();
-
 }

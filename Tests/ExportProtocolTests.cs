@@ -72,7 +72,7 @@ public class ExportProtocolTests {
 
         Assert.True(ExportProtocol.TryParseRows(
             """{"rows":[null,{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.948"}],"version":2}""",
-            out var rows, out _));
+            out var rows, out _, out _, out _));
         Assert.Equal("21.948", Assert.Single(rows).Time);
     }
 
@@ -109,7 +109,7 @@ public class ExportProtocolTests {
             {"rows":[{"tab":"A Sides","chapter":"1a","cp":"Crossing","time":"21.947","standard":"Pink"}],"version":2}
             """;
 
-        Assert.True(ExportProtocol.TryParseRows(json, out List<RemoteRow> rows, out _));
+        Assert.True(ExportProtocol.TryParseRows(json, out List<RemoteRow> rows, out _, out _, out _));
         Assert.Single(rows);
         Assert.Equal("A Sides", rows[0].Tab);
         Assert.Equal("Crossing", rows[0].Cp);
@@ -121,7 +121,7 @@ public class ExportProtocolTests {
             {"error":"Error: Tab \"Any%\" not found"}
             """;
 
-        Assert.False(ExportProtocol.TryParseRows(json, out _, out string error));
+        Assert.False(ExportProtocol.TryParseRows(json, out _, out _, out string error, out _));
         Assert.Equal("Error: Tab \"Any%\" not found", error);
     }
 
@@ -131,7 +131,7 @@ public class ExportProtocolTests {
             {"rows":[{"tab":"A Sides","band":"checkpoint","chapter":"1a","cp":"Crossing","time":"21.947"}],"ms":812,"cached":false,"version":2}
             """;
 
-        Assert.True(ExportProtocol.TryParseRows(json, out List<RemoteRow> rows, out _));
+        Assert.True(ExportProtocol.TryParseRows(json, out List<RemoteRow> rows, out _, out _, out _));
         Assert.Equal("checkpoint", Assert.Single(rows).Band);
     }
 

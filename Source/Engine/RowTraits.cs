@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeedrunSheet;
 
-/// What a row's label does not say, by srs's (chapter, name): a start from
+/// What a row's label does not say, by srs's (scope, name): a start from
 /// the checkpoint's map spawn, a heart that ends the row or is only required,
 /// an entry room of its own, a berry set that is not its checkpoint's or none
 /// at all, a dash count. A Full Clear label says nothing: all it requires is here.

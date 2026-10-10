@@ -96,7 +96,7 @@ internal sealed class GroupRow(ExportColumns columns, string label) : TextMenu.I
 }
 
 /// A rule closing the table, so the buttons below read as buttons and not as
-/// two more rows. OuiJournalPage draws its section separators the same way.
+/// two more rows.
 internal sealed class TableFooter(ExportColumns columns) : TextMenu.Item {
     public override float LeftWidth() => columns.TotalWidth;
     public override float Height() => ExportColumns.RowHeight / 2f;
@@ -164,11 +164,6 @@ internal sealed class ExportColumns {
     private static float Width(string text) => ActiveFont.Measure(text).X * Scale;
 
     public static ExportColumns Measure(List<PendingUpdate> updates) {
-        List<string> labels = [];
-        foreach (PendingUpdate u in updates) {
-            labels.Add(u.Label);
-        }
-
         // floors, so a column does not resize when the fetch lands and the
         // sheet column goes from "" to real times
         float floor = Width("00:00.000");
@@ -177,11 +172,8 @@ internal sealed class ExportColumns {
         float remote = Math.Max(floor, Width(Dialog.Clean("SRS_EXPORT_COL_SHEET")));
         float local = Math.Max(floor, Width(Dialog.Clean("SRS_EXPORT_COL_LOCAL")));
         float delta = Math.Max(floor, Width(Dialog.Clean("SRS_EXPORT_COL_DELTA")));
-        foreach (string text in labels) {
-            label = Math.Max(label, Width(text));
-        }
-
         foreach (PendingUpdate u in updates) {
+            label = Math.Max(label, Width(u.Label));
             remote = Math.Max(remote, Width(u.RemoteText));
             local = Math.Max(local, Width(u.LocalText));
             delta = Math.Max(delta, Width(u.DeltaText));
@@ -224,13 +216,13 @@ internal static class ExportMenu {
     // the answer the table was built on, and the rows the player pressed: a
     // rebuild on a newer answer keeps those
     private static int builtOnAccepts;
+    private static readonly Dictionary<SheetRowRef, bool> pressed = [];
 
     // the buttons of the table on screen, to keep the cursor on one through a rebuild
     private static TextMenu.Button exportButtonOnScreen;
     private static TextMenu.Button cancelButtonOnScreen;
     // the Writing screen's line, which counts the rows answered
     private static TextMenu.SubHeader writingLine;
-    private static readonly Dictionary<SheetRowRef, bool> pressed = [];
 
     // how stale a fresh answer has to be before opening the screen asks again
     private static readonly TimeSpan AskAgainAfter = TimeSpan.FromSeconds(60);
@@ -264,9 +256,8 @@ internal static class ExportMenu {
         orig(self);
 
         // a level replaced under an open screen would leave `menu` set and
-        // Open() refusing for the session: a console load does it. Speed Run
-        // Tool 3.27.17 refuses its own loads while paused, which everest.yaml's
-        // minimum does not pin
+        // Open() refusing for the session. Speed Run Tool refuses its own loads
+        // while paused, but a console load does it
         if (menu != null && menu.Scene != self) {
             Logger.Log(LogLevel.Warn, LogTag, "the level was replaced under the export screen; closed it");
             Close();
@@ -315,7 +306,7 @@ internal static class ExportMenu {
             return;
         }
 
-        if (!ExportUrlMenu.HasUrl) {
+        if (!ExportTarget.IsSet) {
             PopupMessageUtils.Show(Dialog.Clean("SRS_EXPORT_NEEDS_URL"), null);
             return;
         }
@@ -382,7 +373,7 @@ internal static class ExportMenu {
     }
 
     private static void BuildTable(Level level) {
-        // read before the data it describes, so an answer landing meanwhile still triggers a rebuild
+        // before the data, as in Open
         int accepts = RemoteBests.Accepts;
         BuildTable(level, ExportSource.Collect(SessionBests.All, SegmentAutoDetect.ScopeOf(level.Session)), accepts);
     }
