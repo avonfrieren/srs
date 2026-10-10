@@ -926,4 +926,28 @@ public class RunTrackerTests {
         Assert.Equal([("ARB Start", 100L)], Of(t.RoomEntered("1a", "5", "6", 100, true, false, One)));
         Assert.Equal(["Crossing"], t.Open.Select(r => r.Name));
     }
+
+    // 7A's 3000m is timed whole and in three pieces at once: a piece closes on
+    // the walk into the next, the last one with the chapter
+    [Fact]
+    public void ACheckpointCutInPiecesIsAlsoTimedWhole() {
+        Add("3000m", "g-00", null, entry: "f-11");
+        Add("Downdraft", "g-00", "g-01", entry: "f-11");
+        Add("Updraft", "g-01", "g-02", entry: "g-00b");
+        Add("Nodraft", "g-02", null, entry: "g-01");
+        Add("ARB Downdraft", "g-00", "g-01", berries: true, entry: "f-11");
+        Add("ARB Updraft", "g-01", "g-02", berries: true, entry: "g-00b");
+        rooms.Berries["ARB Downdraft"] = ["b1"];
+        rooms.Berries["ARB Updraft"] = ["b2"];
+        RunTracker t = Tracker();
+
+        t.RoomEntered("1a", "f-11", "g-00", 0, true, false, One);
+        Assert.Empty(t.RoomEntered("1a", "g-00", "g-00b", 40, true, false, One));
+        t.BerryCollected("b1");
+        Assert.Equal([("Downdraft", 100L), ("ARB Downdraft", 100L)],
+            Of(t.RoomEntered("1a", "g-00b", "g-01", 100, true, false, One)));
+        // the second piece's berry is missed: its plain row only
+        Assert.Equal([("Updraft", 150L)], Of(t.RoomEntered("1a", "g-01", "g-02", 250, true, false, One)));
+        Assert.Equal([("3000m", 400L), ("Nodraft", 150L)], Of(t.ChapterTimeStopped(400, One)));
+    }
 }

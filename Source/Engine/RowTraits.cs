@@ -25,6 +25,10 @@ internal readonly record struct RowTraits(
         [("4a", "ARB Cliff Face")] = new(EntryRoom: "c-10"),
         [("4a", "ARB IL")] = new(Requires: Collectibles.Heart),
         [("5a", "ARB Depths")] = new(MapSpawn: true),
+        // 3000m's pieces are no checkpoint of the map: their berries by room
+        [("7a", "ARB Downdraft")] = new(Berries: new BerrySet(Rooms: ["g-00b"])),
+        [("7a", "ARB Updraft")] = new(Berries: new BerrySet(Rooms: ["g-01"])),
+        [("7a", "ARB Nodraft")] = new(Berries: new BerrySet(Rooms: ["g-03"])),
     };
 
     public static RowTraits Of(string chapter, string name) => All.GetValueOrDefault((chapter, name));

@@ -28,5 +28,5 @@ Options under **Mod Options → Speedrun Sheet**. What changed in each version i
 
 **Known limits.**
 
-- Only part of the sheet is imported: the gem rows, the full clear rows, the draft rows and the all red berries rows whose route returns to the map are not yet.
+- Only part of the sheet is imported: the gem rows, the full clear rows and the all red berries rows whose route returns to the map are not yet.
 - srs trusts that your progress in the chapter (opened doors, used keys, broken blocks) is what a real run would have at that point.
