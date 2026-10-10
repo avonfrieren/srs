@@ -253,19 +253,21 @@ internal static class SheetReader {
         }
     }
 
-    /// On every outcome of the POST; response is null when it did not answer or
-    /// could not be read. Applied with the mod off too: the sheet was written
-    /// either way.
-    public static void EndWrite(WriteToken token, IReadOnlyList<ExportUpdate> sent, ExportResponse response) {
+    /// On every outcome of an export; answered pairs with the first updates
+    /// sent and stops where a request did not answer or could not be read.
+    /// Applied with the mod off too: the sheet was written either way.
+    public static void EndWrite(WriteToken token, IReadOnlyList<ExportUpdate> sent, IReadOnlyList<ExportResult> answered) {
         lock (gate) {
             writes++;
             posting--;
             if (token.Url == host.Url()) {
-                List<(SheetRowRef Row, string Time)> written =
-                    response == null ? [] : Written(sent, response.Results);
-                if (response == null || response.Results.Count != sent.Count) {
+                if (answered.Count != sent.Count) {
                     unansweredWrite = true;
-                } else if (written.Count > 0) {
+                }
+
+                List<(SheetRowRef Row, string Time)> written =
+                    Written(sent.Take(answered.Count).ToList(), answered);
+                if (written.Count > 0) {
                     RemoteBests.ApplyWritten(written);
                     SaveCopyLocked(token.Url);
                 }

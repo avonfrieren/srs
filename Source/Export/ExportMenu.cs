@@ -228,6 +228,8 @@ internal static class ExportMenu {
     // the buttons of the table on screen, to keep the cursor on one through a rebuild
     private static TextMenu.Button exportButtonOnScreen;
     private static TextMenu.Button cancelButtonOnScreen;
+    // the Writing screen's line, which counts the rows answered
+    private static TextMenu.SubHeader writingLine;
     private static readonly Dictionary<SheetRowRef, bool> pressed = [];
 
     // how stale a fresh answer has to be before opening the screen asks again
@@ -510,59 +512,58 @@ internal static class ExportMenu {
 
         int submission = generation;
 
-        ExportRequest request = new() {
-            Updates = selected.Select(u => new ExportUpdate {
-                Tab = u.Row.Tab,
-                Band = u.Band,
-                Chapter = u.Row.Chapter,
-                Cp = u.Row.Cp,
-                Time = TimeFormat.FromTicks(u.LocalTicks),
-                // the raw cell, never a reformat: see PendingUpdate.RemoteCell
-                Expect = u.RemoteCell,
-            }).ToList(),
-        };
-        string json = ExportProtocol.SerializeRequest(request);
+        List<ExportUpdate> sent = selected.Select(u => new ExportUpdate {
+            Tab = u.Row.Tab,
+            Band = u.Band,
+            Chapter = u.Row.Chapter,
+            Cp = u.Row.Cp,
+            Time = TimeFormat.FromTicks(u.LocalTicks),
+            // the raw cell, never a reformat: see PendingUpdate.RemoteCell
+            Expect = u.RemoteCell,
+        }).ToList();
         // first: a throw from the screen must not leave the POST counter raised
         ShowWorking(level);
-        // before the POST is sent: a read asked from now on cannot answer for it
+        // before the first POST is sent: a read asked from now on cannot answer for it
         WriteToken token = SheetReader.BeginWrite();
 
-        Logger.Log(LogLevel.Info, LogTag, $"exporting {request.Updates.Count} row(s)");
+        Logger.Log(LogLevel.Info, LogTag, $"exporting {sent.Count} row(s)");
 
-        _ = ExportClient.PostAsync(token.Url, json).ContinueWith(task => {
-            ExportResponse response = null;
+        _ = ExportBatches.Send(sent, json => ExportClient.PostAsync(token.Url, json),
+            () => SrsModule.Settings.Enabled && ExportTarget.Url == token.Url,
+            done => gameThread.Enqueue(() => {
+                if (submission == generation && screen == Screen.Writing && writingLine != null) {
+                    writingLine.Title = $"{Dialog.Clean("SRS_EXPORT_WRITING")} {done}/{sent.Count}";
+                }
+            })).ContinueWith(task => {
+            List<ExportResult> results = [];
             List<string> lines;
             // nothing above this continuation observes a throw: the screen
             // would stay on "Writing..." until the player leaves it
             try {
-                (string body, string error) = task.Result;
+                (results, int? ms, string error) = task.Result;
+                foreach (ExportResult r in results) {
+                    Logger.Log(LogLevel.Info, LogTag, $"  {ExportTable.RowLabel(r.Tab, r.Chapter, r.Cp)}: {r.Status}"
+                        + (string.IsNullOrEmpty(r.Band) ? "" : $" [{r.Band}]")
+                        + (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
+                }
+
+                // the measurement the batch size is checked against
+                Logger.Log(LogLevel.Info, LogTag,
+                    $"the script took {ms?.ToString() ?? "?"} ms for {results.Count} of {sent.Count} update(s)");
+                lines = results.Count > 0 ? ExportTable.SummaryLines(results) : [];
                 if (error != null) {
                     Logger.Log(LogLevel.Warn, LogTag, "export failed: " + error);
-                    lines = [error];
-                } else if (!ExportProtocol.TryParseResponse(body, out response, out string parseError)) {
-                    Logger.Log(LogLevel.Warn, LogTag, "unreadable answer: " + parseError);
-                    lines = [parseError];
-                } else {
-                    foreach (ExportResult r in response.Results) {
-                        Logger.Log(LogLevel.Info, LogTag, $"  {ExportTable.RowLabel(r.Tab, r.Chapter, r.Cp)}: {r.Status}"
-                            + (string.IsNullOrEmpty(r.Band) ? "" : $" [{r.Band}]")
-                            + (string.IsNullOrEmpty(r.Reason) ? "" : $" ({r.Reason})"));
-                    }
-
-                    // the measurement the timeout is checked against
-                    Logger.Log(LogLevel.Info, LogTag,
-                        $"the script took {response.Ms?.ToString() ?? "?"} ms for {request.Updates.Count} update(s)");
-                    lines = ExportTable.SummaryLines(response.Results);
+                    lines.Insert(0, error);
                 }
             } catch (Exception e) {
                 Logger.Log(LogLevel.Warn, LogTag, "an export answer could not be shown: " + e);
                 lines = [$"{Dialog.Clean("SRS_EXPORT_ERR_UNREADABLE")} {e.GetType().Name}"];
             }
 
-            // on every answer, failed or orphaned too: the sheet may have been
+            // on every outcome, failed or orphaned too: the sheet may have been
             // written whatever is shown, and EndWrite asks it again
             try {
-                SheetReader.EndWrite(token, request.Updates, response);
+                SheetReader.EndWrite(token, sent, results);
             } catch (Exception e) {
                 Logger.Log(LogLevel.Warn, LogTag, "an export's outcome could not be recorded: " + e);
             }
@@ -604,7 +605,8 @@ internal static class ExportMenu {
         newMenu.Add(new TextMenu.Header(Dialog.Clean("SRS_EXPORT_TITLE")));
         // not SRS_EXPORT_LOADING: that one belongs to the read, and announcing
         // a read while the sheet is being written to is the wrong promise
-        newMenu.Add(new TextMenu.SubHeader(Dialog.Clean("SRS_EXPORT_WRITING")));
+        writingLine = new TextMenu.SubHeader(Dialog.Clean("SRS_EXPORT_WRITING"));
+        newMenu.Add(writingLine);
 
         Show(level, newMenu, Screen.Writing);
     }

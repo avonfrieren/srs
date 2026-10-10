@@ -22,6 +22,7 @@
         <Compile Include="../Source/SheetRows.cs" Link="Source/SheetRows.cs" />
         <Compile Include="../Source/StandardsTabs.cs" Link="Source/StandardsTabs.cs" />
         <Compile Include="../Source/Export/ExportProtocol.cs" Link="Source/Export/ExportProtocol.cs" />
+        <Compile Include="../Source/Export/ExportBatches.cs" Link="Source/Export/ExportBatches.cs" />
         <Compile Include="../Source/Export/TimeFormat.cs" Link="Source/Export/TimeFormat.cs" />
         <Compile Include="../Source/Export/PendingUpdate.cs" Link="Source/Export/PendingUpdate.cs" />
         <Compile Include="../Source/Export/RemoteBests.cs" Link="Source/Export/RemoteBests.cs" />
