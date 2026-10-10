@@ -14,6 +14,14 @@ public static class RunWatcher {
     // the player has no control in these states: a start reached in one waits
     // for control in that room. ⚠️ StIntroJump must stay out: 7A's 500m to
     // 3000m are entered in it, from the launch, and open on the entry
+    // a room walked into in one of these waits for control: a wake-up is the
+    // "Wake Up" row's, and 6A's watched fall is no row's. Any other room
+    // entered without control is a cutscene, which is chapter time
+    private static readonly HashSet<int> ArrivalStates = [
+        Player.StIntroWalk, Player.StIntroRespawn, Player.StIntroWakeUp, Player.StReflectionFall,
+        Player.StTempleFall, Player.StIntroMoonJump, Player.StIntroThinkForABit,
+    ];
+
     private static readonly HashSet<int> NoControlStates = [
         Player.StDummy, Player.StIntroWalk, Player.StIntroRespawn,
         Player.StIntroWakeUp, Player.StBirdDashTutorial, Player.StFrozen, Player.StReflectionFall,
@@ -358,7 +366,8 @@ public static class RunWatcher {
             }
 
             if (room != lastRoom && load == RoomLoad.WalkIn) {
-                Emit(session, tracker.RoomEntered(scope, from, room, before, control, launching, end));
+                bool opensNow = control || (player != null && !ArrivalStates.Contains(state));
+                Emit(session, tracker.RoomEntered(scope, from, room, before, opensNow, launching, end));
             }
 
             // the state changes during this frame's update, and a savestate
