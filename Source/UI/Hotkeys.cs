@@ -23,6 +23,7 @@ public static class Hotkeys {
     internal static readonly KeybindScreenText Text = new() {
         HeaderId = "SRS_KEYBINDS",
         ComboHintId = "SRS_KEYBIND_COMBO_HINT",
+        PageComboHintId = "SRS_KEYBIND_PAGE_COMBO_HINT",
         ClearHintId = "SRS_KEYBIND_CLEAR_HINT",
         TimeoutFormatId = "SRS_KEYBIND_TIMEOUT",
     };

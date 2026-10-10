@@ -50,7 +50,7 @@ Le code porte ses justifications en commentaires ; ici, seules celles qui dépas
   - `ExportTarget` écrit l'URL par `AtomicFile` (ne lève jamais, efface le `.tmp` : l'URL).
 - `AppsScript/SETUP.md` — le déploiement du Web App par le joueur. **Le script n'est pas dans ce dépôt** : le template de la sheet le porte (`srsExport.gs`) et lit toutes les bandes des onglets de saisie. Il apparie les lignes **par libellé normalisé**, jamais par position, et aucun test d'ici ne le fait tourner.
 - `TierComparison.cs` — **au-dessus** du timer. Le PB lit `RemoteBests` **une fois** par record, pour qu'un export ne l'ôte pas. Fond : largeur mesurée du texte **moins `FadeLead`** (le dégradé passe *sous* la fin du texte).
-- `Dialog/English.txt` + `French.txt` — pas de placeholders `{0}` (`Dialog.Clean` efface les accolades) : composer en code. **Une exception** : `SRS_KEYBIND_TIMEOUT`, que CelesteHotkeys lit brut par `Dialog.Get`.
+- `Dialog/English.txt` + `French.txt` — pas de placeholders `{0}` (`Dialog.Clean` efface les accolades) : composer en code. **Exceptions** : `SRS_KEYBIND_TIMEOUT` et `…PAGE_COMBO_HINT`, lus bruts (`Dialog.Get`).
 
 ## Données de la sheet
 

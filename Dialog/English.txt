@@ -24,6 +24,8 @@ SRS_KEYBIND_CLEAR_HINT=   Press Journal or Delete to clear the selected row
 # {0} is the seconds left. CelesteHotkeys reads this line raw, so the placeholder survives
 SRS_KEYBIND_TIMEOUT=      Cancelling in {0}s - press Escape to cancel now
 SRS_KEYBIND_COMBO_HINT=   Hold the whole combo together, then let go to bind it (up to 4)
+# {0} is the most inputs one hotkey holds. Read raw, like the timeout
+SRS_KEYBIND_PAGE_COMBO_HINT= A hotkey can be a combo of up to {0} inputs, all held together
 # Sheet export
 SRS_EXPORT_TITLE=Export To Practice Sheet
 SRS_EXPORT_NOTHING=Nothing to export: no segment run this session

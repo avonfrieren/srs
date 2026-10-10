@@ -14,13 +14,16 @@ internal static class Bindable {
     //
     // F1, F2, F3 and F5 are Everest's debug keys, which is what a player reaches for when a mod
     // misbehaves; a hotkey on one would fire every time they did.
+    //
+    // Escape cancels recording, so it is never recorded on purpose. It could only reach a chord by going
+    // down before the overlay starts reading input and still being held when it does.
     internal static bool IsBindable(Keys key) =>
-        key != Keys.None && key != Keys.F1 && key != Keys.F2 && key != Keys.F3 && key != Keys.F5;
+        key != Keys.None && key != Keys.Escape
+        && key != Keys.F1 && key != Keys.F2 && key != Keys.F3 && key != Keys.F5;
 
     /// <summary>The keys a chord may take from what is held this frame — <c>KeyboardState.GetPressedKeys()</c>.</summary>
     internal static List<Keys> BindableKeys(Keys[] held) {
         List<Keys> keys = new();
-        if (held is null) return keys;
         foreach (Keys key in held) {
             if (IsBindable(key)) keys.Add(key);
         }
@@ -30,26 +33,33 @@ internal static class Bindable {
     /// <summary>Whether a key that cannot be bound went down this frame. Say so rather than stay silent.</summary>
     /// <param name="held">Every key held now — <c>KeyboardState.GetPressedKeys()</c>.</param>
     /// <param name="newlyPressed">Whether a key went down this frame — <c>MInput.Keyboard.Pressed</c>.</param>
-    // A None edge is an unmappable key; calling it refused is still more useful than silence, since
-    // the player did press something. The edge test is a parameter so this stays a pure function.
+    // The edge test is a parameter so this stays a pure function. In the game it is
+    // MInput.Keyboard.Pressed, which never reports Keys.None going down: an unmappable key is not
+    // refused audibly, it is silent.
     internal static bool RefusedKeyWentDown(Keys[] held, Func<Keys, bool> newlyPressed) {
-        if (held is null) return false;
         foreach (Keys key in held) {
             if (!IsBindable(key) && newlyPressed(key)) return true;
         }
         return false;
     }
 
-    /// <summary>The modifiers: a binding lists them first, and a combo is blocked by one it does not name.</summary>
+    /// <summary>
+    ///     The modifiers: a binding lists them first, in this order, and a combo is blocked by one it does
+    ///     not name.
+    /// </summary>
+    // Ctrl, Shift, Alt: the order shortcuts are written in.
     internal static readonly Keys[] Modifiers = {
-        Keys.LeftShift, Keys.RightShift,
         Keys.LeftControl, Keys.RightControl,
+        Keys.LeftShift, Keys.RightShift,
         Keys.LeftAlt, Keys.RightAlt,
     };
 
-    internal static bool IsModifier(Keys key) => Array.IndexOf(Modifiers, key) >= 0;
+    /// <summary>Where a modifier goes in a binding, or -1 for any other key.</summary>
+    internal static int ModifierRank(Keys key) => Array.IndexOf(Modifiers, key);
 
     /// <summary>Every button the remap screen listens for, in the order it prefers them.</summary>
+    // A stick direction is a button to FNA past a deadzone near vanilla's 0.25, and vanilla's own
+    // controller screen records it. It is also movement: a hotkey on one alone fires as the player walks.
     internal static readonly Buttons[] RecordableButtons = {
         Buttons.A, Buttons.B, Buttons.X, Buttons.Y,
         Buttons.LeftShoulder, Buttons.RightShoulder,
@@ -57,6 +67,8 @@ internal static class Bindable {
         Buttons.Back, Buttons.Start,
         Buttons.LeftStick, Buttons.RightStick,
         Buttons.DPadUp, Buttons.DPadDown, Buttons.DPadLeft, Buttons.DPadRight,
+        Buttons.LeftThumbstickUp, Buttons.LeftThumbstickDown, Buttons.LeftThumbstickLeft, Buttons.LeftThumbstickRight,
+        Buttons.RightThumbstickUp, Buttons.RightThumbstickDown, Buttons.RightThumbstickLeft, Buttons.RightThumbstickRight,
     };
 
     /// <summary>The recordable buttons held on a pad, in <see cref="RecordableButtons"/> order.</summary>

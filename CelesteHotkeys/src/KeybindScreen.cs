@@ -17,11 +17,18 @@ internal sealed class KeybindScreenText {
     /// <summary>How to record a combo — hold its inputs together, then let go — drawn on the recording overlay.</summary>
     public required string ComboHintId { get; init; }
 
+    /// <summary>
+    ///     What a row can hold, drawn once above the rows: several inputs act as a combo, all held together.
+    ///     Read raw through Dialog.Get; <c>{0}</c> is <see cref="Bindable.MaxComboInputs"/>.
+    /// </summary>
+    // ⚠️ Dialog.Clean deletes every {...} placeholder but {n}, so this one is filled in from Dialog.Get.
+    public required string PageComboHintId { get; init; }
+
     /// <summary>How to clear a whole row: Journal or Delete.</summary>
     public required string ClearHintId { get; init; }
 
     /// <summary>The countdown while recording. Read raw through Dialog.Get; <c>{0}</c> is the seconds left.</summary>
-    // ⚠️ Dialog.Clean deletes every {...} placeholder but {n}, so this one is formatted from Dialog.Get.
+    // ⚠️ Dialog.Clean deletes every {...} placeholder but {n}, so this one is filled in from Dialog.Get.
     public required string TimeoutFormatId { get; init; }
 }
 
@@ -29,15 +36,12 @@ internal sealed class KeybindScreenText {
 ///     A remap screen built from a keybind table: a keyboard section and a controller section, one
 ///     row per keybind in each.
 /// </summary>
-// Merged from three mods' screens that had drifted apart. Every rule below cost one of them a bug.
-//
 // Open it with HotkeyMenu.OpenButton, which captures the scene.
 internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : class {
     internal const string VanillaKeyboardTitle = "KEY_CONFIG_TITLE";
     internal const string VanillaControllerTitle = "BTN_CONFIG_TITLE";
     internal const string VanillaKeyChanging = "KEY_CONFIG_CHANGING";
     internal const string VanillaButtonChanging = "BTN_CONFIG_CHANGING";
-    internal const string VanillaNoController = "BTN_CONFIG_NOCONTROLLER";
 
     private const float RecordSeconds = 5f;
     private const float RefocusDelay = 0.25f;
@@ -46,11 +50,12 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
     private readonly HotkeySet<TSettings> hotkeys;
     private readonly KeybindScreenText text;
     private readonly Action save;
-    private readonly ChordRecorder<Keys> keyChord = new(Bindable.IsModifier);
+    private readonly ChordRecorder<Keys> keyChord = new(Bindable.ModifierRank);
     private readonly ChordRecorder<Buttons> buttonChord = new();
 
     private bool closing;
     private bool counted;
+    private bool hudHideWas;
     private float refocusDelay;
     private bool recording;
     private float recordingEase;
@@ -91,22 +96,32 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         if (counted) return;
         counted = true;
         HotkeyPause.RemapScreenOpened();
+
+        // ⚠️ A paused level stops drawing its HUD, this screen included, while Journal is held
+        // (Level.Render), and Journal is the gesture that clears a row. Vanilla's Options and
+        // Everest's key-config screens turn it off the same way. Put back to what it was, not to
+        // true: the Options screen may be open underneath.
+        if (scene is Level level) {
+            hudHideWas = level.AllowHudHide;
+            level.AllowHudHide = false;
+        }
     }
 
     public override void Removed(Scene scene) {
         base.Removed(scene);
-        Release();
+        Release(scene);
     }
 
     public override void SceneEnd(Scene scene) {
         base.SceneEnd(scene);
-        Release();
+        Release(scene);
     }
 
-    private void Release() {
+    private void Release(Scene scene) {
         if (!counted) return;
         counted = false;
         HotkeyPause.RemapScreenClosed();
+        if (scene is Level level) level.AllowHudHide = hudHideWas;
     }
 
     private TSettings Settings => hotkeys.Settings();
@@ -117,30 +132,35 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         Add(new Header(Dialog.Clean(text.HeaderId)));
         // The clear hint on the menu, where the gesture is used; the combo hint on the recording
         // overlay, where it is. A SubHeader is one line, and the combo hint is too long for one.
-        Add(new FittedHint(Dialog.Clean(text.ClearHintId)));
+        // Replace, not string.Format, for the reason the countdown line gives.
+        Add(new FittedHint(Dialog.Get(text.PageComboHintId).Replace("{0}", Bindable.MaxComboInputs.ToString())));
+        // No top padding on the second: the two hints read as one block.
+        Add(new FittedHint(Dialog.Clean(text.ClearHintId), topPadding: false));
 
         // Both sections walk the same table, so a keyboard row cannot exist without its controller
         // counterpart.
-        Add(new SubHeader(Dialog.Clean(VanillaKeyboardTitle)));
-        foreach (Keybind<TSettings> keybind in hotkeys.Keybinds) {
-            ButtonBinding binding = keybind.Binding(Settings);
-            if (binding is null) continue;
-            Add(new Row(Dialog.Clean(keybind.LabelId), binding.Keys)
-                .Pressed(() => StartRecording(keybind, keyboard: true))
-                .AltPressed(() => ClearRow(keybind, keyboard: true)));
-        }
-
-        Add(new SubHeader(Dialog.Clean(VanillaControllerTitle)));
-        foreach (Keybind<TSettings> keybind in hotkeys.Keybinds) {
-            ButtonBinding binding = keybind.Binding(Settings);
-            if (binding is null) continue;
-            Add(new Row(Dialog.Clean(keybind.LabelId), binding.Buttons)
-                .Pressed(() => StartRecording(keybind, keyboard: false))
-                .AltPressed(() => ClearRow(keybind, keyboard: false)));
-        }
-
+        AddSection(VanillaKeyboardTitle, keyboard: true, binding => binding.Keys,
+                   (label, keys) => new Row(label, keys));
+        AddSection(VanillaControllerTitle, keyboard: false, binding => binding.Buttons,
+                   (label, buttons) => new Row(label, buttons));
         FitBindings();
         if (index >= 0) Selection = index;
+    }
+
+    private void AddSection<T>(string titleId, bool keyboard, Func<ButtonBinding, List<T>> inputs,
+                               Func<string, List<T>, Row> newRow) where T : struct {
+        Add(new SubHeader(Dialog.Clean(titleId)));
+        List<(Row, List<T>)> rows = new();
+        foreach (Keybind<TSettings> keybind in hotkeys.Keybinds) {
+            ButtonBinding binding = keybind.Binding(Settings);
+            if (binding is null) continue;
+            Row row = newRow(Dialog.Clean(keybind.LabelId), inputs(binding));
+            row.Pressed(() => StartRecording(keybind, keyboard))
+               .AltPressed(() => ClearRow(keybind, keyboard));
+            Add(row);
+            rows.Add((row, inputs(binding)));
+        }
+        MarkClashes(rows);
     }
 
     // TextMenu makes the menu as wide as its widest label plus its widest binding, centres it, and
@@ -159,7 +179,30 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         }
     }
 
+    // Two rows of one section on the same inputs, in any order, both fire from one press. The screen
+    // shows it rather than prevents it: which one to change is the player's call. A shorter combo
+    // inside a longer one is not a clash; the longer one wins.
+    private static void MarkClashes<T>(List<(Row Row, List<T> Inputs)> rows) where T : struct {
+        for (int i = 0; i < rows.Count; i++) {
+            for (int j = 0; j < rows.Count; j++) {
+                if (i == j || !SameInputs(rows[i].Inputs, rows[j].Inputs)) continue;
+                rows[i].Row.Clashes = true;
+                break;
+            }
+        }
+    }
+
+    private static bool SameInputs<T>(List<T> a, List<T> b) where T : struct =>
+        a.Count > 0 && new HashSet<T>(a).SetEquals(b);
+
     private void StartRecording(Keybind<TSettings> keybind, bool keyboard) {
+        // ⚠️ Vanilla's rule: a pad is recorded only while the last input came from one. Confirming a
+        // controller row from the keyboard would otherwise wait on a pad nobody is holding.
+        if (!keyboard && !Input.GuiInputController()) {
+            Audio.Play(InvalidSound);
+            return;
+        }
+
         recording = true;
         recordingKeybind = keybind;
         recordingKeyboard = keyboard;
@@ -172,7 +215,13 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
     }
 
     private void Step<T>(ChordRecorder<T> chord, List<T> held, List<T> binding) where T : struct {
-        switch (chord.Update(held)) {
+        int before = chord.Inputs.Count;
+        ChordStep step = chord.Update(held);
+        // The countdown measures how long the screen has waited for the player, not how long a chord
+        // takes to build: otherwise a slow hand finding its next key loses the whole chord at zero.
+        if (chord.Inputs.Count > before) timeout = RecordSeconds;
+
+        switch (step) {
             case ChordStep.Refused:
                 Audio.Play(InvalidSound);
                 break;
@@ -230,7 +279,10 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
             // player's own cancel input unbindable: B on a controller, and whatever their keyboard
             // cancel is, were consumed as "stop recording" and could never be recorded. Vanilla's and
             // Everest's remap screens take Escape or the timeout for the same reason.
-            if (Input.ESC.Pressed || timeout <= 0f) {
+            //
+            // A pad recording also stops when the pad loses focus: an unplugged pad reads every button
+            // up, which would be saved as the chord being let go.
+            if (Input.ESC.Pressed || timeout <= 0f || (!recordingKeyboard && !Input.GuiInputController())) {
                 Input.ESC.ConsumePress();
                 recording = false;
                 Focused = true;
@@ -250,9 +302,9 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         // This widens the gesture to Delete through the row's own closure.
         //
         // ⚠️ Delete and NOT Backspace. Vanilla claims Backspace as menu cancel, so base.Update() above
-        // has already started closing the screen by the time a Backspace check would run
-        // (that shipped once). Focused is false for a quarter second
-        // after a recording, so a Delete just recorded cannot also clear the row.
+        // has already started closing the screen by the time a Backspace check would run. Focused is
+        // false for a quarter second after a recording, so a Delete just recorded cannot also clear
+        // the row.
         if (Focused && !recording && !closing && Current?.OnAltPressed != null
             && MInput.Keyboard.Pressed(Keys.Delete)) {
             Current.OnAltPressed();
@@ -286,6 +338,9 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         /// <summary>The widest this row's binding may be drawn. Set by the screen once every row exists.</summary>
         internal float BindingRoom = float.MaxValue;
 
+        /// <summary>Another row of the section holds the same inputs. The binding is drawn red.</summary>
+        internal bool Clashes;
+
         internal Row(string label, List<Keys> keys) : base(label, keys) { }
         internal Row(string label, List<Buttons> buttons) : base(label, buttons) { }
         public override float LeftWidth() => base.LeftWidth() + LabelGap;
@@ -295,27 +350,30 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
 
         public override void Render(Vector2 position, bool highlighted) {
             float natural = base.RightWidth();
-            if (natural <= BindingRoom) {
+            if (natural <= BindingRoom && !Clashes) {
                 base.Render(position, highlighted);
                 return;
             }
 
-            // Setting.Render, with the binding drawn at BindingRoom / natural of its size.
-            float scale = BindingRoom / natural;
+            // Setting.Render, with the binding drawn smaller when it is wider than BindingRoom, and red
+            // when it clashes.
+            float scale = Math.Min(1f, BindingRoom / natural);
             float alpha = Container.Alpha;
             Color stroke = Color.Black * (alpha * alpha * alpha);
             Color color = Disabled ? Color.DarkSlateGray : (highlighted ? Container.HighlightColor : Color.White) * alpha;
             ActiveFont.DrawOutline(Label, position, new Vector2(0f, 0.5f), Vector2.One, color, 2f, stroke);
 
-            float x = Container.Width - BindingRoom;
+            Color icon = (Clashes ? Color.Red : Color.White) * alpha;
+            Color text = (Clashes ? Color.Red : Color.LightGray) * alpha;
+            float x = Container.Width - natural * scale;
             foreach (object value in Values) {
                 if (value is MTexture texture) {
-                    texture.DrawJustified(position + new Vector2(x, 0f), new Vector2(0f, 0.5f), Color.White * alpha, scale);
+                    texture.DrawJustified(position + new Vector2(x, 0f), new Vector2(0f, 0.5f), icon, scale);
                     x += texture.Width * scale;
                 } else if (value is string name) {
                     float width = (ActiveFont.Measure(name).X * 0.7f + 16f) * scale;
                     ActiveFont.DrawOutline(name, position + new Vector2(x + width * 0.5f, 0f), new Vector2(0.5f, 0.5f),
-                                           Vector2.One * (0.7f * scale), Color.LightGray * alpha, 2f, stroke);
+                                           Vector2.One * (0.7f * scale), text, 2f, stroke);
                     x += width;
                 }
             }
@@ -327,7 +385,7 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
     // right: a long hint pushed every row off both edges of the screen. This one sizes nothing. It is
     // centred on the menu, which is centred on the screen, and drawn smaller when wider than MaxLineWidth.
     private sealed class FittedHint : SubHeader {
-        internal FittedHint(string title) : base(title) {
+        internal FittedHint(string title, bool topPadding = true) : base(title, topPadding) {
             IncludeWidthInMeasurement = false;
         }
 
@@ -350,12 +408,6 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         Vector2 centre = new Vector2(1920f, 1080f) * 0.5f;
         Color grey = Color.LightGray * Ease.CubeIn(recordingEase);
 
-        if (!recordingKeyboard && !Input.GuiInputController()) {
-            ActiveFont.Draw(Dialog.Clean(VanillaNoController), centre, new Vector2(0.5f, 0.5f), Vector2.One,
-                            Color.White * Ease.CubeIn(recordingEase));
-            return;
-        }
-
         string hint = Dialog.Clean(text.ComboHintId);
         ActiveFont.Draw(hint, centre + new Vector2(0f, -32f),
                         new Vector2(0.5f, 2f), Vector2.One * FitScale(hint, 0.7f), grey);
@@ -373,7 +425,10 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         // from +8, so it ends labelScale × LineHeight lower, and any fixed offset crosses it at some
         // font size or label length.
         float belowLabel = 8f + ActiveFont.LineHeight * labelScale + 8f;
-        ActiveFont.Draw(string.Format(Dialog.Get(text.TimeoutFormatId), (int) Math.Ceiling(Math.Max(0f, timeout))),
+        // Replace, not string.Format: the line is a translator's text, and Format throws on a stray brace
+        // in it — from Render, on every frame.
+        string seconds = ((int) Math.Ceiling(Math.Max(0f, timeout))).ToString();
+        ActiveFont.Draw(Dialog.Get(text.TimeoutFormatId).Replace("{0}", seconds),
                         centre + new Vector2(0f, belowLabel), new Vector2(0.5f, 0f), Vector2.One * 0.7f, grey);
 
         // Below the countdown rather than above it, so the countdown does not move when the first input

@@ -33,12 +33,16 @@ internal sealed class ComboHotkey {
 
     /// <param name="binding">
     ///     Read every frame rather than captured, because a settings object can be replaced under a
-    ///     running mod — a test harness can swap in a per-test one — and a captured binding would keep
-    ///     answering for the old object.
+    ///     running mod, and a captured binding would keep answering for the old object.
     /// </param>
     internal ComboHotkey(Func<ButtonBinding> binding) => this.binding = binding;
 
     public bool Pressed { get; private set; }
+
+    // Which half of the binding fired, for SuppressSubsetPresses: a subset only counts on the device
+    // both presses came from.
+    private bool firedOnKeys;
+    private bool firedOnPad;
 
     /// <summary>Advances one frame.</summary>
     /// <param name="paused">
@@ -46,7 +50,10 @@ internal sealed class ComboHotkey {
     ///     so a combo held through the pause does not read as a fresh press the frame it ends.
     /// </param>
     public void Update(in HotkeyInput input, bool paused) {
-        Pressed = !paused && Fires(last, input);
+        ButtonBinding current = paused ? null : binding();
+        firedOnKeys = current is not null && FiresOnKeys(current.Keys, last.Keyboard, input.Keyboard);
+        firedOnPad = current is not null && FiresOnPad(current.Buttons, last.Pad, input.Pad);
+        Pressed = firedOnKeys || firedOnPad;
         last = input;
     }
 
@@ -60,12 +67,11 @@ internal sealed class ComboHotkey {
     // A combo fires when it is satisfied now AND one of its own inputs went down this frame. Edge-
     // detecting the satisfied state alone is not enough: releasing an unbound modifier while the key
     // is held would flip the state to satisfied and fire at a moment the player did not choose.
-    private bool Fires(in HotkeyInput previous, in HotkeyInput input) {
-        ButtonBinding current = binding();
-        if (current is null) return false;
-        return (KeysDown(current.Keys, input.Keyboard) && AnyKeyWentDown(current.Keys, previous.Keyboard, input.Keyboard))
-            || (ButtonsDown(current.Buttons, input.Pad) && AnyButtonWentDown(current.Buttons, previous.Pad, input.Pad));
-    }
+    private static bool FiresOnKeys(List<Keys> keys, in KeyboardState previous, in KeyboardState now) =>
+        KeysDown(keys, now) && AnyKeyWentDown(keys, previous, now);
+
+    private static bool FiresOnPad(List<Buttons> buttons, in GamePadState previous, in GamePadState now) =>
+        ButtonsDown(buttons, now) && AnyButtonWentDown(buttons, previous, now);
 
     private static bool AnyKeyWentDown(List<Keys> keys, in KeyboardState previous, in KeyboardState now) {
         for (int i = 0; i < keys.Count; i++) {
@@ -128,34 +134,27 @@ internal sealed class ComboHotkey {
     // Covers what NoUnboundModifier cannot: two bindings differing by something that is not a
     // modifier — LB against LB+RB on a pad. Whichever names more inputs is the one the player meant.
     //
-    // The firing set is read before anything is cleared. Clearing in place would let the survivor of
-    // three nested bindings depend on iteration order.
+    // Decided on what each hotkey fired on, which this pass never clears, and not on Pressed, which it
+    // does: clearing in place would let the survivor of three nested bindings depend on iteration order.
     internal static void SuppressSubsetPresses(ComboHotkey[] hotkeys) {
-        Span<bool> firing = stackalloc bool[hotkeys.Length];
-        bool any = false;
         for (int i = 0; i < hotkeys.Length; i++) {
-            firing[i] = hotkeys[i].Pressed;
-            any |= firing[i];
-        }
-        if (!any) return;
-
-        for (int i = 0; i < hotkeys.Length; i++) {
-            if (!firing[i]) continue;
+            if (!hotkeys[i].Pressed) continue;
             ButtonBinding smaller = hotkeys[i].binding();
             for (int j = 0; j < hotkeys.Length; j++) {
-                if (i == j || !firing[j]) continue;
-                if (!IsStrictSubset(smaller, hotkeys[j].binding())) continue;
+                if (i == j) continue;
+                if (!GivesWay(hotkeys[i], smaller, hotkeys[j], hotkeys[j].binding())) continue;
                 hotkeys[i].Pressed = false;
                 break;
             }
         }
     }
 
-    // Per device, because the two sets are alternatives inside one binding: a keyboard combo says
-    // nothing about which pad binding the player meant.
-    private static bool IsStrictSubset(ButtonBinding smaller, ButtonBinding larger) =>
+    // Per device, and only on a device both fired on: the keys and the buttons are alternatives inside
+    // one binding, so a keyboard subset says nothing about which pad combo the player meant.
+    private static bool GivesWay(ComboHotkey shorter, ButtonBinding smaller, ComboHotkey longer, ButtonBinding larger) =>
         smaller is not null && larger is not null
-        && (IsStrictSubset(smaller.Keys, larger.Keys) || IsStrictSubset(smaller.Buttons, larger.Buttons));
+        && ((shorter.firedOnKeys && longer.firedOnKeys && IsStrictSubset(smaller.Keys, larger.Keys))
+            || (shorter.firedOnPad && longer.firedOnPad && IsStrictSubset(smaller.Buttons, larger.Buttons)));
 
     private static bool IsStrictSubset<T>(List<T> smaller, List<T> larger) {
         if (smaller is null || larger is null) return false;

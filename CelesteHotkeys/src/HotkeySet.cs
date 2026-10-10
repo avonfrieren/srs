@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Celeste.Mod.CelesteHotkeys;
 
 /// <summary>A mod's hotkeys, polled together once per frame.</summary>
-// Owns the per-frame order, which is where the three mods this came from drifted apart:
+// Owns the per-frame order, which every hotkey of every mod must follow the same way:
 //   1. one input snapshot, so every hotkey answers the same frame;
 //   2. if paused, every hotkey tracks what is held and none fires;
 //   3. otherwise each updates, then a shorter combo gives way to a longer one on the same frame.
@@ -46,7 +46,10 @@ internal sealed class HotkeySet<TSettings> where TSettings : class {
     // is held cannot help when what is held is hidden. Two frames covers a poll before or after the
     // scene updates; a genuine press landing in them is lost, which nobody can time anyway.
     private const int UnpauseGrace = 2;
-    private int graceFrames;
+
+    // One at the start: the first poll has no earlier frame to compare with, so a combo already held
+    // when the set is built would read as a fresh press.
+    private int graceFrames = 1;
 
     /// <summary>The seam under <see cref="Update(bool)"/>: no MInput, no Engine.</summary>
     internal void Update(in HotkeyInput input, bool paused) {
