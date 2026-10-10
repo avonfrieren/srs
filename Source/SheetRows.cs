@@ -21,14 +21,16 @@ internal static class SheetRows {
     private const StandardsTab C = StandardsTab.CSides;
     private const StandardsTab F = StandardsTab.Farewell;
     private const StandardsTab R = StandardsTab.Arb;
+    private const StandardsTab X = StandardsTab.Fc;
 
     // kept as escaped code points so this source stays ASCII
     private const string Heart = "\U0001F499";
     private const string Tape = "\U0001F4FC";
     private const string Berry = "\U0001F353";
+    private const string Gem = "\U0001F48E";
 
-    // in sheet order: A Sides, B Sides, C Sides, then Farewell, then the berry
-    // tab. The emoji survive in Label only: ActiveFont skips a glyph its atlas lacks, so Name never has one
+    // in sheet order: A Sides, B Sides, C Sides, then Farewell, the berry
+    // tab, then Full Clear. The emoji survive in Label only: ActiveFont skips a glyph its atlas lacks, so Name never has one
     internal static readonly SheetRow[] All = [
         new(A, "Prologue", "Granny", "Prologue", "Prologue", "Granny", "Start"),
         new(A, "1a CP", "1a Start", "1a", "1a", "Start", "Start"),
@@ -99,13 +101,19 @@ internal static class SheetRows {
         new(A, "6a IL", Tape + " RTM", "6a", "6a", "IL Tape RTM", "Start", new(SheetLabels.TabASides, "6a", Tape + " RTM")),
         new(A, "6a IL", Heart + "+" + Tape + " RTM", "6a", "6a", "IL Heart Tape RTM", "Start", new(SheetLabels.TabASides, "6a", Heart + "+" + Tape + " RTM")),
         new(A, "7a CP", "7a Start", "7a", "7a", "Start", "Start"),
+        new(A, "7a CP", "7a Start " + Gem, "7a", "7a", "Start Gem", "Start"),
         new(A, "7a CP", "500m", "7a", "7a", "500m", "500 M"),
+        new(A, "7a CP", "500m " + Gem, "7a", "7a", "500m Gem", "500 M"),
         new(A, "7a CP", "1000m", "7a", "7a", "1000m", "1000 M"),
+        new(A, "7a CP", "1000m " + Gem, "7a", "7a", "1000m Gem", "1000 M"),
         new(A, "7a CP", "1500m", "7a", "7a", "1500m", "1500 M"),
         new(A, "7a CP", "1500m " + Tape + " Clear", "7a", "7a", "1500m Tape Clear", "1500 M"),
         new(A, "7a CP", "1500m " + Tape + " RTM", "7a", "7a", "1500m Tape RTM", "1500 M"),
+        new(A, "7a CP", "1500m " + Gem + "+" + Tape, "7a", "7a", "1500m Gem Tape", "1500 M"),
         new(A, "7a CP", "2000m", "7a", "7a", "2000m", "2000 M"),
+        new(A, "7a CP", "2000m " + Gem, "7a", "7a", "2000m Gem", "2000 M"),
         new(A, "7a CP", "2500m", "7a", "7a", "2500m", "2500 M"),
+        new(A, "7a CP", "2500m " + Gem, "7a", "7a", "2500m Gem", "2500 M"),
         new(A, "7a CP", "3000m", "7a", "7a", "3000m", "3000 M"),
         new(A, "7a CP", "3000m " + Heart + " RTM", "7a", "7a", "3000m Heart RTM", "3000 M"),
         // 3000m's three pieces, virtual checkpoints (SegmentAutoDetect.SplitCheckpoints)
@@ -123,6 +131,8 @@ internal static class SheetRows {
         // the second half is virtual (SegmentAutoDetect.SplitCheckpoints)
         new(A, "8a CP", "HotM Vertical", "8a", "8a", "HotM Vertical", "Heart of the Mountain"),
         new(A, "8a CP", "HotM Horizontal", "8a", "8a", "HotM Horizontal", "HotM Horizontal"),
+        // graded by the Full Clear tab, typed on the A-side one: listed with its chapter's rows
+        new(X, "8afc", "HotM Horizontal", "8a", "8a", "HotM Horizontal Tape", "HotM Horizontal", new(SheetLabels.TabASides, "8a", "HotM Horizontal " + Tape)),
         new(A, "8a IL", "Clear", "8a", "8a", "IL", "Start", new(SheetLabels.TabASides, "8a", "Clear")),
         new(A, "8a IL", Tape + " Clear", "8a", "8a", "IL Tape Clear", "Start", new(SheetLabels.TabASides, "8a", Tape + " Clear")),
         // a B-side's "Clear" is its whole chapter: the tab has no IL block
@@ -241,6 +251,29 @@ internal static class SheetRows {
         new(R, "4a " + Berry, "4a " + Berry, "4a", "4a", "ARB IL", "Start"),
         new(R, "7a " + Berry, "7a " + Berry, "7a", "7a", "ARB IL", "Start"),
         new(R, "8a " + Berry, "8a " + Berry, "8a", "8a", "ARB IL", "Start"),
+        // Full Clear: the checkpoints where its route differs from the berry one
+        new(X, "2afc", "2a Start", "2a", "2a", "FC Start", "Start"),
+        new(X, "3afc", "Elevator Shaft", "3a", "3a", "FC Elevator Shaft", "Elevator Shaft"),
+        new(X, "4afc", "4a Start", "4a", "4a", "FC Start", "Start"),
+        new(X, "5afc", "Depths", "5a", "5a", "FC Depths", "Depths"),
+        new(X, "6afc", "Hollows (from RTM)", "6a", "6a", "FC Hollows (from RTM)", "Hollows"),
+        new(X, "7afc", "7a Start", "7a", "7a", "FC Start", "Start"),
+        new(X, "7afc", "500m", "7a", "7a", "FC 500m", "500 M"),
+        new(X, "7afc", "1000m", "7a", "7a", "FC 1000m", "1000 M"),
+        new(X, "7afc", "1500m", "7a", "7a", "FC 1500m", "1500 M"),
+        new(X, "7afc", "2000m", "7a", "7a", "FC 2000m", "2000 M"),
+        new(X, "7afc", "2500m", "7a", "7a", "FC 2500m", "2500 M"),
+        new(X, "7afc", "3000m", "7a", "7a", "FC 3000m", "3000 M"),
+        new(X, "7afc", "Downdraft", "7a", "7a", "FC Downdraft", "Downdraft"),
+        new(X, "Fw FC", "Moon Berry", "Farewell", "Farewell", "FC Moon Berry", "Farewell"),
+        // the second block, as the berry tab's: a whole chapter with everything
+        new(X, "2afc", "2afc", "2a", "2a", "FC IL", "Start"),
+        new(X, "3afc", "3afc", "3a", "3a", "FC IL", "Start"),
+        new(X, "4afc", "4afc", "4a", "4a", "FC IL", "Start"),
+        new(X, "7afc", "7afc", "7a", "7a", "FC IL", "Start"),
+        new(X, "8afc", "8afc", "8a", "8a", "FC IL", "Start"),
+        new(X, "Fw FC DTS", "Fw FC DTS", "Farewell", "Farewell", "FC DTS IL", "Start", new(SheetLabels.TabArbFullClear, "Fw FC", "DTS")),
+        new(X, "Fw FC No DTS", "Fw FC No DTS", "Farewell", "Farewell", "FC No DTS IL", "Start", new(SheetLabels.TabArbFullClear, "Fw FC", "No DTS")),
     ];
 
     private static readonly Dictionary<(StandardsTab, string, string), SheetRow> byStandards = [];

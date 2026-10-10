@@ -248,7 +248,6 @@ public class SheetConsistencyTests {
     [Theory]
     [InlineData("💙")]
     [InlineData("📼")]
-    [InlineData("💎")]
     [InlineData("Wake Up")]
     [InlineData("3k ")]
     [InlineData("SoB")]

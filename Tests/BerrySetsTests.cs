@@ -71,4 +71,15 @@ public class BerrySetsTests {
         Assert.Null(Keys(new BerrySet()));
         Assert.Null(BerrySets.Resolve(BerrySet.WholeChapter, [], CheckpointOf));
     }
+
+    // Farewell's moon berry is a set of its own, and no red set holds one
+    [Fact]
+    public void TheMoonBerryIsNoRedBerry() {
+        MapBerry[] map = [new("a-01", 4, 0), new("j-19", 7, 0, Moon: true)];
+
+        Assert.Equal(["j-19:7"], BerrySets.Resolve(BerrySet.MoonBerry, map, CheckpointOf));
+        Assert.Equal(["a-01:4"], BerrySets.Resolve(BerrySet.WholeChapter, map, CheckpointOf));
+        Assert.Equal(["a-01:4"], BerrySets.Resolve(new BerrySet("Start"), map, CheckpointOf));
+        Assert.Null(BerrySets.Resolve(BerrySet.MoonBerry, ForsakenCity, CheckpointOf));
+    }
 }

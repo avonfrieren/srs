@@ -57,10 +57,14 @@ internal sealed record SegmentRule(
     /// checkpoints, to the chapter's end or to its collect ("RTM").
     public bool ChapterRun { get; init; }
 
-    /// The red berries the row requires; null when it requires none.
+    /// The berries the row requires; null when it requires none.
     public BerrySet Berries { get; init; }
 
     public bool RequiresBerries => Berries != null;
+
+    /// How many summit gems the row requires: its checkpoint's one, or the
+    /// chapter's six.
+    public int Gems { get; init; }
 
     /// The room the row's first room is entered from, where it is not its
     /// anchor's (SegmentAutoDetect.EntryRooms).

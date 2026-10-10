@@ -17,7 +17,7 @@ internal interface IRoomMap {
     /// never opens on an entry (a chapter's Start, 7A's start, a map-spawn row).
     string EntryRoomOf(SegmentRule rule);
 
-    /// The red berries the rule requires, as EntityID keys. Null or empty
+    /// The berries the rule requires, as EntityID keys. Null or empty
     /// when they cannot be resolved: the rule is then never met.
     IReadOnlyCollection<string> BerriesOf(SegmentRule rule);
 }
@@ -36,6 +36,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         public readonly SegmentRule Rule = rule;
         public readonly long Start = start;
         public Collectibles Collected;
+        public int Gems;
         public readonly HashSet<string> Berries = [];
         public bool Disqualified;
         // the dashes at the first checkpoint crossed: what a whole chapter's
@@ -198,6 +199,9 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
     public List<SegmentRecord> Collected(Collectibles kind, long reading, EndState end) {
         foreach (OpenSegment segment in open) {
             segment.Collected |= kind;
+            if (kind == Collectibles.Gem) {
+                segment.Gems++;
+            }
         }
 
         return CloseWhere(
@@ -296,6 +300,7 @@ internal sealed class RunTracker(IReadOnlyList<SegmentRule> rules, IRoomMap room
         long elapsed = reading - segment.Start;
         if (elapsed <= 0
             || (segment.Collected & rule.Requires) != rule.Requires
+            || segment.Gems < rule.Gems
             || (rule.Dashes is { } dashes
                 && (rule.End == EndKind.ChapterEnd ? segment.FirstDashes : end.Dashes) != dashes)
             || (rule.RequiresBerries && !HasEveryBerry(segment, end))) {

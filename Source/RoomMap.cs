@@ -27,11 +27,11 @@ internal sealed class RoomMap : IRoomMap {
             return;
         }
 
-        // red only: a golden is another entity, and a moon berry says so
+        // a golden is another entity, and a moon berry says so
         foreach (LevelData level in session.MapData.Levels) {
             foreach (EntityData entity in level.Entities) {
-                if (entity.Name == "strawberry" && !entity.Bool("moon")) {
-                    berries.Add(new MapBerry(level.Name, entity.ID, entity.Int("checkpointID")));
+                if (entity.Name == "strawberry") {
+                    berries.Add(new MapBerry(level.Name, entity.ID, entity.Int("checkpointID"), entity.Bool("moon")));
                 }
             }
         }

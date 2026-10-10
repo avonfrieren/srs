@@ -30,10 +30,18 @@ internal static class ExportSource {
         return found.ConvertAll(entry => entry.Update);
     }
 
-    /// srs names a berry row "ARB Start". On screen the group header says it,
-    /// and dropping it collides with nothing within a group.
-    private static string DisplayName(RunBook.Run run) =>
-        run.Name.StartsWith(BerryPrefix, StringComparison.Ordinal) ? run.Name[BerryPrefix.Length..] : run.Name;
+    /// srs names a berry row "ARB Start" and a Full Clear one "FC Start". On
+    /// screen the group header says it, and dropping it collides with nothing
+    /// within a group.
+    private static string DisplayName(RunBook.Run run) {
+        foreach (string prefix in GroupPrefixes) {
+            if (run.Name.StartsWith(prefix, StringComparison.Ordinal)) {
+                return run.Name[prefix.Length..];
+            }
+        }
 
-    private const string BerryPrefix = "ARB ";
+        return run.Name;
+    }
+
+    private static readonly string[] GroupPrefixes = ["ARB ", "FC "];
 }
