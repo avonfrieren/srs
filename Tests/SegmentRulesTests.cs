@@ -184,6 +184,17 @@ public class SegmentRulesTests {
         Assert.Equal(SegmentAutoDetect.EntryRooms[("7a", "3000 M")], SegmentAutoDetect.EntryRooms[("7a", "Downdraft")]);
     }
 
+    // the rooms of the three pieces, by value: RunTrackerTests builds its own copy
+    [Theory]
+    [InlineData("Downdraft", "g-00", "f-11", "Updraft")]
+    [InlineData("Updraft", "g-01", "g-00b", "Nodraft")]
+    [InlineData("Nodraft", "g-02", "g-01", null)]
+    public void TheDraftRowsRoomsAreTheseOnes(string name, string start, string entry, string splitInto) {
+        Assert.Equal(start, SegmentAutoDetect.StartRoomOverrides[("7a", name)]);
+        Assert.Equal(entry, SegmentAutoDetect.EntryRooms[("7a", name)]);
+        Assert.Equal(splitInto, SegmentAutoDetect.SplitCheckpoints.GetValueOrDefault(("7a", name)));
+    }
+
     // a Full Clear label says nothing of what the row collects: the whole table, as the owner gave it
     [Theory]
     [InlineData("2a", "FC Start", (int)(Collectibles.Cassette), 0)]
@@ -220,6 +231,9 @@ public class SegmentRulesTests {
         Assert.Null(Rule("6a", "FC Hollows (from RTM)").Berries);
         Assert.Null(Rule("8a", "HotM Horizontal Tape").Berries);
         Assert.Equal(["g-00b"], Rule("7a", "FC Downdraft").Berries.Rooms);
+        Assert.Equal(["g-00b"], Rule("7a", "ARB Downdraft").Berries.Rooms);
+        Assert.Equal(["g-01"], Rule("7a", "ARB Updraft").Berries.Rooms);
+        Assert.Equal(["g-03"], Rule("7a", "ARB Nodraft").Berries.Rooms);
         Assert.All(new[] { "FC Moon Berry", "FC DTS IL", "FC No DTS IL" },
             name => Assert.Same(BerrySet.MoonBerry, Rule("Farewell", name).Berries));
         Assert.Equal("Start", Rule("2a", "FC Start").Berries.Checkpoint);

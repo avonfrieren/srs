@@ -20,6 +20,15 @@ public class RunBookTests {
         Assert.Equal(Ticks(44), Assert.Single(book.All).Ticks);
     }
 
+    // equal is no improvement: the export would offer the same time again
+    [Fact]
+    public void AnEqualTimeDoesNotReplaceTheBest() {
+        RunBook book = new();
+        book.Offer([Record("6a", "Hollows", 45)]);
+
+        Assert.Empty(book.Offer([Record("6a", "Hollows", 45)]));
+    }
+
     // a cassette run never stands for the plain segment, and neither replaces the other
     [Fact]
     public void EveryRowKeepsItsOwnBest() {

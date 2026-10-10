@@ -241,20 +241,6 @@ public class SheetConsistencyTests {
         Assert.NotEmpty(blocks[1].Segments);
     }
 
-    // no excluded row family is imported, and no emoji marker survives the
-    // import: the hearts and cassettes are renamed after what they collect.
-    // "Wake Up" is excluded for good: its rows time an animation of fixed
-    // length
-    [Theory]
-    [InlineData("💙")]
-    [InlineData("📼")]
-    [InlineData("Wake Up")]
-    [InlineData("3k ")]
-    [InlineData("SoB")]
-    public void LeavesTheNotYetSupportedRowsOut(string marker) {
-        Assert.DoesNotContain(Fixtures.Imported, segment => segment.Name.Contains(marker));
-    }
-
     // a trait keyed on a name no row has never applies, and its row would be
     // recorded without its heart or from a walk-in
     [Fact]
@@ -319,15 +305,6 @@ public class SheetConsistencyTests {
         Assert.NotEqual(rows[0].Times[wr], rows[1].Times[wr]);
     }
 
-    // the rows whose route returns to the map stay out
-    [Theory]
-    [InlineData("to RTM")]
-    [InlineData("-2")]
-    [InlineData("2500m-1")]
-    public void LeavesTheBerryRowsNotYetSupportedOut(string marker) {
-        Assert.DoesNotContain(Fixtures.Imported, segment => segment.Name.Contains(marker));
-    }
-
     // the name above the timer is the chapter then the name: a name that
     // carried its chapter would read "8a 8a Start"
     [Fact]
@@ -337,20 +314,44 @@ public class SheetConsistencyTests {
         });
     }
 
-    // the chapter rows of 1A and 5A stay out; 8A has no berry before Into the Core
+    // the complete list of what the sheet holds and srs leaves out: a row the
+    // sheet adds, or one that stops being imported, fails here by name. Rows are
+    // every segment of every block of every tab (RawRows), minus SheetRows.All.
+    // "Wake Up" is out for good: its rows time an animation of fixed length
     [Fact]
-    public void LeavesTheBerryRowsWithNoBerriesOut() {
-        Assert.False(SheetRows.TryFind("1a", "ARB IL", out _));
-        Assert.False(SheetRows.TryFind("5a", "ARB IL", out _));
-        Assert.False(SheetRows.TryFind("5a", "ARB Start", out _));
-        Assert.False(SheetRows.TryFind("8a", "ARB Start", out _));
-    }
+    public void LeavesTheNotYetSupportedRowsOut() {
+        HashSet<(StandardsTab, string, string)> imported = SheetRows.All
+            .Select(row => (row.Tab, row.SheetChapter, row.Label)).ToHashSet();
+        string berry = "\U0001F353";
+        // tab/chapter/label
+        string[] expected = [
+            $"Arb/1a {berry}/1a {berry}",
+            $"Arb/1a {berry}/Chasm-2",
+            $"Arb/1a {berry}/Crossing to RTM",
+            $"Arb/1a {berry}/Crossing-2",
+            $"Arb/1a {berry}/Heart to RTM",
+            $"Arb/1a {berry}/Start to RTM",
+            $"Arb/2a {berry}/Wake Up",
+            $"Arb/4a {berry}/Old Trail (to RTM)",
+            $"Arb/5a {berry}/5a {berry}",
+            $"Arb/5a {berry}/5a Start",
+            $"Arb/5a {berry}/Wake Up",
+            $"Arb/7a {berry}/2500m-1",
+            $"Arb/7a {berry}/2500m-2",
+            "ASides/2a CP/Wake Up",
+            "ASides/5a CP/Wake Up",
+            "BSides/5b/Wake Up",
+            "Fc/1afc/1afc",
+            "Fc/1afc/Chasm-2",
+            "Fc/1afc/Crossing to RTM",
+            "Fc/1afc/Heart to RTM",
+            "Fc/5afc/5afc",
+            "Fc/6afc/6afc",
+        ];
+        string[] left = [.. RawRows.Where(row => !imported.Contains(row))
+            .Select(row => $"{row.Item1}/{row.Item2}/{row.Item3}").Order(StringComparer.Ordinal)];
 
-    [Theory]
-    [InlineData("Chapter Times")]
-    [InlineData("Filetime Buffer")]
-    public void LeavesTheSheetsOtherBlocksOut(string chapter) {
-        Assert.DoesNotContain(Fixtures.Imported, segment => segment.Chapter.Contains(chapter));
+        Assert.Equal(expected.Order(StringComparer.Ordinal), left);
     }
 
     // several chapters name a row "Start": the chapter is part of a row's

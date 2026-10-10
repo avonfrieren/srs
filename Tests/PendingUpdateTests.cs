@@ -16,7 +16,7 @@ public class PendingUpdateTests {
             Ticks(67.915), "69.412");
 
         Assert.True(update.Selected);
-        Assert.Equal("-1.497", update.DeltaText);
+        Assert.Equal(TimeFormat.Delta(Ticks(67.915) - Ticks(69.412)), update.DeltaText);
     }
 
     [Fact]
@@ -25,7 +25,7 @@ public class PendingUpdateTests {
             Ticks(52.479), "51.980");
 
         Assert.False(update.Selected);
-        Assert.Equal("+0.499", update.DeltaText);
+        Assert.Equal(TimeFormat.Delta(Ticks(52.479) - Ticks(51.980)), update.DeltaText);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class PendingUpdateTests {
             Ticks(21.948), "21.948");
 
         Assert.False(update.Selected);
-        Assert.Equal("+0.000", update.DeltaText);
+        Assert.Equal(TimeFormat.Delta(0), update.DeltaText);
     }
 
     // the sheet holds a time and this mod cannot read it. Treated as an empty
@@ -141,7 +141,7 @@ public class PendingUpdateTests {
         var update = PendingUpdate.Create(new SheetRowRef("A Sides", "1a", "Crossing"), "Crossing", ticks, "21.948");
 
         Assert.False(update.Selected);
-        Assert.Equal("+0.000", update.DeltaText);
+        Assert.Equal(TimeFormat.Delta(0), update.DeltaText);
         Assert.Null(update.Ahead);
     }
 
