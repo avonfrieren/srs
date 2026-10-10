@@ -18,7 +18,7 @@ internal readonly record struct RowTraits(
 
     // rooms as the game names them. A key no row carries never applies
     // (SheetConsistencyTests checks each one)
-    internal static readonly Dictionary<(string Chapter, string Name), RowTraits> All = new() {
+    internal static readonly Dictionary<(string Scope, string Name), RowTraits> All = new() {
         [("1a", "ARB Start to Heart")] = new(EndsOnHeart: true, Berries: new BerrySet("Start", Rooms: ["6", "s1"])),
         [("1a", "ARB Crossing to Heart")] = new(MapSpawn: true, EndsOnHeart: true, Berries: new BerrySet(Rooms: ["6", "s1"])),
         // 7zb, and 11 and 10zb, belong to the rows that return to the map
@@ -64,5 +64,5 @@ internal readonly record struct RowTraits(
         [("Farewell", "FC No DTS IL")] = new(Berries: BerrySet.MoonBerry, Dashes: 1),
     };
 
-    public static RowTraits Of(string chapter, string name) => All.GetValueOrDefault((chapter, name));
+    public static RowTraits Of(string scope, string name) => All.GetValueOrDefault((scope, name));
 }

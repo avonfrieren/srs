@@ -25,7 +25,7 @@ internal static class SegmentRules {
         for (int i = 0; i < rows.Count; i++) {
             SheetRow row = rows[i];
             (string, string) anchor = (row.Scope, row.Anchor);
-            RowTraits traits = RowTraits.Of(row.Chapter, row.Name);
+            RowTraits traits = RowTraits.Of(row.Scope, row.Name);
             bool berryTab = row.Tab is StandardsTab.Arb or StandardsTab.Fc;
             Collectibles marked = MarkersOf(row.Label) | traits.Requires
                                   | (traits.EndsOnHeart ? Collectibles.Heart : Collectibles.None);
@@ -50,7 +50,7 @@ internal static class SegmentRules {
                 : StartSetup.NextRoom;
 
             rules.Add(new SegmentRule(
-                row.Scope, row.Chapter, row.Name, row.Anchor,
+                row.Scope, row.Name, row.Anchor,
                 SegmentAutoDetect.AfterLaunchStarts.Contains(anchor) ? StartKind.AfterLaunch : StartKind.Room,
                 setup,
                 end,

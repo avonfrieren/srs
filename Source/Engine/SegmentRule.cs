@@ -44,7 +44,7 @@ internal enum EndKind {
 /// How a run of one imported row is detected. Written in game-checkpoint names,
 /// never in rooms: rooms come from AreaData, which only the game thread reads.
 internal sealed record SegmentRule(
-    string Scope, string Chapter, string Name, string Anchor,
+    string Scope, string Name, string Anchor,
     StartKind Start, StartSetup Setup, EndKind End,
     Collectibles EndsOn, Collectibles Requires,
     // 1 or 2 for Farewell's DTS twins, read at the end (a whole chapter: at

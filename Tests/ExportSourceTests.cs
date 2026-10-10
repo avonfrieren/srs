@@ -9,8 +9,8 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 public class ExportSourceTests {
     private static long Ticks(double seconds) => TimeSpan.FromSeconds(seconds).Ticks;
 
-    private static RunBook.Run Run(string scope, string chapter, string name, double seconds) =>
-        new(scope, chapter, name, Ticks(seconds));
+    private static RunBook.Run Run(string scope, string name, double seconds) =>
+        new(scope, name, Ticks(seconds));
 
     // the sheet's order, whatever order the session ran them in, and without
     // the standards: the rows come from srs's own table
@@ -18,7 +18,7 @@ public class ExportSourceTests {
     public void ListsEveryRunInTheSheetsOrder() {
         RemoteBests.Reset();
         List<PendingUpdate> updates = ExportSource.Collect([
-            Run("2a", "2a", "Awake", 40), Run("1a", "1a", "Chasm", 30), Run("1a", "1a", "Start", 20),
+            Run("2a", "Awake", 40), Run("1a", "Chasm", 30), Run("1a", "Start", 20),
         ]);
 
         Assert.Equal(["Start", "Chasm", "Awake"], updates.Select(u => u.Label));
@@ -31,8 +31,8 @@ public class ExportSourceTests {
     public void ListsTheSideBeingPlayedFirst() {
         RemoteBests.Reset();
         RunBook.Run[] runs = [
-            Run("1a", "1a", "Start", 20), Run("2a", "2a", "ARB Start", 70), Run("2a", "2a", "Awake", 40),
-            Run("2b", "2b", "Start", 30), Run("3a", "3a", "Start", 50),
+            Run("1a", "Start", 20), Run("2a", "ARB Start", 70), Run("2a", "Awake", 40),
+            Run("2b", "Start", 30), Run("3a", "Start", 50),
         ];
 
         Assert.Equal(["2a", "2arb", "1a", "3a", "2b"],
@@ -48,8 +48,8 @@ public class ExportSourceTests {
     public void ListsASidesBerryRowsUnderThatSide() {
         RemoteBests.Reset();
         List<PendingUpdate> updates = ExportSource.Collect([
-            Run("2a", "2a", "ARB IL", 150), Run("2a", "2a", "Awake", 40), Run("1a", "1a", "ARB Start", 35),
-            Run("2a", "2a", "ARB Start", 70), Run("1a", "1a", "IL", 100),
+            Run("2a", "ARB IL", 150), Run("2a", "Awake", 40), Run("1a", "ARB Start", 35),
+            Run("2a", "ARB Start", 70), Run("1a", "IL", 100),
         ]);
 
         Assert.Equal(["IL", "Start", "Awake", "Start", "IL"], updates.Select(u => u.Label));
@@ -63,7 +63,7 @@ public class ExportSourceTests {
         RemoteBests.AcceptFresh([
             new RemoteRow { Tab = "A Sides", Band = "checkpoint", Chapter = "1a", Cp = "Crossing", Time = "21.948" },
         ]);
-        PendingUpdate update = Assert.Single(ExportSource.Collect([Run("1a", "1a", "Crossing", 22.5)]));
+        PendingUpdate update = Assert.Single(ExportSource.Collect([Run("1a", "Crossing", 22.5)]));
 
         Assert.False(update.Selected);
         Assert.Equal("21.948", update.RemoteCell);
@@ -77,7 +77,7 @@ public class ExportSourceTests {
             new RemoteRow { Tab = "A Sides", Band = "checkpoint", Chapter = "1a", Cp = "Crossing", Time = "25.000" },
             new RemoteRow { Tab = "A Sides", Band = "il", Chapter = "1a", Cp = "Crossing", Time = "25.000" },
         ]);
-        PendingUpdate update = Assert.Single(ExportSource.Collect([Run("1a", "1a", "Crossing", 20)]));
+        PendingUpdate update = Assert.Single(ExportSource.Collect([Run("1a", "Crossing", 20)]));
 
         Assert.True(update.Duplicate);
         Assert.False(update.Selected);
@@ -86,7 +86,7 @@ public class ExportSourceTests {
     [Fact]
     public void ARunTheTableDoesNotHoldIsLeftOut() {
         RemoteBests.Reset();
-        Assert.Empty(ExportSource.Collect([Run("1a", "1a", "Nowhere", 20)]));
+        Assert.Empty(ExportSource.Collect([Run("1a", "Nowhere", 20)]));
     }
 
     // one chapter cell holds a checkpoint row and the chapter row: two cells, two bands
@@ -99,7 +99,7 @@ public class ExportSourceTests {
             new RemoteRow { Tab = "ARB/Full Clear", Band = "il", Chapter = cell, Cp = cell, Time = "2:50.000" },
         ]);
         List<PendingUpdate> updates = ExportSource.Collect([
-            Run("2a", "2a", "ARB IL", 165), Run("2a", "2a", "ARB Start", 64),
+            Run("2a", "ARB IL", 165), Run("2a", "ARB Start", 64),
         ]);
 
         Assert.Equal(["Start", "IL"], updates.Select(u => u.Label));
@@ -115,10 +115,10 @@ public class ExportSourceTests {
     public void ListsFullClearRowsUnderTheirChapterCell() {
         RemoteBests.Reset();
         List<PendingUpdate> updates = ExportSource.Collect([
-            Run("7a", "7a", "FC IL", 700), Run("7a", "7a", "FC Start", 60), Run("7a", "7a", "ARB Start", 50),
-            Run("7a", "7a", "Start Gem", 40), Run("8a", "8a", "HotM Horizontal Tape", 65),
-            Run("8a", "8a", "ARB IL", 300), Run("Farewell", "Farewell", "FC Moon Berry", 170),
-            Run("Farewell", "Farewell", "Farewell", 160),
+            Run("7a", "FC IL", 700), Run("7a", "FC Start", 60), Run("7a", "ARB Start", 50),
+            Run("7a", "Start Gem", 40), Run("8a", "HotM Horizontal Tape", 65),
+            Run("8a", "ARB IL", 300), Run("Farewell", "FC Moon Berry", 170),
+            Run("Farewell", "Farewell", 160),
         ]);
 
         Assert.Equal(["Start Gem", "Start", "Start", "IL", "HotM Horizontal Tape", "IL", "Farewell", "Moon Berry"],

@@ -38,7 +38,7 @@ public class SheetConsistencyTests {
             .Where(rule => SegmentAutoDetect.EntryRooms.ContainsKey((rule.Scope, rule.Anchor))
                            != (rule.Setup == StartSetup.NextRoom
                                || SegmentAutoDetect.CurrentRoomStarts.Contains((rule.Scope, rule.Anchor))))
-            .Select(rule => $"{rule.Chapter}/{rule.Name}")
+            .Select(rule => $"{rule.Scope}/{rule.Name}")
             .ToList();
         Assert.Empty(wrong);
 
@@ -260,7 +260,7 @@ public class SheetConsistencyTests {
     [Fact]
     public void EveryRowTraitNamesAnImportedRow() {
         Assert.All(RowTraits.All.Keys, key =>
-            Assert.True(SheetRows.TryFind(key.Chapter, key.Name, out _), $"{key.Chapter}/{key.Name}"));
+            Assert.True(SheetRows.TryFind(key.Scope, key.Name, out _), $"{key.Scope}/{key.Name}"));
     }
 
     // the spawn is read from the checkpoint entity of the anchor's own room:
@@ -333,7 +333,6 @@ public class SheetConsistencyTests {
     [Fact]
     public void NoNameRepeatsItsChapter() {
         Assert.All(SheetRows.All, row => {
-            Assert.Equal(row.Scope, row.Chapter);
             Assert.False(row.Name.StartsWith(row.Scope + " ", StringComparison.Ordinal), row.Name);
         });
     }
@@ -362,7 +361,7 @@ public class SheetConsistencyTests {
 
         Assert.True(starts.Count > 1, "the premise: several chapters name a row Start");
         Assert.All(starts, start => {
-            Assert.True(SheetRows.TryFind(start.Chapter, "Start", out SheetRow found));
+            Assert.True(SheetRows.TryFind(start.Scope, "Start", out SheetRow found));
             Assert.Equal(start, found);
         });
     }

@@ -109,7 +109,7 @@ public static class TierComparison {
 
         foreach ((SegmentRecord landed, int serial) in attempt) {
             if ((!sheetTimes.TryGetValue(serial, out var held) || (!held.Resolved && RemoteBests.IsResolved))
-                && block.Find(landed.Rule.Chapter, landed.Rule.Name) is { } row) {
+                && block.Find(landed.Rule.Scope, landed.Rule.Name) is { } row) {
                 sheetTimes[serial] = (RemoteBests.IsResolved, SheetTimeOf(row));
             }
         }
@@ -118,7 +118,7 @@ public static class TierComparison {
         stepsBack = Math.Min(stepsBack, attempt.Count - 1);
         (SegmentRecord record, int shownSerial) = attempt[attempt.Count - 1 - stepsBack];
         if (RunWatcher.LatestSerial == dismissedSerial
-            || block.Find(record.Rule.Chapter, record.Rule.Name) is not { } segment) {
+            || block.Find(record.Rule.Scope, record.Rule.Name) is not { } segment) {
             return;
         }
 

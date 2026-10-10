@@ -7,6 +7,6 @@ namespace Celeste.Mod.SpeedrunSheet.Tests;
 // up by name
 internal static class TestRules {
     public static SegmentRule Find(string chapter, string name) =>
-        SegmentRules.All.FirstOrDefault(rule => rule.Chapter == chapter && rule.Name == name)
+        SegmentRules.All.FirstOrDefault(rule => rule.Scope == chapter && rule.Name == name)
         ?? throw new Exception($"no rule for {chapter}/{name}");
 }

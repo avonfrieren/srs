@@ -12,7 +12,7 @@ internal static class ExportSource {
     public static List<PendingUpdate> Collect(IEnumerable<RunBook.Run> runs, string playing = null) {
         List<((int Side, int Row) Order, PendingUpdate Update)> found = [];
         foreach (RunBook.Run run in runs) {
-            if (!SheetRows.TryFind(run.Chapter, run.Name, out SheetRow sheetRow)) {
+            if (!SheetRows.TryFind(run.Scope, run.Name, out SheetRow sheetRow)) {
                 continue;
             }
 

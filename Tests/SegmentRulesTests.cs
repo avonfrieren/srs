@@ -11,7 +11,7 @@ public class SegmentRulesTests {
 
     // the rule a label alone derives, on a row of no table
     private static SegmentRule Synthetic(string label) =>
-        SegmentRules.Build([new SheetRow(StandardsTab.ASides, "3a CP", label, "3a", "3a", label, "Huge Mess")])[0];
+        SegmentRules.Build([new SheetRow(StandardsTab.ASides, "3a CP", label, "3a", label, "Huge Mess")])[0];
 
     private static readonly HashSet<string> ExpectedCurrentRoomRows = [
         "Prologue/Granny",
@@ -72,7 +72,7 @@ public class SegmentRulesTests {
                 "2a/ARB IL", "3a/ARB IL", "4a/ARB IL", "7a/ARB IL", "8a/ARB IL",
                 "2a/FC IL", "3a/FC IL", "4a/FC IL", "7a/FC IL", "8a/FC IL", "Farewell/FC DTS IL", "Farewell/FC No DTS IL",
             ],
-            SegmentRules.All.Where(r => r.End == EndKind.ChapterEnd).Select(r => $"{r.Chapter}/{r.Name}"));
+            SegmentRules.All.Where(r => r.End == EndKind.ChapterEnd).Select(r => $"{r.Scope}/{r.Name}"));
     }
 
     // an IL starts where its chapter's Start does: 7A's after the launch, with the same head
@@ -92,7 +92,7 @@ public class SegmentRulesTests {
     [Fact]
     public void CurrentRoomRowsAreTheChapterStartsAndTheWakeUps() {
         HashSet<string> currentRoom = SegmentRules.All.Where(r => r.Setup == StartSetup.CurrentRoom)
-            .Select(r => $"{r.Chapter}/{r.Name}").ToHashSet();
+            .Select(r => $"{r.Scope}/{r.Name}").ToHashSet();
 
         Assert.Equal(ExpectedCurrentRoomRows, currentRoom);
     }
@@ -101,7 +101,7 @@ public class SegmentRulesTests {
     public void OneRulePerImportedRow() {
         Assert.Equal(SheetRows.All.Length, SegmentRules.All.Count);
         Assert.Equal(SegmentRules.All.Count,
-            SegmentRules.All.Select(r => (r.Chapter, r.Name)).Distinct().Count());
+            SegmentRules.All.Select(r => (r.Scope, r.Name)).Distinct().Count());
     }
 
     // two rules with the same start, setup, end, requirements and exclusivity could not
@@ -141,7 +141,7 @@ public class SegmentRulesTests {
         Assert.Equal(
             ["1a/ARB Crossing to Heart", "1a/ARB Crossing", "1a/ARB Chasm", "4a/ARB Cliff Face (from RTM)", "5a/ARB Depths",
              "5a/FC Depths", "6a/FC Hollows (from RTM)"],
-            SegmentRules.All.Where(r => r.Setup == StartSetup.MapSpawn).Select(r => $"{r.Chapter}/{r.Name}"));
+            SegmentRules.All.Where(r => r.Setup == StartSetup.MapSpawn).Select(r => $"{r.Scope}/{r.Name}"));
     }
 
     // 7A's heart needs the gems, which the berry route does not take
@@ -151,7 +151,7 @@ public class SegmentRulesTests {
             ["1a/ARB Crossing to Heart", "1a/ARB Start to Heart", "1a/ARB Crossing", "3a/ARB Huge Mess", "4a/ARB Shrine",
              "3a/ARB IL", "4a/ARB IL"],
             SegmentRules.All.Where(r => r.Name.StartsWith("ARB ") && r.Requires == Collectibles.Heart)
-                .Select(r => $"{r.Chapter}/{r.Name}"));
+                .Select(r => $"{r.Scope}/{r.Name}"));
         Assert.All(SegmentRules.All.Where(r => r.Name.StartsWith("ARB ")),
             r => Assert.True(r.Requires is Collectibles.None or Collectibles.Heart));
     }
@@ -349,10 +349,10 @@ public class SegmentRulesTests {
     [Fact]
     public void ADtsTwinSplitsItsRowOnTheDashes() {
         List<SegmentRule> rules = SegmentRules.Build([
-            new SheetRow(StandardsTab.Farewell, "Farewell", "Singular", "Farewell", "Farewell", "Singular", "Singular"),
-            new SheetRow(StandardsTab.Farewell, "Farewell", "Singular DTS", "Farewell", "Farewell", "Singular DTS", "Singular"),
-            new SheetRow(StandardsTab.Farewell, "Farewell", "Stubbornness", "Farewell", "Farewell", "Stubbornness", "Stubbornness"),
-            new SheetRow(StandardsTab.ASides, "1a CP", "Crossing DTS", "1a", "1a", "Crossing DTS", "Crossing"),
+            new SheetRow(StandardsTab.Farewell, "Farewell", "Singular", "Farewell", "Singular", "Singular"),
+            new SheetRow(StandardsTab.Farewell, "Farewell", "Singular DTS", "Farewell", "Singular DTS", "Singular"),
+            new SheetRow(StandardsTab.Farewell, "Farewell", "Stubbornness", "Farewell", "Stubbornness", "Stubbornness"),
+            new SheetRow(StandardsTab.ASides, "1a CP", "Crossing DTS", "1a", "Crossing DTS", "Crossing"),
         ]);
 
         Assert.Equal(new int?[] { 1, 2, null, null }, rules.Select(r => r.Dashes));
@@ -363,8 +363,8 @@ public class SegmentRulesTests {
     public void OnlyTheRcRtmAndToHeartRowsEndEarly() {
         Assert.Equal(
             SheetRows.All.Where(r => r.Label.EndsWith("RTM") || r.Label.EndsWith("RC") || r.Label.EndsWith("to Heart"))
-                .Select(r => $"{r.Chapter}/{r.Name}"),
-            SegmentRules.All.Where(r => r.End is EndKind.Collect or EndKind.Restart).Select(r => $"{r.Chapter}/{r.Name}"));
+                .Select(r => $"{r.Scope}/{r.Name}"),
+            SegmentRules.All.Where(r => r.End is EndKind.Collect or EndKind.Restart).Select(r => $"{r.Scope}/{r.Name}"));
     }
 
     // an IL's "RTM" variant stops at the later collect, not at the chapter's end
@@ -387,7 +387,7 @@ public class SegmentRulesTests {
     // there, and only there
     [Fact]
     public void ABSidesClearIsTheWholeChapter() {
-        SheetRow clear = new(StandardsTab.BSides, "1b", "1b Clear", "1b", "1b", "IL", "Start");
+        SheetRow clear = new(StandardsTab.BSides, "1b", "1b Clear", "1b", "IL", "Start");
 
         Assert.Equal((EndKind.ChapterEnd, true), (SegmentRules.Build([clear])[0].End, SegmentRules.Build([clear])[0].ChapterRun));
         Assert.Equal((EndKind.NextStart, false), (Synthetic("1b Clear").End, Synthetic("1b Clear").ChapterRun));
